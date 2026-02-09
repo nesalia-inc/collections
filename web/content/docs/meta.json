@@ -2,9 +2,11 @@
   "docs": {
     "title": "Documentation",
     "pages": [
+      "---Introduction---",
       "index",
       "what-is",
       "comparison",
+      "---Collections---"
       "core-concepts",
       "field-types",
       "collections",

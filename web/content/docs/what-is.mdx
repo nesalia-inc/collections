@@ -1,0 +1,119 @@
+---
+title: What is Collections
+description: Understanding the Collections data modeling layer
+---
+
+# What is Collections
+
+`@deessejs/collections` is a functional-first data modeling layer built on top of Drizzle ORM. It provides type-safe collections, native internationalization, a powerful plugin system, and auto-generated APIs.
+
+## The Problem
+
+Building data-intensive applications requires handling many concerns:
+
+- **Data Modeling**: Defining schemas, relationships, and validation rules
+- **Type Safety**: Ensuring TypeScript types match your database schema
+- **Validation**: Runtime validation for user input
+- **Internationalization**: Translating labels, error messages, and content
+- **API Generation**: Creating CRUD endpoints for your collections
+- **Cross-Cutting Concerns**: Caching, versioning, soft delete, SEO metadata
+
+Traditional ORMs and query builders handle database operations well, but leave you to build everything else yourself.
+
+## The Solution
+
+Collections provides a complete data modeling layer that addresses all these concerns:
+
+### Type-Safe by Default
+
+Every collection is fully typed. TypeScript infers types from your field definitions, giving you autocomplete and type safety everywhere.
+
+```ts
+// TypeScript knows user has name: string and email: string
+const user = await collections.users.findUnique({
+  where: { id: 1 }
+})
+
+user.name // ✅ Type-safe
+user.age // ❌ Type error
+```
+
+### Functional-First Design
+
+Everything is a composable function. Fields, collections, plugins—all built from simple, reusable pieces.
+
+```ts
+field({ type: text({ min: 3, max: 255 }) })
+
+collection({
+  slug: 'posts',
+  fields: { ... }
+})
+
+defineConfig({
+  collections: [posts],
+  plugins: [cachePlugin(), versioningPlugin()]
+})
+```
+
+### Native i18n
+
+Translate labels, descriptions, validation messages, and enum values without external i18n libraries.
+
+```ts
+label: {
+  en: 'Blog Post',
+  fr: 'Article de Blog',
+  es: 'Artículo de Blog'
+}
+```
+
+### Plugin System
+
+Extend functionality with plugins that can add fields, collections, field types, hooks, and operations.
+
+```ts
+defineConfig({
+  plugins: [
+    softDeletePlugin({ collections: ['posts'] }),
+    seoPlugin({ collections: ['posts', 'pages'] }),
+    cachePlugin({ collections: ['posts', 'users'] })
+  ]
+})
+```
+
+### Auto-Generated APIs
+
+Generate Hono APIs automatically from your collections.
+
+```ts
+// Generates CRUD routes for all collections
+export const api = generateAPI(collections)
+```
+
+## What Collections Is Not
+
+Collections is not:
+
+- A full-stack framework like Next.js or Remix
+- An admin UI generator like Payload CMS or Strapi
+- A replacement for Drizzle ORM—you still use Drizzle for raw queries when needed
+
+Instead, Collections is the **data modeling layer** that sits between your application code and Drizzle ORM, providing a richer, more productive API for working with your data.
+
+## When to Use Collections
+
+Collections is ideal when:
+
+- You're building data-intensive applications with complex schemas
+- You need type safety across your entire data layer
+- You require native internationalization support
+- You want to extend functionality through plugins
+- You prefer functional, composable APIs over class-based ORMs
+- You're already using Drizzle ORM and want a higher-level abstraction
+
+## Next Steps
+
+- [Getting Started](/docs/getting-started) - Install and create your first collection
+- [Comparison](/docs/comparison) - See how Collections compares to alternatives
+- [Core Concepts](/docs/core-concepts) - Deep dive into configuration, collections, and fields

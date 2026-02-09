@@ -2,7 +2,9 @@
   "docs": {
     "title": "Documentation",
     "pages": [
-      "getting-started",
+      "index",
+      "what-is",
+      "comparison",
       "core-concepts",
       "field-types",
       "collections",

@@ -1,0 +1,137 @@
+---
+title: Comparison
+description: How Collections compares to other solutions
+---
+
+# Comparison
+
+See how `@deessejs/collections` compares to other data modeling solutions.
+
+## Collections vs Drizzle ORM
+
+| Feature | Drizzle ORM | Collections |
+|---------|-------------|-------------|
+| Type Safety | ✅ | ✅ Enhanced |
+| Schema Definition | Manual | Automatic from fields |
+| Validation | Zod (manual) | Built-in with field types |
+| Relations | Manual | Declarative with reverse relations |
+| i18n | ❌ | ✅ Native support |
+| Plugins | ❌ | ✅ Built-in plugin system |
+| API Generation | ❌ | ✅ Auto-generated Hono APIs |
+| Hooks | ❌ | ✅ Lifecycle hooks |
+| Learning Curve | Medium | Low |
+
+**Key Difference**: Collections is a higher-level abstraction built on Drizzle ORM. You still get Drizzle's performance and query flexibility, but with a richer API for defining collections, validation, i18n, and plugins.
+
+**Use Drizzle ORM when**: You want full control and minimal abstraction.
+
+**Use Collections when**: You want productivity features like plugins, i18n, and auto-generated APIs on top of Drizzle.
+
+## Collections vs Prisma
+
+| Feature | Prisma | Collections |
+|---------|--------|-------------|
+| Type Safety | ✅ | ✅ |
+| Schema Language | Custom `.prisma` file | TypeScript + Zod |
+| Validation | Built-in | Built-in with Zod |
+| Relations | ✅ | ✅ |
+| i18n | ❌ | ✅ Native support |
+| Plugins | ❌ | ✅ Built-in plugin system |
+| Migrations | ✅ Custom | Via Drizzle Kit |
+| Database Support | Many | Postgres, MySQL, SQLite (via Drizzle) |
+| Performance | Good | Excellent (no query engine overhead) |
+
+**Key Difference**: Prisma uses a custom schema language and requires a query engine. Collections uses TypeScript and Zod for schemas, giving you better IDE integration and no runtime overhead.
+
+**Use Prisma when**: You prefer a custom schema language and don't need i18n or plugins.
+
+**Use Collections when**: You want TypeScript-native schemas, i18n, and plugins.
+
+## Collections vs Payload CMS
+
+| Feature | Payload CMS | Collections |
+|---------|-------------|-------------|
+| Data Modeling | ✅ | ✅ |
+| Admin UI | ✅ Full-featured | ❌ Not included |
+| Type Safety | ✅ | ✅ |
+| i18n | ✅ | ✅ Native |
+| Plugins | ✅ | ✅ |
+| API Generation | ✅ Express/Koa | ✅ Hono |
+| Database | MongoDB/Postgres | Postgres/MySQL/SQLite |
+| Framework Agnostic | ❌ Requires Node server | ✅ Works with any runtime |
+| Bundle Size | Larger | Smaller (functional-first) |
+
+**Key Difference**: Payload CMS is a full headless CMS with an admin UI. Collections is the data modeling layer only—you bring your own frontend.
+
+**Use Payload CMS when**: You need a complete CMS with an admin UI out of the box.
+
+**Use Collections when**: You want data modeling and API generation without the admin UI overhead, or you want to build a custom admin interface.
+
+## Collections vs TypeORM
+
+| Feature | TypeORM | Collections |
+|---------|---------|-------------|
+| Type Safety | ✅ Decorators | ✅ TypeScript |
+| Schema Definition | Decorators | Functional API |
+| Validation | Manual with class-validator | Built-in with Zod |
+| Relations | ✅ | ✅ |
+| i18n | ❌ | ✅ Native support |
+| Plugins | ❌ Listeners/subscribers | ✅ Full plugin system |
+| Performance | Medium | Excellent (no decorators overhead) |
+| TypeScript Inference | Good | Perfect (Zod-driven) |
+
+**Key Difference**: TypeORM uses decorators and classes. Collections uses functional composition and TypeScript objects, giving better tree-shaking and type inference.
+
+**Use TypeORM when**: You prefer Object-Oriented patterns with decorators.
+
+**Use Collections when**: You prefer functional composition and better type inference.
+
+## Collections vs tRPC
+
+| Feature | tRPC | Collections |
+|---------|------|-------------|
+| Type Safety | ✅ End-to-end | ✅ Data layer |
+| API Definition | Procedural | Collection-based |
+| Validation | Zod (manual) | Built-in with field types |
+| Database Layer | You choose | Drizzle ORM |
+| i18n | ❌ | ✅ Native support |
+| Data Modeling | ❌ | ✅ |
+
+**Key Difference**: tRPC is for type-safe APIs between frontend and backend. Collections is for modeling your data layer with i18n and plugins.
+
+**Use Both Together**: Collections provides the data modeling and CRUD operations, tRPC provides the type-safe API layer. They work great together.
+
+```ts
+// Collections: Data modeling
+const { collections } = defineConfig({
+  database: { url: process.env.DATABASE_URL! },
+  collections: [users, posts]
+})
+
+// tRPC: Type-safe API layer
+export const appRouter = router({
+  users: {
+    list: t.procedure.query(() => collections.users.findMany()),
+    create: t.procedure.input(z.object({ name: z.string() }))
+      .mutation(({ input }) => collections.users.create({ data: input }))
+  }
+})
+```
+
+## Summary
+
+**Choose Collections if you want:**
+
+- Type-safe data modeling on top of Drizzle ORM
+- Native internationalization support
+- A powerful plugin system for extending functionality
+- Auto-generated APIs
+- Functional, composable APIs
+
+**Collections sits in a sweet spot**: More productive than raw Drizzle, lighter than Payload CMS, more TypeScript-native than Prisma, and more focused than tRPC.
+
+## Next Steps
+
+- [What is Collections](/docs/what-is) - Learn more about Collections
+- [Getting Started](/docs/getting-started) - Install and create your first collection
+- [Core Concepts](/docs/core-concepts) - Deep dive into the architecture

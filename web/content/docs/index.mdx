@@ -1,13 +1,105 @@
 ---
-title: Hello World
-description: Your first document
+title: Getting Started
+description: Get up and running with Collections in minutes
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+# Getting Started
 
-## What is Next?
+Get up and running with `@deessejs/collections` in minutes.
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+## Installation
+
+Install the required dependencies:
+
+```bash
+npm install @deessejs/collections drizzle-orm zod
+```
+
+## Your First Collection
+
+Create your first collection in a dedicated file:
+
+```ts
+// collections/users.ts
+import { collection, field } from '@deessejs/collections'
+import { text, email } from '@deessejs/collections/fields'
+
+export const users = collection({
+  slug: 'users',
+
+  label: 'User',
+  plural: 'Users',
+
+  fields: {
+    name: field({
+      type: text({ min: 2, max: 100 }),
+      label: 'Name'
+    }),
+    email: field({
+      type: email(),
+      unique: true,
+      label: 'Email'
+    })
+  }
+})
+```
+
+## Configuration
+
+Set up your database and collections:
+
+```ts
+// config/database.ts
+import { defineConfig } from '@deessejs/collections'
+import { users } from '../collections/users'
+
+export const { collections, db } = defineConfig({
+  database: {
+    url: process.env.DATABASE_URL!
+  },
+
+  collections: [users]
+})
+```
+
+## Generate Migrations
+
+Generate and run your database migrations:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+## Start Using Collections
+
+Now you can use your collections with full type safety:
+
+```ts
+// Create a user
+const user = await collections.users.create({
+  data: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+})
+
+// Find users
+const users = await collections.users.findMany({
+  where: {
+    email: { equals: 'john@example.com' }
+  }
+})
+
+// Update a user
+await collections.users.update({
+  where: { id: user.id },
+  data: { name: 'Jane Doe' }
+})
+```
+
+## Next Steps
+
+- [Core Concepts](/docs/core-concepts) - Learn about configuration, collections, and fields
+- [Field Types](/docs/field-types) - Explore available field types
+- [Collections](/docs/collections) - Advanced features like relations and hooks

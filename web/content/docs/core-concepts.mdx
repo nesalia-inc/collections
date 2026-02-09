@@ -1,0 +1,224 @@
+---
+title: Core Concepts
+description: Understanding configuration, collections, and fields
+---
+
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+import { Layers, Database, Type } from 'lucide-react';
+
+# Core Concepts
+
+Understanding the fundamental building blocks of `@deessejs/collections`: configuration, collections, and fields.
+
+<Cards>
+  <Card icon={<Layers />} href="#configuration">
+    Configuration with defineConfig
+  </Card>
+  <Card icon={<Database />} href="#collections">
+    Collections as domain models
+  </Card>
+  <Card icon={<Type />} href="#fields">
+    Fields with Zod + Drizzle
+  </Card>
+</Cards>
+
+## Configuration
+
+All applications start with a `defineConfig` function that defines your entire data layer.
+
+### Basic Configuration
+
+```ts
+import { defineConfig } from '@deessejs/collections'
+import { users, posts } from '../collections'
+
+export const { collections, db } = defineConfig({
+  database: {
+    url: process.env.DATABASE_URL!
+  },
+
+  collections: [users, posts],
+
+  plugins: [
+    // Global plugins applied to all collections
+  ]
+})
+```
+
+### What defineConfig Returns
+
+The `defineConfig` function returns a runtime object with:
+
+- **collections**: Fully typed object with all your collections
+- **db**: The underlying Drizzle instance for raw queries
+
+```ts
+const { collections, db } = defineConfig({...})
+
+// Collections provide typed operations
+collections.users.findMany()
+collections.posts.create({ data: {...} })
+
+// db for raw Drizzle queries when needed
+import { users } from './schema'
+await db.select().from(users)
+```
+
+## Collections
+
+Collections are the primary way to organize and interact with your data. Each collection represents a domain concept.
+
+### File-Based Collections
+
+Collections are defined in their own files:
+
+```ts
+// collections/posts.ts
+export const posts = collection({
+  slug: 'posts',
+
+  // Human-readable info
+  label: 'Blog Posts',
+  plural: 'Posts',
+
+  fields: {
+    title: field({ type: text() }),
+    content: field({ type: text() })
+  }
+})
+```
+
+### Collection Object Syntax
+
+Collections use object syntax, not positional parameters:
+
+```ts
+// ✅ Correct - object syntax
+collection({
+  slug: 'posts',
+  fields: { ... }
+})
+
+// ❌ Not supported - positional parameters
+collection('posts', { ... })
+```
+
+### What Collections Provide
+
+```ts
+// Collection name becomes a property
+collections.posts.findMany()
+collections.users.findMany()
+
+// Automatic operations
+.findMany()
+.findUnique({ where: { id: 1 } })
+.findFirst({ where: { ... } })
+.create({ data: { ... } })
+.update({ where: { id: 1 }, data: { ... } })
+.delete({ where: { id: 1 } })
+.count({ where: { ... } })
+```
+
+### Collection Composition
+
+Collections compose from:
+
+- **Fields**: Data structure
+- **Hooks**: Behavior at operation boundaries
+- **Plugins**: Extensions and cross-cutting concerns
+- **Validation**: Data integrity rules
+
+```ts
+export const posts = collection({
+  slug: 'posts',
+
+  fields: { ... },
+
+  hooks: {
+    beforeCreate: [async ({ data }) => {
+      data.slug = slugify(data.title)
+    }]
+  },
+
+  plugins: [
+    slugPlugin({ from: 'title' })
+  ]
+})
+```
+
+## Fields
+
+Fields are the atomic units of your data model. They define what data your collections contain.
+
+### Field Definition Syntax
+
+Fields use object syntax within the `fields` property:
+
+```ts
+fields: {
+  // ✅ Correct - object syntax
+  title: field({
+    type: text({ min: 3, max: 255 })
+  }),
+
+  // ❌ Not supported - array syntax
+  // [field({ type: text() })]
+}
+```
+
+### Field Type Structure
+
+Each field is created with `field()` and a field type:
+
+```ts
+field({
+  type: text({ min: 3, max: 255 })
+})
+```
+
+Field types combine:
+- **Zod schema**: For validation and TypeScript types
+- **Drizzle column**: For database mapping
+
+## Type Inference
+
+Types are automatically inferred from your field definitions:
+
+```ts
+export const posts = collection({
+  slug: 'posts',
+
+  fields: {
+    title: field({ type: text() }),
+    views: field({ type: number() }),
+    published: field({ type: boolean() })
+  }
+})
+
+// TypeScript automatically infers:
+// type Post = {
+//   id: number
+//   title: string
+//   views: number
+//   published: boolean
+//   createdAt: Date
+//   updatedAt: Date
+// }
+```
+
+This means:
+- ✅ Zero manual type definitions
+- ✅ Autocomplete everywhere
+- ✅ Type-safe queries
+- ✅ Refactoring confidence
+
+<Callout type="info">
+  <strong>File Organization:</strong> While you can define collections inline in <code>defineConfig</code>, the recommended approach is file-based collections for better organization and maintainability.
+</Callout>
+
+## Next Steps
+
+- **[Field Types](/docs/field-types)** - Explore built-in and custom field types
+- **[Collections Deep Dive](/docs/collections)** - Learn about relations, hooks, and plugins
+- **[i18n](/docs/i18n)** - Internationalization support

@@ -1,0 +1,328 @@
+---
+title: Plugins
+description: Extend functionality with native and custom plugins
+---
+
+import { Puzzle, Package, Zap } from 'lucide-react';
+
+# Plugins
+
+The plugin system allows you to extend collections, add field types, create new collections, and inject behaviors.
+
+<Cards>
+  <Card icon={<Zap />} href="#native-plugins">
+    Built-in plugins
+  </Card>
+  <Card icon={<Puzzle />} href="#creating-plugins">
+    Creating custom plugins
+  </Card>
+  <Card icon={<Package />} href="#plugin-apis">
+    Plugin capabilities
+  </Card>
+</Cards>
+
+## Plugin Configuration
+
+Plugins are defined at configuration level, not per collection:
+
+```ts
+// config/database.ts
+import { defineConfig } from '@deessejs/collections'
+import {
+  versioningPlugin,
+  cachePlugin,
+  softDeletePlugin,
+  seoPlugin
+} from '@deessejs/collections/plugins'
+
+export const { collections } = defineConfig({
+  database: { url: process.env.DATABASE_URL! },
+
+  plugins: [
+    // Apply to specific collections
+    versioningPlugin({
+      collections: ['posts', 'pages'],
+      maxVersions: 50
+    }),
+
+    cachePlugin({
+      collections: ['posts', 'users'],
+      strategy: 'smart'
+    }),
+
+    softDeletePlugin({
+      collections: ['posts', 'comments']
+    }),
+
+    seoPlugin({
+      collections: ['posts', 'pages'],
+      preset: 'advanced'
+    })
+  ],
+
+  collections: [posts, users, comments]
+})
+```
+
+## Native Plugins
+
+Built-in plugins for common use cases.
+
+### Versioning Plugin
+
+Track all changes to records:
+
+```ts
+versioningPlugin({
+  collections: ['posts', 'pages'],
+  maxVersions: 50,
+  userField: 'authorId'
+})
+```
+
+**Adds:**
+- `postsVersions` collection
+- Operations: `getVersions()`, `restoreVersion()`, `compareVersions()`
+
+### Cache Plugin
+
+Intelligent caching layer:
+
+```ts
+cachePlugin({
+  collections: ['posts', 'users'],
+  strategy: 'smart',
+  ttl: 600
+})
+```
+
+**Strategies:** `lru`, `ttl`, `smart`, `redis`
+
+### Soft Delete Plugin
+
+Safe deletion with recovery:
+
+```ts
+softDeletePlugin({
+  collections: ['posts', 'comments'],
+  cascade: ['comments'],
+  allowPermanentDelete: true
+})
+```
+
+**Adds fields:** `deletedAt`, `deletedBy`
+**Operations:** `restore()`, `trash()`, `emptyTrash()`
+
+### SEO Plugin
+
+Search engine optimization:
+
+```ts
+seoPlugin({
+  collections: ['posts', 'pages'],
+  preset: 'advanced',
+  generateFrom: {
+    metaTitle: 'title',
+    metaDescription: 'content'
+  }
+})
+```
+
+**Presets:** `basic`, `advanced`, `full`
+
+**Adds fields:** `metaTitle`, `metaDescription`, `ogTitle`, `canonicalUrl`, `structuredData`, etc.
+
+## Plugin Capabilities
+
+Plugins can do powerful things:
+
+### 1. Add Fields to Collections
+
+```ts
+const timestampsPlugin = () => ({
+  name: 'timestamps',
+  fields: {
+    createdAt: field({ type: timestamp() }),
+    updatedAt: field({ type: timestamp() })
+  }
+})
+```
+
+### 2. Add Field Types Globally
+
+```ts
+const customFieldsPlugin = () => ({
+  name: 'custom-fields',
+  fieldTypes: {
+    slug: fieldType({ schema: z.string(), database: pgText() }),
+    phone: fieldType({ schema: z.string(), database: pgText() })
+  }
+})
+```
+
+### 3. Add New Collections
+
+```ts
+const auditLogPlugin = () => ({
+  name: 'audit-log',
+  collections: [
+    collection('auditLogs', {
+      fields: {
+        action: field({ type: enumField(['create', 'update']) }),
+        entity: field({ type: text() })
+      }
+    })
+  ]
+})
+```
+
+### 4. Add Hooks
+
+```ts
+const searchIndexPlugin = () => ({
+  name: 'search-index',
+  hooks: {
+    afterCreate: [async ({ result, collection }) => {
+      await searchEngine.index({
+        collection: collection.slug,
+        id: result.id,
+        data: result
+      })
+    }]
+  }
+})
+```
+
+### 5. Extend Collections Conditionally
+
+```ts
+const softDeletePlugin = () => ({
+  name: 'soft-delete',
+  extend: (collection) => {
+    if (collection.options?.softDelete !== true) return {}
+
+    return {
+      fields: {
+        deletedAt: field({ type: timestamp().nullable() })
+      }
+    }
+  }
+})
+```
+
+## Creating Custom Plugins
+
+Create plugins with the same power as built-ins.
+
+### Basic Plugin Structure
+
+```ts
+// plugins/my-plugin.ts
+export const myPlugin = (options = {}) => ({
+  name: 'my-plugin',
+
+  // Add collections
+  collections: [],
+
+  // Add field types
+  fieldTypes: {},
+
+  // Add fields to existing collections
+  fields: {},
+
+  // Add hooks
+  hooks: {},
+
+  // Initialize
+  init: ({ config, collections }) => {
+    // Called when plugin loads
+  }
+})
+```
+
+### Plugin with Options
+
+```ts
+export const slugPlugin = (options: {
+  from: string
+  separator?: string
+  unique?: boolean
+}) => ({
+  name: 'slug',
+
+  fields: {
+    slug: field({
+      type: text({ unique: options.unique }),
+      computed: {
+        from: [options.from],
+        compute: ({ [options.from]: value }) => {
+          return slugify(value, options.separator)
+        }
+      }
+    })
+  }
+})
+```
+
+### Plugin with Presets
+
+```ts
+export const seoPlugin = (preset: 'basic' | 'advanced' = 'basic') => ({
+  name: 'seo',
+
+  fields: preset === 'advanced' ? {
+    metaTitle: field({ type: text() }),
+    metaDescription: field({ type: text() }),
+    canonicalUrl: field({ type: text() }),
+    structuredData: field({ type: json() })
+  } : {
+    metaTitle: field({ type: text() }),
+    metaDescription: field({ type: text() })
+  }
+})
+```
+
+## Plugin Composition
+
+Multiple plugins compose cleanly:
+
+```ts
+export const { collections } = defineConfig({
+  plugins: [
+    timestampsPlugin(),        // Runs first
+    softDeletePlugin(),         // Adds deletedAt
+    versioningPlugin(),         // Tracks changes (including deletedAt)
+    cachePlugin()               // Caches final results
+  ]
+})
+```
+
+## Per-Collection Configuration
+
+Plugins can apply different settings per collection:
+
+```ts
+cachePlugin({
+  collections: ['posts', 'comments', 'users'],
+
+  config: {
+    posts: {
+      ttl: 600,      // Cache longer
+      strategy: 'smart'
+    },
+    comments: {
+      ttl: 60,       // Cache shorter
+      strategy: 'lru'
+    }
+  }
+})
+```
+
+<Callout type="info">
+  <strong>Plugins are defined at config level:</strong> Unlike collection hooks or fields, plugins are configured in <code>defineConfig</code> and can selectively apply to specific collections using the <code>collections</code> option.
+</Callout>
+
+## Next Steps
+
+- **[i18n](/docs/i18n)** - Internationalization support
+- **[Examples](/docs/examples)** - Real-world usage examples

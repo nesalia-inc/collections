@@ -1,0 +1,261 @@
+---
+title: Field Types
+description: Building blocks for your data model with Zod and Drizzle
+---
+
+import { CodeBlock } from 'fumadocs-ui/components/codeblock';
+import { Type, Puzzle, Zap } from 'lucide-react';
+
+# Field Types
+
+Field types are the building blocks of your data model. Each field type combines a Zod schema for validation/types with a Drizzle column for database mapping.
+
+<Cards>
+  <Card icon={<Type />} href="#the-structure">
+    Zod + Drizzle combination
+  </Card>
+  <Card icon={<Puzzle />} href="#built-in-types">
+    Built-in field types
+  </Card>
+  <Card icon={<Zap />} href="#custom-types">
+    Creating custom field types
+  </Card>
+</Cards>
+
+## The Structure
+
+All field types are built with `fieldType()`:
+
+```ts
+import { fieldType } from '@deessejs/collections'
+import { z } from 'zod'
+import { pgText } from 'drizzle-orm/pg-core'
+
+const myType = fieldType({
+  schema: z.string().min(3).max(255),  // Zod schema
+  database: pgText()                     // Drizzle column
+})
+```
+
+This creates a reusable field type function:
+
+```ts
+field({
+  type: myType()
+})
+```
+
+### Why This Combination?
+
+<Steps>
+<Step>
+### Zod Schema
+
+- Runtime validation
+- TypeScript type inference
+- Rich validation rules
+- Error messages
+
+</Step>
+<Step>
+### Drizzle Column
+
+- Database schema mapping
+- Type-safe queries
+- Migration generation
+- SQL dialect support
+
+</Step>
+</Steps>
+
+## Built-in Field Types
+
+The library includes common field types out of the box.
+
+### Text
+
+```ts
+import { text } from '@deessejs/collections/fields'
+
+fields: {
+  name: field({ type: text() }),
+  username: field({ type: text({ min: 3, max: 30 }) }),
+  email: field({ type: text({ unique: true }) })
+}
+```
+
+### Number
+
+```ts
+import { number } from '@deessejs/collections/fields'
+
+fields: {
+  age: field({ type: number() }),
+  price: field({ type: number({ decimal: true }) }),
+  rating: field({ type: number({ min: 1, max: 5 }) })
+}
+```
+
+### Email & URL
+
+```ts
+import { email, url } from '@deessejs/collections/fields'
+
+fields: {
+  email: field({ type: email() }),
+  website: field({ type: url() })
+}
+```
+
+### Boolean & Date
+
+```ts
+import { boolean, timestamp } from '@deessejs/collections/fields'
+
+fields: {
+  isActive: field({ type: boolean() }),
+  createdAt: field({ type: timestamp() })
+}
+```
+
+### Enum
+
+```ts
+import { enumField } from '@deessejs/collections/fields'
+
+fields: {
+  status: field({
+    type: enumField(['draft', 'published', 'archived'])
+  })
+}
+```
+
+### Array & JSON
+
+```ts
+import { array, json } from '@deessejs/collections/fields'
+import { z } from 'zod'
+
+fields: {
+  tags: field({ type: array(z.string()) }),
+
+  metadata: field({
+    type: json(z.object({
+      theme: z.enum(['light', 'dark']),
+      notifications: z.boolean()
+    }))
+  })
+}
+```
+
+## Creating Custom Field Types
+
+Anyone can create field types with the same power as the built-ins.
+
+### Basic Custom Type
+
+```ts
+// fields/slug.ts
+import { fieldType } from '@deessejs/collections'
+import { z } from 'zod'
+import { pgText } from 'drizzle-orm/pg-core'
+
+export const slug = fieldType({
+  schema: z.string()
+    .regex(/^[a-z0-9-]+$/)
+    .min(3)
+    .max(100),
+
+  database: pgText(),
+
+  config: {
+    unique: () => ({ database: pgText().unique() })
+  }
+})
+```
+
+### Parameterized Types
+
+```ts
+// fields/range.ts
+export const range = (min: number, max: number) => fieldType({
+  schema: z.number()
+    .min(min)
+    .max(max),
+
+  database: pgNumeric()
+})
+
+// Usage
+fields: {
+  price: field({ type: range(0, 1000) }),
+  quantity: field({ type: range(1, 100) })
+}
+```
+
+### Wrapping Existing Types
+
+```ts
+// fields/verified-email.ts
+import { email } from './email'
+
+export const verifiedEmail = email.extend({
+  config: {
+    verified: () => ({
+      schema: z.string().email().refine(
+        async (email) => await checkEmailVerified(email),
+        'Email must be verified'
+      )
+    })
+  }
+})
+```
+
+## Field Modifiers
+
+Fields can be modified with helper functions:
+
+```ts
+fields: {
+  email: field({
+    type: email()
+  })
+    .required()
+    .unique()
+    .indexed()
+}
+```
+
+### Available Modifiers
+
+- `.required()` - Field cannot be null
+- `.unique()` - Add unique constraint
+- `.indexed()` - Add database index
+- `.default(value)` - Set default value
+- `.validate(fn)` - Add custom validation
+
+## Relations
+
+Fields can reference other collections:
+
+```ts
+fields: {
+  authorId: field({
+    type: relation('users')
+  }),
+
+  posts: field({
+    type: relation('posts', { many: true })
+  })
+}
+```
+
+<Callout type="info">
+  <strong>Field Types are Extensible:</strong> The <code>fieldType</code> function is the foundation for all field types. Built-in types use it, and you can use it to create your own. See the plugin system for more advanced patterns.
+</Callout>
+
+## Next Steps
+
+- **[Collections Deep Dive](/docs/collections)** - Advanced collection features
+- **[Plugins](/docs/plugins)** - Extend with plugins
+- **[i18n](/docs/i18n)** - Internationalization

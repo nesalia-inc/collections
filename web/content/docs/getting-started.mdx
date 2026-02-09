@@ -1,0 +1,166 @@
+---
+title: Getting Started
+description: Get up and running with @deessejs/collections in minutes
+---
+
+import { Install, CodeBlock } from 'fumadocs-ui/components/codeblock';
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+import { Check, Zap } from 'lucide-react';
+
+# Getting Started
+
+Get up and running with `@deessejs/collections` in minutes. A functional-first data modeling layer built on Drizzle ORM with full TypeScript support.
+
+## What You'll Learn
+
+- How to install and configure the library
+- Create your first collection
+- Set up the configuration
+- Run your first queries
+
+## Installation
+
+<Install>
+npm i @deessejs/collections drizzle-orm zod
+</Install>
+
+## Project Structure
+
+<Files>
+  <Folder name="collections" defaultOpen>
+    <File name="users.ts" />
+    <File name="posts.ts" />
+  </Folder>
+  <File name="config" />
+  <File name="config.ts" />
+</Files>
+
+## Define Your First Collection
+
+Collections are defined as separate files that export a collection definition:
+
+```ts
+// collections/users.ts
+import { collection } from '@deessejs/collections'
+import { field, text, email } from '@deessejs/collections/fields'
+
+export const users = collection({
+  slug: 'users',
+
+  fields: {
+    name: field({
+      type: text({ min: 2, max: 100 })
+    }),
+
+    email: field({
+      type: email(),
+      unique: true
+    })
+  }
+})
+```
+
+## Create Another Collection
+
+```ts
+// collections/posts.ts
+import { collection } from '@deessejs/collections'
+import { field, text, enumField } from '@deessejs/collections/fields'
+
+export const posts = collection({
+  slug: 'posts',
+
+  fields: {
+    title: field({
+      type: text({ min: 3, max: 255 })
+    }),
+
+    content: field({
+      type: text()
+    }),
+
+    status: field({
+      type: enumField(['draft', 'published', 'archived'])
+    })
+  }
+})
+```
+
+## Configure Your Application
+
+```ts
+// config/database.ts
+import { defineConfig } from '@deessejs/collections'
+import { users } from '../collections/users'
+import { posts } from '../collections/posts'
+
+export const { collections, db } = defineConfig({
+  database: {
+    url: process.env.DATABASE_URL!
+  },
+
+  collections: [users, posts]
+})
+```
+
+## Start Querying
+
+```ts
+// Anywhere in your app
+import { collections } from './config/database'
+
+// Find all users
+const allUsers = await collections.users.findMany()
+
+// Find a specific user
+const user = await collections.users.findUnique({
+  where: { id: 1 }
+})
+
+// Create a new post
+const post = await collections.posts.create({
+  data: {
+    title: 'Hello World',
+    content: 'My first post',
+    status: 'draft'
+  }
+})
+
+// Update a post
+const updated = await collections.posts.update({
+  where: { id: 1 },
+  data: {
+    title: 'Updated Title'
+  }
+})
+```
+
+## Type Safety
+
+Everything is fully typed based on your collection definitions:
+
+```ts
+const user = await collections.users.findUnique({
+  where: { id: 1 }
+})
+
+// TypeScript knows:
+// - user.name is a string
+// - user.email is a string
+// - user is typed as User | null
+
+if (user) {
+  console.log(user.name) // ✅ Fully typed
+}
+```
+
+<Callout type="success" icon={<Check />}>
+  <strong>You're ready!</strong> Check out <a href="/docs/core-concepts">Core Concepts</a> to learn more about collections, fields, and type inference.
+</Callout>
+
+## Next Steps
+
+- **[Core Concepts](/docs/core-concepts)** - Learn about configuration, collections, and fields
+- **[Field Types](/docs/field-types)** - Explore built-in and custom field types
+- **[Collections Deep Dive](/docs/collections)** - Advanced collection features
+- **[Plugins](/docs/plugins)** - Extend with native and custom plugins

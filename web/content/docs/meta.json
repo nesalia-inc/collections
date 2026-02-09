@@ -1,0 +1,18 @@
+{
+  "docs": {
+    "title": "Documentation",
+    "pages": [
+      "getting-started",
+      "core-concepts",
+      "field-types",
+      {
+        "title": "Advanced",
+        "pages": [
+          "collections",
+          "plugins",
+          "i18n"
+        ]
+      }
+    ]
+  }
+}

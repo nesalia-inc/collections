@@ -5,14 +5,9 @@
       "getting-started",
       "core-concepts",
       "field-types",
-      {
-        "title": "Advanced",
-        "pages": [
-          "collections",
-          "plugins",
-          "i18n"
-        ]
-      }
+      "collections",
+      "plugins",
+      "i18n"
     ]
   }
 }

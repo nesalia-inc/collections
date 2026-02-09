@@ -3,24 +3,9 @@ title: Core Concepts
 description: Understanding configuration, collections, and fields
 ---
 
-import { File, Folder, Files } from 'fumadocs-ui/components/files';
-import { Layers, Database, Type } from 'lucide-react';
-
 # Core Concepts
 
 Understanding the fundamental building blocks of `@deessejs/collections`: configuration, collections, and fields.
-
-<Cards>
-  <Card icon={<Layers />} href="#configuration">
-    Configuration with defineConfig
-  </Card>
-  <Card icon={<Database />} href="#collections">
-    Collections as domain models
-  </Card>
-  <Card icon={<Type />} href="#fields">
-    Fields with Zod + Drizzle
-  </Card>
-</Cards>
 
 ## Configuration
 
@@ -213,12 +198,10 @@ This means:
 - ✅ Type-safe queries
 - ✅ Refactoring confidence
 
-<Callout type="info">
-  <strong>File Organization:</strong> While you can define collections inline in <code>defineConfig</code>, the recommended approach is file-based collections for better organization and maintainability.
-</Callout>
+> **Note:** While you can define collections inline in `defineConfig`, the recommended approach is file-based collections for better organization and maintainability.
 
 ## Next Steps
 
-- **[Field Types](/docs/field-types)** - Explore built-in and custom field types
-- **[Collections Deep Dive](/docs/collections)** - Learn about relations, hooks, and plugins
-- **[i18n](/docs/i18n)** - Internationalization support
+- [Field Types](/docs/field-types) - Explore built-in and custom field types
+- [Collections Deep Dive](/docs/collections) - Learn about relations, hooks, and plugins
+- [i18n](/docs/i18n) - Internationalization support

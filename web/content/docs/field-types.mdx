@@ -3,24 +3,9 @@ title: Field Types
 description: Building blocks for your data model with Zod and Drizzle
 ---
 
-import { CodeBlock } from 'fumadocs-ui/components/codeblock';
-import { Type, Puzzle, Zap } from 'lucide-react';
-
 # Field Types
 
 Field types are the building blocks of your data model. Each field type combines a Zod schema for validation/types with a Drizzle column for database mapping.
-
-<Cards>
-  <Card icon={<Type />} href="#the-structure">
-    Zod + Drizzle combination
-  </Card>
-  <Card icon={<Puzzle />} href="#built-in-types">
-    Built-in field types
-  </Card>
-  <Card icon={<Zap />} href="#custom-types">
-    Creating custom field types
-  </Card>
-</Cards>
 
 ## The Structure
 
@@ -47,26 +32,17 @@ field({
 
 ### Why This Combination?
 
-<Steps>
-<Step>
-### Zod Schema
+1. **Zod Schema**
+   - Runtime validation
+   - TypeScript type inference
+   - Rich validation rules
+   - Error messages
 
-- Runtime validation
-- TypeScript type inference
-- Rich validation rules
-- Error messages
-
-</Step>
-<Step>
-### Drizzle Column
-
-- Database schema mapping
-- Type-safe queries
-- Migration generation
-- SQL dialect support
-
-</Step>
-</Steps>
+2. **Drizzle Column**
+   - Database schema mapping
+   - Type-safe queries
+   - Migration generation
+   - SQL dialect support
 
 ## Built-in Field Types
 
@@ -250,12 +226,10 @@ fields: {
 }
 ```
 
-<Callout type="info">
-  <strong>Field Types are Extensible:</strong> The <code>fieldType</code> function is the foundation for all field types. Built-in types use it, and you can use it to create your own. See the plugin system for more advanced patterns.
-</Callout>
+> **Field Types are Extensible:** The `fieldType` function is the foundation for all field types. Built-in types use it, and you can use it to create your own.
 
 ## Next Steps
 
-- **[Collections Deep Dive](/docs/collections)** - Advanced collection features
-- **[Plugins](/docs/plugins)** - Extend with plugins
-- **[i18n](/docs/i18n)** - Internationalization
+- [Collections Deep Dive](/docs/collections) - Advanced collection features
+- [Plugins](/docs/plugins) - Extend with plugins
+- [i18n](/docs/i18n) - Internationalization

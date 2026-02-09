@@ -3,23 +3,9 @@ title: Internationalization
 description: Native i18n support for collections and fields
 ---
 
-import { Globe, Languages, FileText } from 'lucide-react';
-
 # Internationalization
 
 `@deessejs/collections` has native, first-class support for internationalization. All user-facing strings can be translated without external i18n libraries.
-
-<Cards>
-  <Card icon={<Globe />} href="#configuration">
-    Locale configuration
-  </Card>
-  <Card icon={<Languages />} href="#collections">
-    Translating collections
-  </Card>
-  <Card icon={<FileText />} href="#fields">
-    Translating fields and validation
-  </Card>
-</Cards>
 
 ## Configuration
 
@@ -242,11 +228,9 @@ label: {
 // Requesting 'es' returns 'Title' (default)
 ```
 
-<Callout type="info">
-  <strong>Type Safety:</strong> All locales are type-checked. Only defined locales can be used in <code>defineConfig</code>, providing compile-time safety.
-</Callout>
+> **Type Safety:** All locales are type-checked. Only defined locales can be used in `defineConfig`, providing compile-time safety.
 
 ## Next Steps
 
-- **[Examples](/docs/examples)** - Real-world examples with i18n
-- **[Plugins](/docs/plugins)** - Plugin system
+- [Examples](/docs/examples) - Real-world examples with i18n
+- [Plugins](/docs/plugins) - Plugin system

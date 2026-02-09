@@ -1,42 +1,24 @@
 ---
-title: Collections Deep Dive
+title: Collections
 description: Advanced features: relations, hooks, plugins, and metadata
 ---
-
-import { File, Folder, Files } from 'fumadocs-ui/components/files';
-import { GitBranch, Plug, Hook, Settings } from 'lucide-react';
 
 # Collections Deep Dive
 
 Advanced collection features for building robust data models.
 
-<Cards>
-  <Card icon={<GitBranch />} href="#relations">
-    Relations between collections
-  </Card>
-  <Card icon={<Hook />} href="#hooks">
-    Lifecycle hooks
-  </Card>
-  <Card icon={<Plug />} href="#plugins">
-    Plugin system
-  </Card>
-  <Card icon={<Settings />} href="#metadata">
-    Collection metadata
-  </Card>
-</Cards>
-
 ## File-Based Collections
 
 Collections are defined in separate files for better organization:
 
-<Files>
-  <Folder name="collections">
-    <File name="users.ts" />
-    <File name="posts.ts" />
-    <File name="comments.ts" />
-  </Folder>
-  <File name="config.ts" />
-</Files>
+```
+collections/
+├── users.ts
+├── posts.ts
+├── comments.ts
+config/
+├── config.ts
+```
 
 ```ts
 // collections/posts.ts
@@ -250,61 +232,10 @@ Plugins can:
 
 Built-in plugins for common needs:
 
-<Steps>
-<Step>
-### Versioning
-
-Track all changes to records
-
-```ts
-versioningPlugin({
-  collections: ['posts', 'pages'],
-  maxVersions: 50
-})
-```
-
-</Step>
-<Step>
-### Cache
-
-Intelligent caching layer
-
-```ts
-cachePlugin({
-  collections: ['posts', 'users'],
-  strategy: 'smart',
-  ttl: 600
-})
-```
-
-</Step>
-<Step>
-### Soft Delete
-
-Safe deletion with recovery
-
-```ts
-softDeletePlugin({
-  collections: ['posts', 'comments'],
-  cascade: ['comments']
-})
-```
-
-</Step>
-<Step>
-### SEO
-
-Meta tags and optimization
-
-```ts
-seoPlugin({
-  collections: ['posts', 'pages'],
-  preset: 'advanced'
-})
-```
-
-</Step>
-</Steps>
+1. **Versioning** - Track all changes to records
+2. **Cache** - Intelligent caching layer
+3. **Soft Delete** - Safe deletion with recovery
+4. **SEO** - Meta tags and optimization
 
 ## Metadata
 
@@ -347,7 +278,6 @@ export const posts = collection({
   validation: {
     // Cross-field validation
     password: {
-      min: 8,
       matches: (value, { data }) => {
         return value === data.confirmPassword
       }
@@ -403,12 +333,10 @@ await collections.posts.count({
 })
 ```
 
-<Callout type="success">
-  <strong>Collections are Composable:</strong> Everything about collections—from fields to hooks to plugins—is designed to be composed from simple, reusable pieces. This makes your data model maintainable and scalable.
-</Callout>
+> **Collections are Composable:** Everything about collections—from fields to hooks to plugins—is designed to be composed from simple, reusable pieces. This makes your data model maintainable and scalable.
 
 ## Next Steps
 
-- **[Plugins](/docs/plugins)** - Learn about native and custom plugins
-- **[i18n](/docs/i18n)** - Internationalization support
-- **[Examples](/docs/examples)** - Real-world examples
+- [Plugins](/docs/plugins) - Learn about native and custom plugins
+- [i18n](/docs/i18n) - Internationalization support
+- [Examples](/docs/examples) - Real-world examples

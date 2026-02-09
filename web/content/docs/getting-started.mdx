@@ -3,10 +3,6 @@ title: Getting Started
 description: Get up and running with @deessejs/collections in minutes
 ---
 
-import { Install, CodeBlock } from 'fumadocs-ui/components/codeblock';
-import { File, Folder, Files } from 'fumadocs-ui/components/files';
-import { Check, Zap } from 'lucide-react';
-
 # Getting Started
 
 Get up and running with `@deessejs/collections` in minutes. A functional-first data modeling layer built on Drizzle ORM with full TypeScript support.
@@ -20,20 +16,19 @@ Get up and running with `@deessejs/collections` in minutes. A functional-first d
 
 ## Installation
 
-<Install>
+```bash
 npm i @deessejs/collections drizzle-orm zod
-</Install>
+```
 
 ## Project Structure
 
-<Files>
-  <Folder name="collections" defaultOpen>
-    <File name="users.ts" />
-    <File name="posts.ts" />
-  </Folder>
-  <File name="config" />
-  <File name="config.ts" />
-</Files>
+```
+collections/
+├── users.ts
+├── posts.ts
+config/
+├── config.ts
+```
 
 ## Define Your First Collection
 
@@ -154,13 +149,11 @@ if (user) {
 }
 ```
 
-<Callout type="success" icon={<Check />}>
-  <strong>You're ready!</strong> Check out <a href="/docs/core-concepts">Core Concepts</a> to learn more about collections, fields, and type inference.
-</Callout>
+> **You're ready!** Check out [Core Concepts](/docs/core-concepts) to learn more about collections, fields, and type inference.
 
 ## Next Steps
 
-- **[Core Concepts](/docs/core-concepts)** - Learn about configuration, collections, and fields
-- **[Field Types](/docs/field-types)** - Explore built-in and custom field types
-- **[Collections Deep Dive](/docs/collections)** - Advanced collection features
-- **[Plugins](/docs/plugins)** - Extend with native and custom plugins
+- [Core Concepts](/docs/core-concepts) - Learn about configuration, collections, and fields
+- [Field Types](/docs/field-types) - Explore built-in and custom field types
+- [Collections Deep Dive](/docs/collections) - Advanced collection features
+- [Plugins](/docs/plugins) - Extend with native and custom plugins

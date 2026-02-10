@@ -12,6 +12,7 @@
     "fields",
     "collections",
     "plugins",
-    "i18n"
+    "i18n",
+    "i18n-concepts"
   ]
 }

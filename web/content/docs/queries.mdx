@@ -1,0 +1,438 @@
+---
+title: Queries
+description: Understanding CRUD operations and basic queries
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+# Queries
+
+Collections provides a powerful query API for performing CRUD operations with full type safety. All operations are automatically typed based on your collection definitions.
+
+## Overview
+
+Every collection exposes these operations:
+
+<TypeTable
+  type={{
+    findMany: {
+      description: 'Retrieve multiple records with optional filtering and pagination',
+      type: 'findMany(options?)',
+    },
+    findUnique: {
+      description: 'Retrieve a single record by unique identifier',
+      type: 'findUnique(options)',
+    },
+    findFirst: {
+      description: 'Retrieve the first record matching criteria',
+      type: 'findFirst(options)',
+    },
+    create: {
+      description: 'Create a new record',
+      type: 'create(data)',
+    },
+    createMany: {
+      description: 'Create multiple records in a single operation',
+      type: 'createMany(data)',
+    },
+    update: {
+      description: 'Update a single record',
+      type: 'update(options)',
+    },
+    updateMany: {
+      description: 'Update multiple records matching criteria',
+      type: 'updateMany(options)',
+    },
+    delete: {
+      description: 'Delete a single record',
+      type: 'delete(options)',
+    },
+    deleteMany: {
+      description: 'Delete multiple records matching criteria',
+      type: 'deleteMany(options)',
+    },
+    count: {
+      description: 'Count records matching criteria',
+      type: 'count(options?)',
+    },
+  }}
+/>
+
+## Read Operations
+
+### findMany
+
+Retrieve multiple records with optional filtering and pagination:
+
+```ts
+// Get all users
+const users = await collections.users.findMany()
+
+// With filtering
+const activeUsers = await collections.users.findMany({
+  where: {
+    status: { equals: 'active' }
+  }
+})
+
+// With pagination
+const users = await collections.users.findMany({
+  limit: 10,
+  offset: 20
+})
+
+// With sorting
+const users = await collections.users.findMany({
+  orderBy: {
+    createdAt: 'desc'
+  }
+})
+
+// Combined
+const users = await collections.users.findMany({
+  where: {
+    status: { equals: 'active' }
+  },
+  orderBy: {
+    createdAt: 'desc'
+  },
+  limit: 10,
+  offset: 0
+})
+```
+
+### findUnique
+
+Retrieve a single record by its unique identifier:
+
+```ts
+const user = await collections.users.findUnique({
+  where: { id: 1 }
+})
+
+// With error handling
+try {
+  const user = await collections.users.findUnique({
+    where: { id: 1 }
+  })
+  console.log(user.name)
+} catch (error) {
+  if (error.code === 'NOT_FOUND') {
+    console.log('User not found')
+  }
+}
+```
+
+### findFirst
+
+Retrieve the first record matching criteria:
+
+```ts
+// Get first active user
+const user = await collections.users.findFirst({
+  where: {
+    status: { equals: 'active' }
+  },
+  orderBy: {
+    createdAt: 'asc'
+  }
+})
+
+// Get first user with specific email
+const user = await collections.users.findFirst({
+  where: {
+    email: { equals: 'user@example.com' }
+  }
+})
+```
+
+## Create Operations
+
+### create
+
+Create a single new record:
+
+```ts
+const user = await collections.users.create({
+  data: {
+    name: 'John Doe',
+    email: 'john@example.com',
+    status: 'active'
+  }
+})
+
+console.log(user.id) // Auto-generated ID
+console.log(user.createdAt) // Auto-generated timestamp
+```
+
+### createMany
+
+Create multiple records in a single operation:
+
+```ts
+const users = await collections.users.createMany({
+  data: [
+    {
+      name: 'John Doe',
+      email: 'john@example.com'
+    },
+    {
+      name: 'Jane Smith',
+      email: 'jane@example.com'
+    },
+    {
+      name: 'Bob Johnson',
+      email: 'bob@example.com'
+    }
+  ]
+})
+
+console.log(users.count) // Number of created records
+```
+
+## Update Operations
+
+### update
+
+Update a single record:
+
+```ts
+const user = await collections.users.update({
+  where: { id: 1 },
+  data: {
+    name: 'Jane Doe',
+    status: 'inactive'
+  }
+})
+```
+
+### updateMany
+
+Update multiple records matching criteria:
+
+```ts
+const result = await collections.users.updateMany({
+  where: {
+    status: { equals: 'inactive' }
+  },
+  data: {
+    status: 'archived'
+  }
+})
+
+console.log(result.count) // Number of updated records
+```
+
+## Delete Operations
+
+### delete
+
+Delete a single record:
+
+```ts
+await collections.users.delete({
+  where: { id: 1 }
+})
+```
+
+### deleteMany
+
+Delete multiple records matching criteria:
+
+```ts
+const result = await collections.users.deleteMany({
+  where: {
+    status: { equals: 'archived' }
+  }
+})
+
+console.log(result.count) // Number of deleted records
+```
+
+## Count Operations
+
+### count
+
+Count records matching criteria:
+
+```ts
+// Count all users
+const total = await collections.users.count()
+
+// Count active users
+const active = await collections.users.count({
+  where: {
+    status: { equals: 'active' }
+  }
+})
+
+console.log(`Total: ${total}, Active: ${active}`)
+```
+
+## Type Safety
+
+All operations are fully typed based on your field definitions:
+
+```ts
+// Type is inferred from field definitions
+const user = await collections.users.create({
+  data: {
+    name: 'John Doe',      // ✅ string - correct
+    email: 'john@example.com', // ✅ string - correct
+    age: 25,               // ✅ number - correct
+    status: 'active'       // ✅ 'active' | 'inactive' - enum
+  }
+})
+
+// TypeScript will catch errors
+const user = await collections.users.create({
+  data: {
+    name: 123,             // ❌ Error: number not assignable to string
+    email: 'invalid',      // ❌ Error: invalid email format (validation)
+    age: '25',             // ❌ Error: string not assignable to number
+    status: 'unknown'      // ❌ Error: not in enum
+  }
+})
+```
+
+## Query Options
+
+All query operations accept these options:
+
+<TypeTable
+  type={{
+    where: {
+      description: 'Filter records by criteria',
+      type: 'WhereClause',
+    },
+    orderBy: {
+      description: 'Sort records by field(s)',
+      type: 'OrderByClause',
+    },
+    limit: {
+      description: 'Maximum number of records to return',
+      type: 'number',
+    },
+    offset: {
+      description: 'Number of records to skip',
+      type: 'number',
+    },
+    include: {
+      description: 'Include related records',
+      type: 'IncludeClause',
+    },
+    select: {
+      description: 'Select specific fields',
+      type: 'SelectClause',
+    },
+  }}
+/>
+
+## Return Types
+
+Operations return typed results:
+
+```ts
+// findMany returns array
+const users: User[] = await collections.users.findMany()
+
+// findUnique returns single record or null
+const user: User | null = await collections.users.findUnique({
+  where: { id: 1 }
+})
+
+// create returns created record
+const newUser: User = await collections.users.create({
+  data: { name: 'John' }
+})
+
+// count returns number
+const total: number = await collections.users.count()
+```
+
+## Error Handling
+
+Operations throw errors for invalid data or database issues:
+
+```ts
+try {
+  const user = await collections.users.create({
+    data: {
+      name: 'John',
+      email: 'john@example.com'
+    }
+  })
+} catch (error) {
+  if (error.code === 'VALIDATION_ERROR') {
+    console.log('Validation failed:', error.messages)
+  } else if (error.code === 'UNIQUE_CONSTRAINT') {
+    console.log('Email already exists')
+  } else {
+    console.log('Database error:', error.message)
+  }
+}
+```
+
+See [Error Handling](/docs/error-handling) for complete error reference.
+
+## Examples
+
+### User Registration
+
+```ts
+const registerUser = async (email: string, password: string) => {
+  // Check if user exists
+  const existing = await collections.users.findFirst({
+    where: { email: { equals: email } }
+  })
+
+  if (existing) {
+    throw new Error('User already exists')
+  }
+
+  // Create user
+  const user = await collections.users.create({
+    data: {
+      email,
+      password: await hash(password),
+      status: 'active'
+    }
+  })
+
+  return user
+}
+```
+
+### Update User Profile
+
+```ts
+const updateProfile = async (userId: number, updates: Partial<User>) => {
+  const user = await collections.users.update({
+    where: { id: userId },
+    data: updates
+  })
+
+  return user
+}
+```
+
+### Soft Delete
+
+```ts
+const softDelete = async (userId: number) => {
+  await collections.users.update({
+    where: { id: userId },
+    data: {
+      deletedAt: new Date(),
+      status: 'deleted'
+    }
+  })
+}
+```
+
+## Next Steps
+
+- [Filters](/docs/filters) - Advanced filtering and operators
+- [Querying Relations](/docs/relations-query) - Loading related data
+- [Pagination](/docs/pagination) - Pagination and sorting strategies
+- [Error Handling](/docs/error-handling) - Handling errors effectively

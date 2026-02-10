@@ -1,0 +1,600 @@
+---
+title: Error Handling
+description: Understanding and handling errors in queries and operations
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+# Error Handling
+
+Collections provides comprehensive error handling with typed error codes and messages. Learn how to handle errors effectively in your application.
+
+## Error Types
+
+<TypeTable
+  type={{
+    VALIDATION_ERROR: {
+      description: 'Data validation failed',
+      type: 'Field-level validation errors',
+    },
+    NOT_FOUND: {
+      description: 'Record not found',
+      type: 'findUnique or findFirst returned null',
+    },
+    UNIQUE_CONSTRAINT: {
+      description: 'Unique constraint violated',
+      type: 'Duplicate unique field value',
+    },
+    FOREIGN_KEY_CONSTRAINT: {
+      description: 'Foreign key constraint violated',
+      type: 'Related record does not exist',
+    },
+    DATABASE_ERROR: {
+      description: 'Database operation failed',
+      type: 'Connection issues, syntax errors, etc.',
+    },
+    PERMISSION_DENIED: {
+      description: 'Operation not allowed',
+      type: 'Access control violation',
+    },
+  }}
+/>
+
+## Basic Error Handling
+
+### Try-Catch Pattern
+
+```ts
+try {
+  const user = await collections.users.create({
+    data: {
+      name: 'John Doe',
+      email: 'john@example.com'
+    }
+  })
+  console.log('User created:', user)
+} catch (error) {
+  console.error('Error creating user:', error.message)
+}
+```
+
+### Error Code Handling
+
+```ts
+try {
+  const user = await collections.users.create({
+    data: {
+      name: 'John Doe',
+      email: 'john@example.com'
+    }
+  })
+} catch (error) {
+  switch (error.code) {
+    case 'VALIDATION_ERROR':
+      console.log('Validation failed:', error.messages)
+      break
+    case 'UNIQUE_CONSTRAINT':
+      console.log('Email already exists')
+      break
+    case 'DATABASE_ERROR':
+      console.log('Database error:', error.message)
+      break
+    default:
+      console.log('Unknown error:', error)
+  }
+}
+```
+
+## Validation Errors
+
+Validation errors occur when data doesn't meet field requirements.
+
+### Structure
+
+```ts
+{
+  code: 'VALIDATION_ERROR',
+  message: 'Validation failed',
+  errors: {
+    email: [
+      'Email is required',
+      'Invalid email format'
+    ],
+    age: [
+      'Must be at least 18 years old'
+    ]
+  }
+}
+```
+
+### Handling Validation Errors
+
+```ts
+const create_user = async (data: UserData) => {
+  try {
+    const user = await collections.users.create({ data })
+    return { success: true, user }
+  } catch (error) {
+    if (error.code === 'VALIDATION_ERROR') {
+      // Return formatted errors
+      return {
+        success: false,
+        errors: error.errors
+      }
+    }
+    throw error
+  }
+}
+
+// Usage
+const result = await createUser({
+  name: '',
+  email: 'invalid',
+  age: 15
+})
+
+if (!result.success) {
+  console.log('Validation errors:', result.errors)
+  // {
+  //   email: ['Email is required', 'Invalid email format'],
+  //   age: ['Must be at least 18 years old']
+  // }
+}
+```
+
+## Not Found Errors
+
+### findUnique/findFirst Can Return Null
+
+```ts
+const user = await collections.users.findUnique({
+  where: { id: 999 }
+})
+
+if (user === null) {
+  console.log('User not found')
+}
+```
+
+### Throw on Not Found
+
+You can use non-null assertion or check manually:
+
+```ts
+const getUser = async (id: number) => {
+  const user = await collections.users.findUnique({
+    where: { id }
+  })
+
+  if (!user) {
+    throw new Error(`User with id ${id} not found`)
+  }
+
+  return user
+}
+
+// Or throw automatically
+const user = await collections.users.findUnique({
+  where: { id: 999 }
+})!
+
+// This will throw if user is null
+```
+
+### Custom Not Found Error
+
+```ts
+class NotFoundError extends Error {
+  code = 'NOT_FOUND'
+  constructor(resource: string, id: number) {
+    super(`${resource} with id ${id} not found`)
+  }
+}
+
+const getUserOrThrow = async (id: number) => {
+  const user = await collections.users.findUnique({
+    where: { id }
+  })
+
+  if (!user) {
+    throw new NotFoundError('User', id)
+  }
+
+  return user
+}
+```
+
+## Unique Constraint Errors
+
+### Handling Duplicate Values
+
+```ts
+try {
+  const user = await collections.users.create({
+    data: {
+      email: 'existing@example.com'  // Already exists
+    }
+  })
+} catch (error) {
+  if (error.code === 'UNIQUE_CONSTRAINT') {
+    console.log('Email already taken')
+    // Show user-friendly message
+    return { error: 'This email is already registered' }
+  }
+}
+```
+
+### Checking Before Insert
+
+```ts
+const create_user_unique = async (email: string, name: string) => {
+  // Check if exists
+  const existing = await collections.users.findFirst({
+    where: { email: { equals: email } }
+  })
+
+  if (existing) {
+    return {
+      success: false,
+      error: 'Email already exists'
+    }
+  }
+
+  // Safe to create
+  const user = await collections.users.create({
+    data: { email, name }
+  })
+
+  return { success: true, user }
+}
+```
+
+## Foreign Key Errors
+
+### Handling Related Records
+
+```ts
+try {
+  const comment = await collections.comments.create({
+    data: {
+      content: 'Great post!',
+      postId: 999  // Post doesn't exist
+    }
+  })
+} catch (error) {
+  if (error.code === 'FOREIGN_KEY_CONSTRAINT') {
+    console.log('Referenced post does not exist')
+    return {
+      error: 'The post you are commenting on does not exist'
+    }
+  }
+}
+```
+
+### Checking Relations First
+
+```ts
+const create_comment_safe = async (postId: number, content: string) => {
+  // Verify post exists
+  const post = await collections.posts.findUnique({
+    where: { id: postId }
+  })
+
+  if (!post) {
+    return {
+      success: false,
+      error: 'Post not found'
+    }
+  }
+
+  // Safe to create comment
+  const comment = await collections.comments.create({
+    data: { postId, content }
+  })
+
+  return { success: true, comment }
+}
+```
+
+## Database Errors
+
+### Connection Issues
+
+```ts
+try {
+  const users = await collections.users.findMany()
+} catch (error) {
+  if (error.code === 'DATABASE_ERROR') {
+    if (error.message.includes('connection')) {
+      console.log('Database connection failed')
+      // Retry logic or show maintenance page
+    } else {
+      console.log('Database error:', error.message)
+    }
+  }
+}
+```
+
+### Retry Logic
+
+```ts
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (error.code === 'DATABASE_ERROR' && i < maxRetries - 1) {
+        console.log(`Retry ${i + 1}/${maxRetries}`)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error('Max retries exceeded')
+}
+
+// Usage
+const users = await withRetry(() =>
+  collections.users.findMany()
+)
+```
+
+## Error Response Format
+
+### API Responses
+
+For API routes, return consistent error responses:
+
+```ts
+import { NextResponse } from 'next/server'
+
+export async function POST(request: Request) {
+  try {
+    const data = await request.json()
+    const user = await collections.users.create({ data })
+
+    return NextResponse.json({
+      success: true,
+      data: user
+    })
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.code === 'VALIDATION_ERROR' && {
+            fields: error.errors
+          })
+        }
+      },
+      { status: 400 }
+    )
+  }
+}
+```
+
+### Client-Side Handling
+
+```typescript
+// Client code
+const response = await fetch('/api/users', {
+  method: 'POST',
+  body: JSON.stringify(data)
+})
+
+const result = await response.json()
+
+if (!result.success) {
+  if (result.error.code === 'VALIDATION_ERROR') {
+    // Show field errors
+    Object.keys(result.error.fields).forEach(field => {
+      console.log(`${field}:`, result.error.fields[field])
+    })
+  } else {
+    // Show general error
+    console.log(result.error.message)
+  }
+}
+```
+
+## Global Error Handler
+
+### Create a Utility Function
+
+```ts
+import { collections } from './config/database'
+
+type CollectionOperationResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string; fields?: Record<string, string[]> }
+
+export const handleCollectionOperation = async <T>(
+  operation: () => Promise<T>
+): Promise<CollectionOperationResult<T>> => {
+  try {
+    const data = await operation()
+    return { success: true, data }
+  } catch (error) {
+    if (error.code === 'VALIDATION_ERROR') {
+      return {
+        success: false,
+        error: 'Validation failed',
+        code: error.code,
+        fields: error.errors
+      }
+    }
+
+    if (error.code === 'UNIQUE_CONSTRAINT') {
+      return {
+        success: false,
+        error: 'A record with this value already exists',
+        code: error.code
+      }
+    }
+
+    if (error.code === 'NOT_FOUND') {
+      return {
+        success: false,
+        error: 'Record not found',
+        code: error.code
+      }
+    }
+
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+      code: 'UNKNOWN_ERROR'
+    }
+  }
+}
+
+// Usage
+const result = await handleCollectionOperation(() =>
+  collections.users.create({
+    data: { name: 'John', email: 'john@example.com' }
+  })
+)
+
+if (!result.success) {
+  console.log('Error:', result.error)
+  if (result.fields) {
+    console.log('Field errors:', result.fields)
+  }
+}
+```
+
+## Best Practices
+
+<Accordions type="multiple">
+  <Accordion title="1. Always Handle Validation Errors">
+
+```ts
+try {
+  const result = await operation()
+} catch (error) {
+  if (error.code === 'VALIDATION_ERROR') {
+    // Always show validation errors to users
+    showFieldErrors(error.errors)
+  }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="2. Use Specific Error Codes">
+
+```ts
+// ✅ Good
+if (error.code === 'UNIQUE_CONSTRAINT') {
+  handleDuplicate()
+}
+
+// ❌ Bad
+if (error.message.includes('duplicate')) {
+  handleDuplicate()
+}
+```
+
+  </Accordion>
+
+  <Accordion title="3. Log Errors for Debugging">
+
+```ts
+try {
+  await operation()
+} catch (error) {
+  console.error('[Collection Error]', {
+    code: error.code,
+    message: error.message,
+    stack: error.stack,
+    context: { operation, data }
+  })
+
+  // Return user-friendly message
+  return { error: 'Something went wrong' }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="4. Don't Expose Internal Details">
+
+```ts
+// ❌ Bad - exposes database info
+return { error: error.message }
+
+// ✅ Good - user-friendly message
+return {
+  error: 'Unable to save your changes. Please try again.'
+}
+```
+
+  </Accordion>
+
+  <Accordion title="5. Use Type Guards">
+
+```typescript
+function isValidationError(error: unknown): error is ValidationError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'VALIDATION_ERROR'
+  )
+}
+
+try {
+  await operation()
+} catch (error) {
+  if (isValidationError(error)) {
+    console.log(error.errors) // TypeScript knows this exists
+  }
+}
+```
+
+  </Accordion>
+</Accordions>
+
+## Error Codes Reference
+
+<TypeTable
+  type={{
+    VALIDATION_ERROR: {
+      description: 'Field validation failed',
+      properties: 'errors: Record<string, string[]>',
+    },
+    NOT_FOUND: {
+      description: 'Record not found',
+      properties: 'resource: string, id: number',
+    },
+    UNIQUE_CONSTRAINT: {
+      description: 'Unique field constraint violated',
+      properties: 'field: string',
+    },
+    FOREIGN_KEY_CONSTRAINT: {
+      description: 'Foreign key constraint violated',
+      properties: 'relation: string, foreignKey: string',
+    },
+    DATABASE_ERROR: {
+      description: 'Database operation failed',
+      properties: 'message: string, originalError: Error',
+    },
+    PERMISSION_DENIED: {
+      description: 'Access denied',
+      properties: 'action: string, resource: string',
+    },
+  }}
+/>
+
+## Next Steps
+
+- [Queries](/docs/queries) - Basic CRUD operations
+- [Filters](/docs/filters) - Advanced filtering operators
+- [Pagination](/docs/pagination) - Pagination and sorting strategies

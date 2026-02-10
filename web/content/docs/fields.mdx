@@ -59,38 +59,139 @@ export const users = collection({
 
 Every field is configured with an object containing its type and options:
 
+<TypeTable
+  type={{
+    type: {
+      description: 'Required. The field type that determines what data it accepts',
+      type: 'FieldType',
+    },
+    label: {
+      description: 'Human-readable label used in API responses, error messages, and admin UI. Can be a string or i18n object',
+      type: 'string | Record<string, string>',
+    },
+    description: {
+      description: 'Additional context about the field shown in admin panels and API documentation',
+      type: 'string | Record<string, string>',
+    },
+    default: {
+      description: 'Default value applied on create operations. Can be a static value or function',
+      type: 'T | () => T',
+    },
+    required: {
+      description: 'Whether the field is required (cannot be null or undefined)',
+      type: 'boolean',
+      default: 'false',
+    },
+    unique: {
+      description: 'Add a unique constraint to the field in the database',
+      type: 'boolean',
+      default: 'false',
+    },
+    indexed: {
+      description: 'Add a database index for faster queries on this field',
+      type: 'boolean',
+      default: 'false',
+    },
+    nullable: {
+      description: 'Allow null values for this field',
+      type: 'boolean',
+      default: 'true',
+    },
+    hidden: {
+      description: 'Hide field from auto-generated forms and API responses',
+      type: 'boolean',
+      default: 'false',
+    },
+    messages: {
+      description: 'Custom validation messages with i18n support',
+      type: 'Record<string, string | Record<string, string>>',
+    },
+    validate: {
+      description: 'Custom validation function to run additional checks',
+      type: '(value: T) => true | string',
+    },
+    computed: {
+      description: 'Configuration for computed fields that derive values from other fields',
+      type: '{ from: string[], compute: (data) => T }',
+    },
+    admin: {
+      description: 'Admin UI configuration options',
+      type: 'AdminOptions',
+    },
+    hooks: {
+      description: 'Field-level hooks for lifecycle events',
+      type: 'FieldHooks',
+    },
+  }}
+/>
+
+Example:
+
 ```ts
 field({
-  type: text(),           // Required: the field type
-  label: 'Name',          // Human-readable label
-  description: '...',     // Helper text
-  default: '...',         // Default value
-  required: true,         // Validation
-  unique: true,           // Database constraint
-  indexed: true,          // Performance optimization
-  hidden: false,          // UI visibility
-  admin: { ... }          // Admin UI options
+  type: text({ min: 2, max: 100 }),
+  label: 'Name',
+  description: 'Enter your full name',
+  default: 'Anonymous',
+  required: true,
+  unique: true,
+  indexed: true
 })
 ```
 
 ## Field Categories
 
-### Data Fields
+<Accordions type="multiple">
+  <Accordion title="Data Fields">
 
-Data Fields are used to store data in the database. All Data Fields have a `type` property that determines their behavior.
+Data Fields store data in the database. They have a `type` property that determines their behavior.
 
 Available Data Fields:
 
-- **text** - Simple text input that saves a string
-- **number** - Saves numeric values
-- **boolean** - Checkbox that saves boolean true/false values
-- **email** - Ensures the value is a properly formatted email address
-- **url** - Validates and stores URL strings
-- **timestamp** - Renders a date picker and saves a timestamp
-- **enumField** - Renders a select dropdown with predefined options
-- **array** - For repeating content, supports nested types
-- **json** - Renders a JSON editor interface that saves a JSON object
-- **relation** - Assign relationships to other collections
+<TypeTable
+  type={{
+    text: {
+      description: 'Simple text input that saves a string',
+      type: 'text',
+    },
+    number: {
+      description: 'Saves numeric values with optional min/max constraints',
+      type: 'number',
+    },
+    boolean: {
+      description: 'Checkbox that saves boolean true/false values',
+      type: 'boolean',
+    },
+    email: {
+      description: 'Ensures the value is a properly formatted email address',
+      type: 'email',
+    },
+    url: {
+      description: 'Validates and stores URL strings',
+      type: 'url',
+    },
+    timestamp: {
+      description: 'Renders a date picker and saves a timestamp',
+      type: 'Date',
+    },
+    enumField: {
+      description: 'Renders a select dropdown with predefined options',
+      type: 'T[]',
+    },
+    array: {
+      description: 'For repeating content, supports nested types',
+      type: 'T[]',
+    },
+    json: {
+      description: 'Renders a JSON editor interface that saves a JSON object',
+      type: 'object',
+    },
+    relation: {
+      description: 'Assign relationships to other collections',
+      type: 'Relation',
+    },
+  }}
+/>
 
 Data fields automatically:
 - Generate TypeScript types
@@ -98,7 +199,9 @@ Data fields automatically:
 - Create corresponding database columns via Drizzle
 - Provide runtime type safety
 
-### Computed Fields
+  </Accordion>
+
+  <Accordion title="Computed Fields">
 
 Computed fields display data that is not stored in the database, but is derived or calculated from other fields.
 
@@ -125,9 +228,34 @@ Computed fields are ideal for:
 - Creating aliases for complex field paths
 - Performance optimization for frequently accessed combinations
 
-### Relation Fields
+  </Accordion>
 
-Relation fields link documents across collections:
+  <Accordion title="Relation Fields">
+
+Relation fields link documents across collections.
+
+<TypeTable
+  type={{
+    'One-to-One': {
+      description: 'Single relationship between two documents',
+      type: "relation('target', { singular: true })",
+    },
+    'One-to-Many': {
+      description: 'Foreign key relationship (many documents can reference one)',
+      type: "relation('target')",
+    },
+    'Many-to-Many': {
+      description: 'Relationship through a join table',
+      type: "relation('target', { many: true, through: 'joinTable' })",
+    },
+    'Reverse Relation': {
+      description: 'Virtual field to access related documents',
+      type: "reverseRelation({ collection: 'target', via: 'field' })",
+    },
+  }}
+/>
+
+Example:
 
 ```ts
 // One-to-One
@@ -156,6 +284,9 @@ comments: field({
   })
 })
 ```
+
+  </Accordion>
+</Accordions>
 
 ## Field Properties
 

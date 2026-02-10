@@ -1,0 +1,391 @@
+---
+title: Fields
+description: Field options, modifiers, and configuration
+---
+
+# Fields
+
+Fields are the building blocks of your collections. Each field combines a field type with configuration options like labels, default values, validation, and more.
+
+## Basic Field Syntax
+
+All fields use the `field()` function:
+
+```ts
+import { field } from '@deessejs/collections'
+import { text } from '@deessejs/collections/fields'
+
+fields: {
+  name: field({
+    type: text({ min: 2, max: 100 })
+  })
+}
+```
+
+## Field Options
+
+### label
+
+Human-readable label for the field:
+
+```ts
+fields: {
+  firstName: field({
+    type: text(),
+    label: 'First Name'
+  })
+}
+```
+
+With i18n:
+
+```ts
+fields: {
+  firstName: field({
+    type: text(),
+    label: {
+      en: 'First Name',
+      fr: 'Prénom',
+      es: 'Nombre'
+    }
+  })
+}
+```
+
+### description
+
+Additional context about the field:
+
+```ts
+fields: {
+  bio: field({
+    type: text(),
+    description: 'A short biography'
+  })
+}
+```
+
+### default
+
+Default value for the field:
+
+```ts
+fields: {
+  status: field({
+    type: enumField(['draft', 'published']),
+    default: 'draft'
+  }),
+
+  isActive: field({
+    type: boolean(),
+    default: true
+  })
+}
+```
+
+### required
+
+Make a field required (cannot be null):
+
+```ts
+fields: {
+  email: field({
+    type: email(),
+    required: true
+  })
+}
+```
+
+### unique
+
+Add a unique constraint to the field:
+
+```ts
+fields: {
+  username: field({
+    type: text(),
+    unique: true
+  })
+}
+```
+
+### indexed
+
+Add a database index for faster queries:
+
+```ts
+fields: {
+  email: field({
+    type: email(),
+    unique: true,
+    indexed: true
+  })
+}
+```
+
+### nullable
+
+Allow null values (enabled by default for most fields):
+
+```ts
+fields: {
+  middleName: field({
+    type: text(),
+    nullable: true
+  })
+}
+```
+
+## Validation
+
+### messages
+
+Custom validation messages with i18n support:
+
+```ts
+fields: {
+  email: field({
+    type: email(),
+    messages: {
+      required: {
+        en: 'Email is required',
+        fr: 'Email est requis'
+      },
+      invalid: {
+        en: 'Invalid email format',
+        fr: 'Format d\'email invalide'
+      }
+    }
+  })
+}
+```
+
+### validate
+
+Custom validation function:
+
+```ts
+fields: {
+  password: field({
+    type: text({ min: 8 }),
+    validate: (value) => {
+      if (!/[A-Z]/.test(value)) {
+        throw new Error('Password must contain at least one uppercase letter')
+      }
+      if (!/[0-9]/.test(value)) {
+        throw new Error('Password must contain at least one number')
+      }
+      return true
+    }
+  })
+}
+```
+
+## Computed Fields
+
+### computed
+
+Calculate field value from other fields:
+
+```ts
+fields: {
+  firstName: field({ type: text() }),
+  lastName: field({ type: text() }),
+
+  fullName: field({
+    type: text(),
+    computed: {
+      from: ['firstName', 'lastName'],
+      compute: ({ firstName, lastName }) => {
+        return `${firstName} ${lastName}`
+      }
+    }
+  })
+}
+```
+
+## Modifiers
+
+You can chain modifiers to fields:
+
+### required()
+
+```ts
+field({ type: text() }).required()
+```
+
+### unique()
+
+```ts
+field({ type: email() }).unique()
+```
+
+### indexed()
+
+```ts
+field({ type: text() }).indexed()
+```
+
+### default(value)
+
+```ts
+field({ type: boolean() }).default(true)
+```
+
+Chaining multiple modifiers:
+
+```ts
+fields: {
+  email: field({
+    type: email()
+  })
+  .required()
+  .unique()
+  .indexed()
+}
+```
+
+## Field Metadata
+
+### admin
+
+Admin UI configuration:
+
+```ts
+fields: {
+  title: field({
+    type: text(),
+    admin: {
+      placeholder: 'Enter title...',
+      helpText: 'Keep it under 60 characters'
+    }
+  })
+}
+```
+
+### hidden
+
+Hide field from auto-generated forms:
+
+```ts
+fields: {
+  apiKey: field({
+    type: text(),
+    hidden: true
+  })
+}
+```
+
+## Relations
+
+Define relationships between collections:
+
+```ts
+fields: {
+  // One-to-One
+  profile: field({
+    type: relation('profiles', { singular: true })
+  }),
+
+  // One-to-Many
+  authorId: field({
+    type: relation('users')
+  }),
+
+  // Many-to-Many
+  categories: field({
+    type: relation('categories', {
+      many: true,
+      through: 'postCategories'
+    })
+  })
+}
+```
+
+## Reverse Relations
+
+Access related records from the other side:
+
+```ts
+fields: {
+  // In posts collection
+  comments: field({
+    type: reverseRelation({
+      collection: 'comments',
+      via: 'postId'
+    })
+  })
+}
+```
+
+## Complete Example
+
+Here's a complete field configuration:
+
+```ts
+import { collection, field } from '@deessejs/collections'
+import { text, email, enumField } from '@deessejs/collections/fields'
+
+export const users = collection({
+  slug: 'users',
+
+  fields: {
+    name: field({
+      type: text({ min: 2, max: 100 }),
+      label: 'Full Name',
+      required: true,
+      indexed: true
+    }),
+
+    email: field({
+      type: email(),
+      label: 'Email Address',
+      description: 'We'll never share your email',
+      required: true,
+      unique: true,
+      indexed: true,
+      messages: {
+        required: 'Email is required',
+        invalid: 'Please enter a valid email'
+      }
+    }),
+
+    status: field({
+      type: enumField(['active', 'inactive', 'suspended']),
+      label: 'Account Status',
+      default: 'active',
+      enumLabels: {
+        active: 'Active',
+        inactive: 'Inactive',
+        suspended: 'Suspended'
+      }
+    }),
+
+    bio: field({
+      type: text(),
+      label: 'Biography',
+      nullable: true,
+      admin: {
+        placeholder: 'Tell us about yourself...',
+        helpText: 'Max 500 characters'
+      }
+    })
+  }
+})
+```
+
+## Field Lifecycle
+
+Fields go through these stages:
+
+1. **Definition**: Configure field with type and options
+2. **Validation**: Run Zod schema and custom validation
+3. **Transformation**: Apply computed fields or modifiers
+4. **Storage**: Persist to database via Drizzle
+5. **Retrieval**: Fetch with automatic type inference
+
+## Next Steps
+
+- [Field Types](/docs/field-types) - Learn about available field types
+- [Core Concepts](/docs/core-concepts) - Understanding collections and configuration
+- [Collections](/docs/collections) - Relations, hooks, and advanced features

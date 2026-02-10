@@ -3,6 +3,7 @@
   "pages": [
     "---Introduction---",
     "index",
+    "cli",
     "what-is",
     "comparison",
     "---Collections---",

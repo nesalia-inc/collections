@@ -1,17 +1,15 @@
 {
-  "docs": {
-    "title": "Documentation",
-    "pages": [
-      "---Introduction---",
-      "index",
-      "what-is",
-      "comparison",
-      "---Collections---",
-      "core-concepts",
-      "field-types",
-      "collections",
-      "plugins",
-      "i18n"
-    ]
-  }
+  "title": "Documentation",
+  "pages": [
+    "---Introduction---",
+    "index",
+    "what-is",
+    "comparison",
+    "---Collections---",
+    "core-concepts",
+    "field-types",
+    "collections",
+    "plugins",
+    "i18n"
+  ]
 }

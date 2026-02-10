@@ -3,6 +3,9 @@ title: Fields
 description: Comprehensive guide to field configuration, validation, and customization
 ---
 
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
 # Fields
 
 Fields are the building blocks of Collections. They define the schema of your data, control how it's validated, determine how it's stored in the database, and govern how it appears in your APIs.
@@ -371,12 +374,35 @@ email: field({
 ```
 
 Available message keys:
-- `required` - Field is required but missing
-- `invalid` - Field value is invalid
-- `tooShort` - Text is shorter than minimum
-- `tooLong` - Text is longer than maximum
-- `min` - Number is less than minimum
-- `max` - Number is greater than maximum
+
+<TypeTable
+  type={{
+    required: {
+      description: 'Field is required but missing',
+      type: 'string',
+    },
+    invalid: {
+      description: 'Field value is invalid',
+      type: 'string',
+    },
+    tooShort: {
+      description: 'Text is shorter than minimum',
+      type: 'string',
+    },
+    tooLong: {
+      description: 'Text is longer than maximum',
+      type: 'string',
+    },
+    min: {
+      description: 'Number is less than minimum',
+      type: 'string',
+    },
+    max: {
+      description: 'Number is greater than maximum',
+      type: 'string',
+    },
+  }}
+/>
 
 ## Computed Fields
 
@@ -470,14 +496,44 @@ title: field({
 
 Available admin options:
 
-- `placeholder` - Placeholder text for input
-- `helpText` - Additional help text displayed below the field
-- `width` - CSS width value
-- `style` - Inline CSS styles
-- `className` - CSS class name
-- `readOnly` - Disable editing (still shows value)
-- `disabled` - Completely disable the field
-- `position` - Render in sidebar (`'sidebar'`)
+<TypeTable
+  type={{
+    placeholder: {
+      description: 'Placeholder text for input',
+      type: 'string',
+    },
+    helpText: {
+      description: 'Additional help text displayed below the field',
+      type: 'string',
+    },
+    width: {
+      description: 'CSS width value (e.g. "50%", "200px")',
+      type: 'string',
+    },
+    style: {
+      description: 'Inline CSS styles',
+      type: 'Record<string, string>',
+    },
+    className: {
+      description: 'CSS class name',
+      type: 'string',
+    },
+    readOnly: {
+      description: 'Disable editing (still shows value)',
+      type: 'boolean',
+      default: 'false',
+    },
+    disabled: {
+      description: 'Completely disable the field',
+      type: 'boolean',
+      default: 'false',
+    },
+    position: {
+      description: 'Render in sidebar ("sidebar" or undefined)',
+      type: 'string',
+    },
+  }}
+/>
 
 ## Conditional Logic
 
@@ -515,18 +571,18 @@ fields: {
   slug: field({
     type: text(),
     hooks: {
-      beforeCreate: [{ data, value }] => {
+      beforeCreate: [({ data, value }) => {
         // Auto-generate slug from title
         return slugify(data.title)
-      },
+      }],
 
-      beforeUpdate: [{ data, value }] => {
+      beforeUpdate: [({ data, value }) => {
         // Only regenerate if title changed
         if (data.titleChanged) {
           return slugify(data.title)
         }
         return value
-      }
+      }]
     }
   })
 }
@@ -539,6 +595,9 @@ Available field-level hooks:
 - `afterUpdate` - After field is saved on update
 
 ## Complete Example
+
+<Accordions type="single">
+  <Accordion title="Complete User Collection Example">
 
 Here's a comprehensive example showing many field features:
 
@@ -673,6 +732,9 @@ export const users = collection({
   }
 })
 ```
+
+  </Accordion>
+</Accordions>
 
 ## Best Practices
 

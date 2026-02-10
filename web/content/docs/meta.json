@@ -19,6 +19,7 @@
     "filters",
     "relations-query",
     "pagination",
+    "cache-management",
     "error-handling"
   ]
 }

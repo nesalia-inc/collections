@@ -1,0 +1,652 @@
+---
+title: Cache Management
+description: Intelligent client-side cache management with metadata
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+# Cache Management
+
+Collections provides intelligent client-side cache management through automatic cache metadata. Every query includes cache keys, and every mutation returns invalidation keys, enabling seamless integration with React Query, SWR, and other caching solutions.
+
+## Overview
+
+<TypeTable
+  type={{
+    cacheKeys: {
+      description: 'Unique identifiers for query results',
+      type: 'string[]',
+    },
+    invalidateKeys: {
+      description: 'Keys to invalidate after mutations',
+      type: 'string[]',
+    },
+    revalidate: {
+      description: 'Time-based revalidation',
+      type: 'number (seconds)',
+    },
+  }}
+/>
+
+## Query Cache Metadata
+
+Every query response includes cache metadata:
+
+```ts
+const result = await collections.posts.findMany({
+  where: { status: { equals: 'published' } }
+})
+
+// Result includes:
+{
+  data: [...],           // Your data
+  _cache: {
+    keys: ['posts', 'posts:list', 'posts:published'],  // Cache keys
+    revalidate: 60       // Revalidate after 60 seconds
+  }
+}
+```
+
+## Cache Key Structure
+
+Cache keys follow a hierarchical pattern:
+
+```ts
+// Collection level
+['users']
+
+// Query type
+['users', 'list']
+
+// With filters
+['users', 'list', 'status:active']
+
+// With pagination
+['users', 'list', 'status:active', 'page:1']
+
+// Single item
+['users', 'id:123']
+```
+
+### Reading Cache Keys
+
+```ts
+const users = await collections.users.findMany()
+
+console.log(users._cache.keys)
+// ['users', 'users:list']
+
+const activeUsers = await collections.users.findMany({
+  where: { status: { equals: 'active' } }
+})
+
+console.log(activeUsers._cache.keys)
+// ['users', 'users:list', 'users:status:active']
+```
+
+## Mutation Invalidation
+
+Mutations automatically return keys to invalidate:
+
+```ts
+const user = await collections.users.create({
+  data: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+})
+
+// Result includes:
+{
+  data: { id: 1, name: 'John Doe', ... },
+  _invalidate: {
+    keys: ['users', 'users:list']  // Invalidate these cache keys
+  }
+}
+```
+
+### Invalidation Strategies
+
+<Accordions type="multiple">
+  <Accordion title="Create Operations">
+
+```ts
+const user = await collections.users.create({
+  data: { name: 'John', email: 'john@example.com' }
+})
+
+// Invalidates:
+- 'users'              // All users queries
+- 'users:list'         // User list queries
+
+// Preserves:
+- 'users:id:123'       // Specific user queries
+```
+
+  </Accordion>
+
+  <Accordion title="Update Operations">
+
+```ts
+const user = await collections.users.update({
+  where: { id: 1 },
+  data: { name: 'Jane' }
+})
+
+// Invalidates:
+- 'users'              // All users queries
+- 'users:list'         // User list queries
+- 'users:id:1'         // This specific user
+
+// Allows smart revalidation
+```
+
+  </Accordion>
+
+  <Accordion title="Delete Operations">
+
+```ts
+await collections.users.delete({
+  where: { id: 1 }
+})
+
+// Invalidates:
+- 'users'              // All users queries
+- 'users:list'         // User list queries
+- 'users:id:1'         // The deleted user
+
+// Ensures cache doesn't contain deleted data
+```
+
+  </Accordion>
+
+  <Accordion title="Relation Mutations">
+
+```ts
+const post = await collections.posts.create({
+  data: {
+    title: 'New Post',
+    authorId: 1  // Relation to user
+  }
+})
+
+// Invalidates:
+- 'posts'              // All posts queries
+- 'posts:list'         // Post list queries
+- 'users:id:1:posts'   // User's posts (reverse relation)
+- 'users:id:1'         // User data (updated timestamps)
+```
+
+  </Accordion>
+</Accordions>
+
+## Integration with React Query
+
+### Setup
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { collections } from './config/database'
+
+// Hook with cache keys
+function useUsers(filters?: { status?: string }) {
+  return useQuery({
+    queryKey: ['users', 'list', filters],
+    queryFn: async () => {
+      const result = await collections.users.findMany({
+        where: filters?.status ? { status: { equals: filters.status } } : undefined
+      })
+
+      // Extract cache metadata
+      queryClient.setQueryData(
+        ['users', 'list', filters, 'meta'],
+        result._cache
+      )
+
+      return result.data
+    }
+  })
+}
+```
+
+### Automatic Invalidation
+
+```tsx
+function CreateUserForm() {
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: async (data: { name: string; email: string }) => {
+      const result = await collections.users.create({ data })
+
+      // Invalidate returned keys
+      if (result._invalidate) {
+        result._invalidate.keys.forEach(key => {
+          queryClient.invalidateQueries({ queryKey: [key] })
+        })
+      }
+
+      return result.data
+    },
+
+    onSuccess: () => {
+      // Additional invalidation if needed
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    }
+  })
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault()
+      mutation.mutate(new FormData(e))
+    }}>
+      {/* ... */}
+    </form>
+  )
+}
+```
+
+### Optimistic Updates
+
+```tsx
+function UpdateUserName({ userId }: { userId: number }) {
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: async (name: string) => {
+      return await collections.users.update({
+        where: { id: userId },
+        data: { name }
+      })
+    },
+
+    onMutate: async (newName) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['users', 'id', userId] })
+
+      // Snapshot previous value
+      const previousUser = queryClient.getQueryData(['users', 'id', userId])
+
+      // Optimistically update
+      queryClient.setQueryData(['users', 'id', userId], (old: any) => ({
+        ...old,
+        name: newName
+      }))
+
+      return { previousUser }
+    },
+
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousUser) {
+        queryClient.setQueryData(['users', 'id', userId], context.previousUser)
+      }
+    },
+
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['users', 'id', userId] })
+    }
+  })
+
+  return <button onClick={() => mutation.mutate('New Name')}>Update</button>
+}
+```
+
+## Integration with SWR
+
+### Basic Setup
+
+```tsx
+import useSWR, { useSWRMutation } from 'swr'
+import { collections } from './config/database'
+
+function useUsers() {
+  const fetcher = async () => {
+    const result = await collections.users.findMany()
+    return result.data
+  }
+
+  return useSWR(['users', 'list'], fetcher)
+}
+```
+
+### Mutations with Invalidation
+
+```tsx
+function CreateUser() {
+  const { trigger } = useSWRMutation(
+    'users',
+    async (key, { arg }: { arg: { name: string; email: string } }) => {
+      const result = await collections.users.create({
+        data: arg
+      })
+
+      // Return invalidation keys
+      return {
+        data: result.data,
+        invalidate: result._invalidate.keys
+      }
+    }
+  )
+
+  return <button onClick={() => trigger({ name: 'John', email: 'john@example.com' })}>
+    Create User
+  </button>
+}
+```
+
+## Advanced Patterns
+
+### Selective Revalidation
+
+```ts
+const result = await collections.posts.findMany()
+
+// Check revalidate time
+if (result._cache.revalidate) {
+  const { revalidate, keys } = result._cache
+
+  // Set up background revalidation
+  setTimeout(() => {
+    // Revalidate only these keys
+    keys.forEach(key => {
+      revalidateQuery(key)
+    })
+  }, revalidate * 1000)
+}
+```
+
+### Stale-While-Revalidate
+
+```tsx
+function useUsersWithSWR() {
+  const { data, error, isLoading } = useSWR(
+    ['users', 'list'],
+    async () => {
+      const result = await collections.users.findMany()
+      return result.data
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 60000,  // 1 minute
+      // Use cache metadata
+      refreshInterval: (data) => {
+        // Use revalidate from metadata
+        const meta = data?._cache
+        return meta?.revalidate ? meta.revalidate * 1000 : 0
+      }
+    }
+  )
+
+  return { data, error, isLoading }
+}
+```
+
+### Prefetching
+
+```tsx
+function UserList() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    // Prefetch on mount
+    queryClient.prefetchQuery({
+      queryKey: ['users', 'list'],
+      queryFn: async () => {
+        const result = await collections.users.findMany()
+        return result.data
+      }
+    })
+  }, [queryClient])
+
+  return <div>User List</div>
+}
+```
+
+## Cache Key Utilities
+
+### Build Cache Keys Manually
+
+```ts
+// Utility to build cache keys
+const buildCacheKeys = {
+  list: (collection: string) => [collection, 'list'],
+
+  filtered: (collection: string, filters: Record<string, any>) => [
+    collection,
+    'list',
+    ...Object.entries(filters).map(([k, v]) => `${k}:${v}`)
+  ],
+
+  single: (collection: string, id: number) => [collection, `id:${id}`],
+
+  relation: (collection: string, relation: string, id: number) => [
+    collection,
+    `id:${id}`,
+    relation
+  ]
+}
+
+// Usage
+const keys = buildCacheKeys.filtered('users', { status: 'active' })
+// ['users', 'list', 'status:active']
+```
+
+### Match Invalidation Keys
+
+```ts
+// Check if a key should be invalidated
+const shouldInvalidate = (key: string, invalidateKeys: string[]) => {
+  return invalidateKeys.some(invalidKey => {
+    // Exact match
+    if (key === invalidKey) return true
+
+    // Prefix match (e.g., 'users' matches 'users:list')
+    if (key.startsWith(invalidKey + ':')) return true
+
+    return false
+  })
+}
+
+// Usage
+const cacheKey = 'users:status:active'
+const invalidateKeys = ['users', 'posts']
+
+shouldInvalidate(cacheKey, invalidateKeys)  // true (matches 'users')
+```
+
+## Metadata Structure
+
+### Query Response
+
+```ts
+interface QueryResponse<T> {
+  data: T[]
+  _cache: {
+    keys: string[]           // All cache keys for this query
+    revalidate?: number       // Revalidation time in seconds
+    timestamp: string         // When data was fetched
+    version: string          // Cache version identifier
+  }
+}
+```
+
+### Mutation Response
+
+```ts
+interface MutationResponse<T> {
+  data: T
+  _invalidate: {
+    keys: string[]           // Keys to invalidate
+    revalidate?: string[]    // Specific keys to revalidate
+    timestamp: string         // When mutation occurred
+  }
+}
+```
+
+## Best Practices
+
+<Accordions type="multiple">
+  <Accordion title="1. Always Use Cache Metadata">
+
+```tsx
+// ✅ Good - use provided metadata
+const { data, _cache } = await collections.users.findMany()
+queryClient.setQueryData(['users'], data)
+queryClient.setQueryData(['users', 'meta'], _cache)
+
+// ❌ Bad - hardcode cache keys
+queryClient.setQueryData(['users'], data)
+queryClient.invalidateQueries(['users'])
+```
+
+  </Accordion>
+
+  <Accordion title="2. Respect Revalidate Times">
+
+```tsx
+// ✅ Good - use metadata revalidate
+const { data, _cache } = await collections.posts.findMany()
+
+const refreshInterval = _cache.revalidate
+  ? _cache.revalidate * 1000
+  : 0
+
+useSWR(['posts'], fetcher, { refreshInterval })
+```
+
+  </Accordion>
+
+  <Accordion title="3. Invalidate Granularly">
+
+```tsx
+// ✅ Good - use returned invalidate keys
+mutation.onSettled(() => {
+  result._invalidate.keys.forEach(key => {
+    queryClient.invalidateQueries({ queryKey: [key] })
+  })
+})
+
+// ❌ Bad - invalidate everything
+mutation.onSettled(() => {
+  queryClient.invalidateQueries()
+})
+```
+
+  </Accordion>
+
+  <Accordion title="4. Handle Optimistic Updates Carefully">
+
+```tsx
+// ✅ Good - rollback on error
+onMutate: async (newData) => {
+  await queryClient.cancelQueries({ queryKey: ['users', id] })
+  const previous = queryClient.getQueryData(['users', id])
+
+  queryClient.setQueryData(['users', id], newData)
+
+  return { previous }
+},
+
+onError: (err, variables, context) => {
+  if (context?.previous) {
+    queryClient.setQueryData(['users', id], context.previous)
+  }
+}
+```
+
+  </Accordion>
+</Accordions>
+
+## Complete Example
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { collections } from '@/config/database'
+
+export function UserList() {
+  const queryClient = useQueryClient()
+
+  // Query with cache metadata
+  const { data: users, isLoading } = useQuery({
+    queryKey: ['users', 'list'],
+    queryFn: async () => {
+      const result = await collections.users.findMany({
+        orderBy: { createdAt: 'desc' }
+      })
+
+      // Store cache metadata
+      queryClient.setQueryData(
+        ['users', 'list', 'meta'],
+        result._cache
+      )
+
+      return result.data
+    },
+    staleTime: 60000  // 1 minute
+  })
+
+  // Mutation with automatic invalidation
+  const createUser = useMutation({
+    mutationFn: async (data: { name: string; email: string }) => {
+      const result = await collections.users.create({ data })
+
+      // Invalidate based on returned keys
+      if (result._invalidate) {
+        result._invalidate.keys.forEach(key => {
+          queryClient.invalidateQueries({ queryKey: [key] })
+        })
+      }
+
+      return result.data
+    },
+
+    // Optimistic update
+    onMutate: async (newUser) => {
+      await queryClient.cancelQueries({ queryKey: ['users', 'list'] })
+      const previousUsers = queryClient.getQueryData(['users', 'list'])
+
+      queryClient.setQueryData(['users', 'list'], (old: any) => [
+        { ...newUser, id: Date.now() },
+        ...old
+      ])
+
+      return { previousUsers }
+    },
+
+    onError: (err, variables, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['users', 'list'], context.previousUsers)
+      }
+    }
+  })
+
+  if (isLoading) return <div>Loading...</div>
+
+  return (
+    <div>
+      <h1>Users ({users?.length})</h1>
+      <button onClick={() => createUser.mutate({
+        name: 'New User',
+        email: 'new@example.com'
+      })}>
+        Add User
+      </button>
+
+      <ul>
+        {users?.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+## Next Steps
+
+- [Queries](/docs/queries) - Basic CRUD operations
+- [Mutations](/docs/queries) - Create, update, delete operations
+- [Error Handling](/docs/error-handling) - Handling errors

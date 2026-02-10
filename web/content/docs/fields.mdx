@@ -1,191 +1,103 @@
 ---
 title: Fields
-description: Field options, modifiers, and configuration
+description: Comprehensive guide to field configuration, validation, and customization
 ---
 
 # Fields
 
-Fields are the building blocks of your collections. Each field combines a field type with configuration options like labels, default values, validation, and more.
+Fields are the building blocks of Collections. They define the schema of your data, control how it's validated, determine how it's stored in the database, and govern how it appears in your APIs.
+
+Fields can be endlessly customized in their appearance and behavior without affecting their underlying data structure. They are designed to be composable, extensible, and type-safe.
+
+## Overview
+
+Each field combines:
+
+1. **A Field Type** - Determines what kind of data it accepts (text, number, relation, etc.)
+2. **Configuration** - Labels, descriptions, defaults, validation rules
+3. **Behavior** - Hooks, computed values, conditional logic
+4. **Presentation** - Admin UI options, custom components
+
+There are three main categories of fields in Collections:
+
+- **Data Fields** - Store data in the database
+- **Computed Fields** - Derive values from other fields
+- **Relation Fields** - Link to other collections
 
 ## Basic Field Syntax
 
-All fields use the `field()` function:
+Fields are defined within a collection's `fields` property:
 
 ```ts
-import { field } from '@deessejs/collections'
-import { text } from '@deessejs/collections/fields'
+import { collection, field } from '@deessejs/collections'
+import { text, email } from '@deessejs/collections/fields'
 
-fields: {
-  name: field({
-    type: text({ min: 2, max: 100 })
-  })
-}
+export const users = collection({
+  slug: 'users',
+
+  fields: {
+    name: field({
+      type: text({ min: 2, max: 100 }),
+      label: 'Full Name',
+      required: true
+    }),
+
+    email: field({
+      type: email(),
+      label: 'Email Address',
+      unique: true,
+      required: true
+    })
+  }
+})
 ```
 
-## Field Options
+## Field Configuration
 
-### label
-
-Human-readable label for the field:
+Every field is configured with an object containing its type and options:
 
 ```ts
-fields: {
-  firstName: field({
-    type: text(),
-    label: 'First Name'
-  })
-}
+field({
+  type: text(),           // Required: the field type
+  label: 'Name',          // Human-readable label
+  description: '...',     // Helper text
+  default: '...',         // Default value
+  required: true,         // Validation
+  unique: true,           // Database constraint
+  indexed: true,          // Performance optimization
+  hidden: false,          // UI visibility
+  admin: { ... }          // Admin UI options
+})
 ```
 
-With i18n:
+## Field Categories
 
-```ts
-fields: {
-  firstName: field({
-    type: text(),
-    label: {
-      en: 'First Name',
-      fr: 'Prénom',
-      es: 'Nombre'
-    }
-  })
-}
-```
+### Data Fields
 
-### description
+Data Fields are used to store data in the database. All Data Fields have a `type` property that determines their behavior.
 
-Additional context about the field:
+Available Data Fields:
 
-```ts
-fields: {
-  bio: field({
-    type: text(),
-    description: 'A short biography'
-  })
-}
-```
+- **text** - Simple text input that saves a string
+- **number** - Saves numeric values
+- **boolean** - Checkbox that saves boolean true/false values
+- **email** - Ensures the value is a properly formatted email address
+- **url** - Validates and stores URL strings
+- **timestamp** - Renders a date picker and saves a timestamp
+- **enumField** - Renders a select dropdown with predefined options
+- **array** - For repeating content, supports nested types
+- **json** - Renders a JSON editor interface that saves a JSON object
+- **relation** - Assign relationships to other collections
 
-### default
+Data fields automatically:
+- Generate TypeScript types
+- Validate input based on the field type
+- Create corresponding database columns via Drizzle
+- Provide runtime type safety
 
-Default value for the field:
+### Computed Fields
 
-```ts
-fields: {
-  status: field({
-    type: enumField(['draft', 'published']),
-    default: 'draft'
-  }),
-
-  isActive: field({
-    type: boolean(),
-    default: true
-  })
-}
-```
-
-### required
-
-Make a field required (cannot be null):
-
-```ts
-fields: {
-  email: field({
-    type: email(),
-    required: true
-  })
-}
-```
-
-### unique
-
-Add a unique constraint to the field:
-
-```ts
-fields: {
-  username: field({
-    type: text(),
-    unique: true
-  })
-}
-```
-
-### indexed
-
-Add a database index for faster queries:
-
-```ts
-fields: {
-  email: field({
-    type: email(),
-    unique: true,
-    indexed: true
-  })
-}
-```
-
-### nullable
-
-Allow null values (enabled by default for most fields):
-
-```ts
-fields: {
-  middleName: field({
-    type: text(),
-    nullable: true
-  })
-}
-```
-
-## Validation
-
-### messages
-
-Custom validation messages with i18n support:
-
-```ts
-fields: {
-  email: field({
-    type: email(),
-    messages: {
-      required: {
-        en: 'Email is required',
-        fr: 'Email est requis'
-      },
-      invalid: {
-        en: 'Invalid email format',
-        fr: 'Format d\'email invalide'
-      }
-    }
-  })
-}
-```
-
-### validate
-
-Custom validation function:
-
-```ts
-fields: {
-  password: field({
-    type: text({ min: 8 }),
-    validate: (value) => {
-      if (!/[A-Z]/.test(value)) {
-        throw new Error('Password must contain at least one uppercase letter')
-      }
-      if (!/[0-9]/.test(value)) {
-        throw new Error('Password must contain at least one number')
-      }
-      return true
-    }
-  })
-}
-```
-
-## Computed Fields
-
-### computed
-
-Calculate field value from other fields:
+Computed fields display data that is not stored in the database, but is derived or calculated from other fields.
 
 ```ts
 fields: {
@@ -204,188 +116,578 @@ fields: {
 }
 ```
 
-## Modifiers
+Computed fields are ideal for:
+- Displaying read-only calculated data
+- Formatting values from other fields
+- Creating aliases for complex field paths
+- Performance optimization for frequently accessed combinations
 
-You can chain modifiers to fields:
+### Relation Fields
 
-### required()
-
-```ts
-field({ type: text() }).required()
-```
-
-### unique()
+Relation fields link documents across collections:
 
 ```ts
-field({ type: email() }).unique()
+// One-to-One
+profile: field({
+  type: relation('profiles', { singular: true })
+})
+
+// One-to-Many (foreign key)
+authorId: field({
+  type: relation('users')
+})
+
+// Many-to-Many (through join table)
+categories: field({
+  type: relation('categories', {
+    many: true,
+    through: 'postCategories'
+  })
+})
+
+// Reverse relation (virtual)
+comments: field({
+  type: reverseRelation({
+    collection: 'comments',
+    via: 'postId'
+  })
+})
 ```
 
-### indexed()
+## Field Properties
 
-```ts
-field({ type: text() }).indexed()
-```
+### name (implicit)
 
-### default(value)
-
-```ts
-field({ type: boolean() }).default(true)
-```
-
-Chaining multiple modifiers:
+The field name is the key used in the fields object. This is the property name that will be used in TypeScript types and database columns:
 
 ```ts
 fields: {
-  email: field({
-    type: email()
-  })
-  .required()
-  .unique()
-  .indexed()
+  // 'firstName' is the field name
+  firstName: field({ type: text() })
+}
+
+// Usage:
+user.firstName // Type-safe access
+```
+
+Field names must be unique within a collection.
+
+### type
+
+Required. Defines the field type:
+
+```ts
+type: text({ min: 3, max: 255 })
+type: email()
+type: enumField(['draft', 'published'])
+type: relation('users')
+```
+
+See [Field Types](/docs/field-types) for all available types.
+
+### label
+
+Human-readable label for the field. Used in API responses, error messages, and Admin UI:
+
+```ts
+label: 'Email Address'
+```
+
+With i18n:
+
+```ts
+label: {
+  en: 'Email Address',
+  fr: 'Adresse e-mail',
+  es: 'Dirección de correo'
 }
 ```
 
-## Field Metadata
+If not provided, the field name will be formatted as the label (e.g., `firstName` → "First Name").
 
-### admin
+### description
 
-Admin UI configuration:
+Additional context about the field. Shown in admin panels and API documentation:
+
+```ts
+description: 'We will never share your email with third parties'
+```
+
+With i18n:
+
+```ts
+description: {
+  en: 'A short biography',
+  fr: 'Une courte biographie'
+}
+```
+
+### default
+
+Default value for the field. Applied on create operations if no value is provided:
+
+```ts
+// Static value
+status: field({
+  type: enumField(['draft', 'published']),
+  default: 'draft'
+})
+
+// Function
+createdAt: field({
+  type: timestamp(),
+  default: () => new Date()
+})
+```
+
+### required
+
+Make a field required (cannot be null or undefined):
+
+```ts
+email: field({
+  type: email(),
+  required: true
+})
+```
+
+Required fields are validated both at the API level and in the database schema.
+
+### unique
+
+Add a unique constraint to the field in the database:
+
+```ts
+username: field({
+  type: text(),
+  unique: true
+})
+```
+
+### indexed
+
+Add a database index for faster queries:
+
+```ts
+email: field({
+  type: email(),
+  indexed: true
+})
+```
+
+Use indexed on fields that are frequently used in `where` clauses or for sorting.
+
+### nullable
+
+Allow null values:
+
+```ts
+middleName: field({
+  type: text(),
+  nullable: true
+})
+```
+
+Most fields are nullable by default. Use `required: true` to enforce non-null values.
+
+### hidden
+
+Hide field from auto-generated forms and API responses:
+
+```ts
+apiKey: field({
+  type: text(),
+  hidden: true
+})
+```
+
+Hidden fields are still stored in the database but not exposed publicly.
+
+## Validation
+
+### Built-in Validation
+
+Fields are automatically validated based on their type:
+
+```ts
+// Text validation
+name: field({
+  type: text({ min: 2, max: 100 })
+})
+
+// Email validation
+email: field({
+  type: email()
+})
+
+// Number validation
+age: field({
+  type: number({ min: 0, max: 120 })
+})
+```
+
+### Custom Validation
+
+Add custom validation logic with the `validate` function:
+
+```ts
+password: field({
+  type: text({ min: 8 }),
+  validate: (value) => {
+    if (!/[A-Z]/.test(value)) {
+      throw new Error('Password must contain at least one uppercase letter')
+    }
+    if (!/[0-9]/.test(value)) {
+      throw new Error('Password must contain at least one number')
+    }
+    if (!/[!@#$%^&*]/.test(value)) {
+      throw new Error('Password must contain at least one special character')
+    }
+    return true
+  }
+})
+```
+
+### Validation Messages
+
+Customize error messages with i18n support:
+
+```ts
+email: field({
+  type: email(),
+  messages: {
+    required: {
+      en: 'Email is required',
+      fr: 'Email est requis',
+      es: 'El correo electrónico es obligatorio'
+    },
+    invalid: {
+      en: 'Please enter a valid email address',
+      fr: 'Veuillez entrer une adresse e-mail valide',
+      es: 'Por favor, introduzca una dirección de correo electrónico válida'
+    }
+  }
+})
+```
+
+Available message keys:
+- `required` - Field is required but missing
+- `invalid` - Field value is invalid
+- `tooShort` - Text is shorter than minimum
+- `tooLong` - Text is longer than maximum
+- `min` - Number is less than minimum
+- `max` - Number is greater than maximum
+
+## Computed Fields
+
+Computed fields derive values from other fields without storing them in the database:
+
+### Basic Computed Field
 
 ```ts
 fields: {
-  title: field({
-    type: text(),
-    admin: {
-      placeholder: 'Enter title...',
-      helpText: 'Keep it under 60 characters'
+  price: field({ type: number() }),
+  taxRate: field({ type: number(), default: 0.1 }),
+
+  total: field({
+    type: number(),
+    computed: {
+      from: ['price', 'taxRate'],
+      compute: ({ price, taxRate }) => {
+        return price + (price * taxRate)
+      }
     }
   })
 }
 ```
 
-### hidden
-
-Hide field from auto-generated forms:
+### Computed Fields with Transformations
 
 ```ts
 fields: {
-  apiKey: field({
+  firstName: field({ type: text() }),
+  lastName: field({ type: text() }),
+
+  // Create URL-safe slug
+  slug: field({
     type: text(),
-    hidden: true
+    computed: {
+      from: ['firstName', 'lastName'],
+      compute: ({ firstName, lastName }) => {
+        return `${firstName.toLowerCase()}-${lastName.toLowerCase()}`
+      }
+    }
   })
 }
 ```
 
-## Relations
+Computed fields are:
+- Read-only (cannot be set directly)
+- Calculated on every read operation
+- Not stored in the database
+- Available in API responses
 
-Define relationships between collections:
+## Field Modifiers
+
+Chain modifiers to fields for cleaner syntax:
+
+```ts
+email: field({
+  type: email()
+})
+.required()
+.unique()
+.indexed()
+```
+
+Available modifiers:
+- `.required()` - Make field required
+- `.unique()` - Add unique constraint
+- `.indexed()` - Add database index
+- `.default(value)` - Set default value
+- `.validate(fn)` - Add custom validation
+
+## Admin Options
+
+Customize how fields appear and behave in admin panels:
+
+```ts
+title: field({
+  type: text(),
+  admin: {
+    placeholder: 'Enter your title...',
+    helpText: 'Keep it under 60 characters for best display',
+    width: '50%',
+    style: {
+      fontWeight: 'bold'
+    },
+    className: 'custom-title-field',
+    readOnly: false,
+    disabled: false
+  }
+})
+```
+
+Available admin options:
+
+- `placeholder` - Placeholder text for input
+- `helpText` - Additional help text displayed below the field
+- `width` - CSS width value
+- `style` - Inline CSS styles
+- `className` - CSS class name
+- `readOnly` - Disable editing (still shows value)
+- `disabled` - Completely disable the field
+- `position` - Render in sidebar (`'sidebar'`)
+
+## Conditional Logic
+
+Show or hide fields based on other field values:
 
 ```ts
 fields: {
-  // One-to-One
-  profile: field({
-    type: relation('profiles', { singular: true })
+  hasDiscount: field({
+    type: boolean(),
+    default: false
   }),
 
-  // One-to-Many
-  authorId: field({
-    type: relation('users')
-  }),
-
-  // Many-to-Many
-  categories: field({
-    type: relation('categories', {
-      many: true,
-      through: 'postCategories'
-    })
+  discountPercentage: field({
+    type: number({ min: 0, max: 100 }),
+    admin: {
+      condition: (data, siblingData) => {
+        return siblingData.hasDiscount === true
+      }
+    }
   })
 }
 ```
 
-## Reverse Relations
+Condition function receives:
+- `data` - The entire document's data
+- `siblingData` - Only fields within the same parent
+- `user` - Currently authenticated user (if available)
 
-Access related records from the other side:
+## Field-Level Hooks
+
+Execute logic at specific points in a field's lifecycle:
 
 ```ts
 fields: {
-  // In posts collection
-  comments: field({
-    type: reverseRelation({
-      collection: 'comments',
-      via: 'postId'
-    })
+  slug: field({
+    type: text(),
+    hooks: {
+      beforeCreate: [{ data, value }] => {
+        // Auto-generate slug from title
+        return slugify(data.title)
+      },
+
+      beforeUpdate: [{ data, value }] => {
+        // Only regenerate if title changed
+        if (data.titleChanged) {
+          return slugify(data.title)
+        }
+        return value
+      }
+    }
   })
 }
 ```
+
+Available field-level hooks:
+- `beforeCreate` - Before field is saved on create
+- `afterCreate` - After field is saved on create
+- `beforeUpdate` - Before field is saved on update
+- `afterUpdate` - After field is saved on update
 
 ## Complete Example
 
-Here's a complete field configuration:
+Here's a comprehensive example showing many field features:
 
 ```ts
 import { collection, field } from '@deessejs/collections'
-import { text, email, enumField } from '@deessejs/collections/fields'
+import { text, email, enumField, number, timestamp } from '@deessejs/collections/fields'
 
 export const users = collection({
   slug: 'users',
 
   fields: {
+    // Basic required field
     name: field({
       type: text({ min: 2, max: 100 }),
       label: 'Full Name',
+      description: 'Your legal name',
       required: true,
-      indexed: true
-    }),
-
-    email: field({
-      type: email(),
-      label: 'Email Address',
-      description: 'We'll never share your email',
-      required: true,
-      unique: true,
       indexed: true,
-      messages: {
-        required: 'Email is required',
-        invalid: 'Please enter a valid email'
+      admin: {
+        placeholder: 'John Doe',
+        helpText: 'This will appear on your public profile'
       }
     }),
 
+    // Email with custom validation and messages
+    email: field({
+      type: email(),
+      label: 'Email Address',
+      description: 'We will never share your email',
+      required: true,
+      unique: true,
+      indexed: true,
+      validate: (value) => {
+        // Additional business logic validation
+        if (value.endsWith('@temp-mail.com')) {
+          throw new Error('Temporary email addresses are not allowed')
+        }
+        return true
+      },
+      messages: {
+        required: 'Email is required',
+        invalid: 'Please enter a valid email address'
+      },
+      admin: {
+        placeholder: 'you@example.com',
+        helpText: 'Use your permanent email address'
+      }
+    }),
+
+    // Enum with translated labels
     status: field({
       type: enumField(['active', 'inactive', 'suspended']),
       label: 'Account Status',
       default: 'active',
       enumLabels: {
-        active: 'Active',
-        inactive: 'Inactive',
-        suspended: 'Suspended'
+        active: {
+          en: 'Active',
+          fr: 'Actif'
+        },
+        inactive: {
+          en: 'Inactive',
+          fr: 'Inactif'
+        },
+        suspended: {
+          en: 'Suspended',
+          fr: 'Suspendu'
+        }
       }
     }),
 
+    // Number with constraints
+    age: field({
+      type: number({ min: 13, max: 120 }),
+      label: 'Age',
+      required: true,
+      validate: (value) => {
+        if (value < 18) {
+          throw new Error('You must be 18 or older to use this service')
+        }
+        return true
+      },
+      admin: {
+        helpText: 'You must be 18 or older to register'
+      }
+    }),
+
+    // Computed field
+    accountAge: field({
+      type: number(),
+      label: 'Account Age (days)',
+      computed: {
+        from: ['createdAt'],
+        compute: ({ createdAt }) => {
+          const now = new Date()
+          const created = new Date(createdAt)
+          const diffTime = Math.abs(now - created)
+          return Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        }
+      }
+    }),
+
+    // Optional field with conditional display
     bio: field({
       type: text(),
       label: 'Biography',
       nullable: true,
       admin: {
+        condition: (data) => data.status === 'active',
         placeholder: 'Tell us about yourself...',
-        helpText: 'Max 500 characters'
+        helpText: 'Maximum 500 characters'
+      }
+    }),
+
+    // Auto-generated timestamps
+    createdAt: field({
+      type: timestamp(),
+      label: 'Created At',
+      default: () => new Date(),
+      admin: {
+        readOnly: true
+      }
+    }),
+
+    updatedAt: field({
+      type: timestamp(),
+      label: 'Updated At',
+      default: () => new Date(),
+      admin: {
+        readOnly: true
       }
     })
   }
 })
 ```
 
-## Field Lifecycle
+## Best Practices
 
-Fields go through these stages:
-
-1. **Definition**: Configure field with type and options
-2. **Validation**: Run Zod schema and custom validation
-3. **Transformation**: Apply computed fields or modifiers
-4. **Storage**: Persist to database via Drizzle
-5. **Retrieval**: Fetch with automatic type inference
+1. **Use descriptive names** - Field names should be clear and consistent
+2. **Provide labels** - Always include human-readable labels
+3. **Add descriptions** - Help users understand what each field does
+4. **Validate input** - Use built-in and custom validation
+5. **Use i18n** - Make your fields accessible to international users
+6. **Index strategically** - Add indexes to frequently queried fields
+7. **Document computed fields** - Explain how computed values are derived
+8. **Use conditionals** - Hide irrelevant fields to reduce complexity
 
 ## Next Steps
 
-- [Field Types](/docs/field-types) - Learn about available field types
-- [Core Concepts](/docs/core-concepts) - Understanding collections and configuration
-- [Collections](/docs/collections) - Relations, hooks, and advanced features
+- [Field Types](/docs/field-types) - Explore all available field types
+- [Collections](/docs/collections) - Learn about collections and advanced features
+- [i18n](/docs/i18n) - Internationalization support
+- [Plugins](/docs/plugins) - Extend functionality with plugins

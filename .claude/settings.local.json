@@ -10,7 +10,10 @@
       "Bash(gh label create:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue create --title \"Add soft delete plugin\" --body \"\")",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(pnpm test)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr edit:*)"
     ]
   }
 }

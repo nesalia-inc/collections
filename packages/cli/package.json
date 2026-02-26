@@ -1,0 +1,36 @@
+{
+  "name": "@deessejs/collections-cli",
+  "version": "0.0.1",
+  "description": "CLI for @deessejs/collections",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "collections": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@deessejs/collections": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "tsup": "^8.2.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "peerDependencies": {
+    "typescript": ">=5"
+  },
+  "publishConfigaccess": "public": {
+    "",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

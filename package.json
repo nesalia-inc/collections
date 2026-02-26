@@ -1,0 +1,34 @@
+{
+  "name": "@deessejs/collections",
+  "private": true,
+  "version": "0.0.0",
+  "description": "High-level abstraction layer built on top of Drizzle ORM",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo build && changeset publish",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.7",
+    "husky": "^9.1.4",
+    "turbo": "^2.0.14",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "packageManager": "pnpm@9.6.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

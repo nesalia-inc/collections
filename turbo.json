@@ -15,6 +15,10 @@
       "outputs": ["coverage/**"],
       "dependsOn": []
     },
+    "test:coverage": {
+      "outputs": ["coverage/**"],
+      "dependsOn": []
+    },
     "dev": {
       "cache": false,
       "persistent": true

@@ -1,13 +1,9 @@
 import type { FieldTypeInstance, FieldTypeCreator } from './field-type'
 
 /**
- * Creates a field definition
- *
- * @example
- * name: field({ fieldType: text() })
- * email: field({ fieldType: email(), unique: true })
+ * Field configuration options
  */
-export function field(config: {
+export interface FieldOptions {
   fieldType: FieldTypeCreator
   required?: boolean
   unique?: boolean
@@ -15,7 +11,16 @@ export function field(config: {
   default?: unknown
   label?: string
   description?: string
-}): FieldDefinition {
+}
+
+/**
+ * Creates a field definition
+ *
+ * @example
+ * name: field({ fieldType: text() })
+ * email: field({ fieldType: email(), unique: true })
+ */
+export function field(config: FieldOptions): FieldDefinition {
   return {
     fieldType: config.fieldType,
     required: config.required ?? false,

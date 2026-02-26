@@ -28,7 +28,8 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "drizzle-orm": "^0.31.2",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
+    "eslint": "^8.57.0",
     "tsup": "^8.2.2",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"

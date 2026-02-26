@@ -3,7 +3,14 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh label list:*)",
+      "Bash(gh label create:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue create --title \"Add soft delete plugin\" --body \"\")",
+      "Bash(gh issue create:*)"
     ]
   }
 }

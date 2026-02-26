@@ -35,7 +35,7 @@ export const indexed = (field: FieldDefinition): FieldDefinition => ({
 /**
  * Set default value for field
  */
-export const defaultValue = <T>(value: T) => (field: FieldDefinition): FieldDefinition => ({
+export const defaultValue = <T>(value: T, field: FieldDefinition): FieldDefinition => ({
   ...field,
   default: value
 })
@@ -43,7 +43,7 @@ export const defaultValue = <T>(value: T) => (field: FieldDefinition): FieldDefi
 /**
  * Set label for field
  */
-export const label = (value: string) => (field: FieldDefinition): FieldDefinition => ({
+export const label = (value: string, field: FieldDefinition): FieldDefinition => ({
   ...field,
   label: value
 })
@@ -51,7 +51,7 @@ export const label = (value: string) => (field: FieldDefinition): FieldDefinitio
 /**
  * Set description for field
  */
-export const description = (value: string) => (field: FieldDefinition): FieldDefinition => ({
+export const description = (value: string, field: FieldDefinition): FieldDefinition => ({
   ...field,
   description: value
 })

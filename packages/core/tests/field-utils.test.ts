@@ -33,50 +33,28 @@ describe('field utilities', () => {
 
   describe('defaultValue', () => {
     it('sets default value', () => {
-      const f = defaultValue(18)(field({ fieldType: number() }))
+      const f = defaultValue(18, field({ fieldType: number() }))
       expect(f.default).toBe(18)
     })
   })
 
   describe('label', () => {
     it('sets label', () => {
-      const f = label('Name')(field({ fieldType: text() }))
+      const f = label('Name', field({ fieldType: text() }))
       expect(f.label).toBe('Name')
     })
   })
 
   describe('description', () => {
     it('sets description', () => {
-      const f = description('User name')(field({ fieldType: text() }))
+      const f = description('User name', field({ fieldType: text() }))
       expect(f.description).toBe('User name')
     })
   })
 
   it('composes multiple utilities', () => {
-    const f = required(
-      unique(
-        indexed(
-          defaultValue('John')(
-            label('Name')(
-              description('User name')(
-                field({ fieldType: text() })
-              )
-            )
-          )
-        )
-      )
-    )
-
-    expect(f.required).toBe(true)
-    expect(f.unique).toBe(true)
-    expect(f.indexed).toBe(true)
-    expect(f.default).toBe('John')
-    expect(f.label).toBe('Name')
-    expect(f.description).toBe('User name')
-  })
-
-  it('composes utilities with function chaining', () => {
-    const f = required(unique(indexed(defaultValue('John')(label('Name')(description('User name')(field({ fieldType: text() })))))))
+    const baseField = field({ fieldType: text() })
+    const f = required(unique(indexed(defaultValue('John', label('Name', description('User name', baseField))))))
 
     expect(f.required).toBe(true)
     expect(f.unique).toBe(true)

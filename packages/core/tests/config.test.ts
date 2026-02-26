@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { defineConfig } from '../src/config'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
-import { text } from '../src/fields'
+import * as f from '../src/fields'
 
 describe('defineConfig', () => {
   it('creates a config with a single collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text() })
+        name: field({ fieldType: f.text() })
       }
     })
 
@@ -26,12 +26,12 @@ describe('defineConfig', () => {
   it('creates a config with multiple collections', () => {
     const users = collection({
       slug: 'users',
-      fields: { name: field({ fieldType: text() }) }
+      fields: { name: field({ fieldType: f.text() }) }
     })
 
     const posts = collection({
       slug: 'posts',
-      fields: { title: field({ fieldType: text() }) }
+      fields: { title: field({ fieldType: f.text() }) }
     })
 
     const config = defineConfig({
@@ -49,7 +49,7 @@ describe('defineConfig', () => {
   it('creates a config with plugins', () => {
     const users = collection({
       slug: 'users',
-      fields: { name: field({ fieldType: text() }) }
+      fields: { name: field({ fieldType: f.text() }) }
     })
 
     const mockPlugin = {
@@ -57,7 +57,7 @@ describe('defineConfig', () => {
       collections: {
         settings: collection({
           slug: 'settings',
-          fields: { key: field({ fieldType: text() }) }
+          fields: { key: field({ fieldType: f.text() }) }
         })
       }
     }
@@ -78,7 +78,7 @@ describe('defineConfig', () => {
   it('tracks plugin collections correctly', () => {
     const users = collection({
       slug: 'users',
-      fields: { name: field({ fieldType: text() }) }
+      fields: { name: field({ fieldType: f.text() }) }
     })
 
     const mockPlugin1 = {
@@ -86,7 +86,7 @@ describe('defineConfig', () => {
       collections: {
         plugin1Table: collection({
           slug: 'plugin1Table',
-          fields: { data: field({ fieldType: text() }) }
+          fields: { data: field({ fieldType: f.text() }) }
         })
       }
     }
@@ -96,7 +96,7 @@ describe('defineConfig', () => {
       collections: {
         plugin2Table: collection({
           slug: 'plugin2Table',
-          fields: { value: field({ fieldType: text() }) }
+          fields: { value: field({ fieldType: f.text() }) }
         })
       }
     }
@@ -116,7 +116,7 @@ describe('defineConfig', () => {
   it('returns null for db (placeholder)', () => {
     const users = collection({
       slug: 'users',
-      fields: { name: field({ fieldType: text() }) }
+      fields: { name: field({ fieldType: f.text() }) }
     })
 
     const config = defineConfig({

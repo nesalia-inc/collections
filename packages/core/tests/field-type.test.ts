@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fieldType } from '../src/field-type'
 import { field } from '../src/field'
-import { text, number, boolean, date, timestamp, select, json, array, relation } from '../src/fields'
+import * as f from '../src/fields'
 import { z } from 'zod'
 
 describe('fieldType', () => {
@@ -20,7 +20,7 @@ describe('fieldType', () => {
 
 describe('field', () => {
   it('creates a basic field', () => {
-    const myField = field({ fieldType: text() })
+    const myField = field({ fieldType: f.text() })
 
     expect(myField.required).toBe(false)
     expect(myField.unique).toBe(false)
@@ -29,7 +29,7 @@ describe('field', () => {
 
   it('creates a field with options', () => {
     const myField = field({
-      fieldType: text(),
+      fieldType: f.text(),
       required: true,
       unique: true,
       indexed: true,
@@ -47,11 +47,11 @@ describe('field', () => {
   })
 
   it('works with different field types', () => {
-    const textField = field({ fieldType: text() })
-    const numberField = field({ fieldType: number() })
-    const booleanField = field({ fieldType: boolean() })
-    const dateField = field({ fieldType: date() })
-    const timestampField = field({ fieldType: timestamp() })
+    const textField = field({ fieldType: f.text() })
+    const numberField = field({ fieldType: f.number() })
+    const booleanField = field({ fieldType: f.boolean() })
+    const dateField = field({ fieldType: f.date() })
+    const timestampField = field({ fieldType: f.timestamp() })
 
     expect(textField.fieldType.schema).toBeInstanceOf(z.ZodString)
     expect(numberField.fieldType.schema).toBeInstanceOf(z.ZodNumber)
@@ -63,7 +63,7 @@ describe('field', () => {
 
 describe('built-in field types', () => {
   it('text field type', () => {
-    const instance = text()
+    const instance = f.text()
     expect(instance.schema).toBeInstanceOf(z.ZodString)
     expect(instance.database).toEqual({ type: 'text' })
   })
@@ -78,42 +78,42 @@ describe('built-in field types', () => {
   })
 
   it('number field type', () => {
-    const instance = number()
+    const instance = f.number()
     expect(instance.schema).toBeInstanceOf(z.ZodNumber)
   })
 
   it('boolean field type', () => {
-    const instance = boolean()
+    const instance = f.boolean()
     expect(instance.schema).toBeInstanceOf(z.ZodBoolean)
   })
 
   it('date field type', () => {
-    const instance = date()
+    const instance = f.date()
     expect(instance.schema).toBeInstanceOf(z.ZodDate)
   })
 
   it('timestamp field type', () => {
-    const instance = timestamp()
+    const instance = f.timestamp()
     expect(instance.schema).toBeInstanceOf(z.ZodDate)
   })
 
   it('enum field type', () => {
-    const status = select(['draft', 'published', 'archived'])
+    const status = f.select(['draft', 'published', 'archived'])
     expect(status.schema).toBeInstanceOf(z.ZodEnum)
   })
 
   it('json field type', () => {
-    const instance = json()
+    const instance = f.json()
     expect(instance.schema).toBeInstanceOf(z.ZodAny)
   })
 
   it('array field type', () => {
-    const instance = array(z.string())
+    const instance = f.array(z.string())
     expect(instance.schema).toBeInstanceOf(z.ZodArray)
   })
 
   it('relation field type - one-to-many', () => {
-    const instance = relation({ collection: 'users' })
+    const instance = f.relation({ collection: 'users' })
     expect(instance.schema).toBeInstanceOf(z.ZodString)
     expect(instance.database).toEqual({
       type: 'integer',
@@ -125,12 +125,12 @@ describe('built-in field types', () => {
   })
 
   it('relation field type - one-to-one', () => {
-    const instance = relation({ collection: 'profiles', singular: true })
+    const instance = f.relation({ collection: 'profiles', singular: true })
     expect(instance.database.singular).toBe(true)
   })
 
   it('relation field type - many-to-many', () => {
-    const instance = relation({ collection: 'tags', many: true })
+    const instance = f.relation({ collection: 'tags', many: true })
     expect(instance.schema).toBeInstanceOf(z.ZodArray)
     expect(instance.database.many).toBe(true)
   })
@@ -138,18 +138,18 @@ describe('built-in field types', () => {
 
 describe('field with built-in types', () => {
   it('creates a field with text type', () => {
-    const myField = field({ fieldType: text() })
+    const myField = field({ fieldType: f.text() })
     expect(myField.fieldType.schema).toBeInstanceOf(z.ZodString)
   })
 
   it('creates a field with number type', () => {
-    const myField = field({ fieldType: number() })
+    const myField = field({ fieldType: f.number() })
     expect(myField.fieldType.schema).toBeInstanceOf(z.ZodNumber)
   })
 
   it('creates a field with relation type', () => {
     const myField = field({
-      fieldType: relation({ collection: 'users' }),
+      fieldType: f.relation({ collection: 'users' }),
       required: true
     })
     expect(myField.required).toBe(true)

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
-import { text, number, boolean, date, timestamp, select, json, array, relation } from '../src/fields'
+import * as f from '../src/fields'
 import { required, unique, indexed, defaultValue, label, description } from '../src/field-utils'
 
 describe('collection', () => {
@@ -9,8 +9,8 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text() }),
-        email: field({ fieldType: text() })
+        name: field({ fieldType: f.text() }),
+        email: field({ fieldType: f.text() })
       }
     })
 
@@ -25,7 +25,7 @@ describe('collection', () => {
       slug: 'users',
       name: 'Users',
       fields: {
-        name: field({ fieldType: text() })
+        name: field({ fieldType: f.text() })
       }
     })
 
@@ -37,14 +37,14 @@ describe('collection', () => {
     const posts = collection({
       slug: 'posts',
       fields: {
-        title: field({ fieldType: text() }),
-        views: field({ fieldType: number() }),
-        published: field({ fieldType: boolean() }),
-        createdAt: field({ fieldType: date() }),
-        updatedAt: field({ fieldType: timestamp() }),
-        metadata: field({ fieldType: json() }),
-        tags: field({ fieldType: array(text()) }),
-        author: field({ fieldType: relation({ collection: 'users' }) })
+        title: field({ fieldType: f.text() }),
+        views: field({ fieldType: f.number() }),
+        published: field({ fieldType: f.boolean() }),
+        createdAt: field({ fieldType: f.date() }),
+        updatedAt: field({ fieldType: f.timestamp() }),
+        metadata: field({ fieldType: f.json() }),
+        tags: field({ fieldType: f.array(f.text()) }),
+        author: field({ fieldType: f.relation({ collection: 'users' }) })
       }
     })
 
@@ -58,7 +58,7 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text() })
+        name: field({ fieldType: f.text() })
       },
       hooks: {
         beforeCreate: [mockHook],
@@ -82,10 +82,10 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text(), required: true, label: 'Name' }),
-        email: field({ fieldType: text(), unique: true, indexed: true }),
-        age: field({ fieldType: number(), default: 18 }),
-        bio: field({ fieldType: text(), description: 'User biography' })
+        name: field({ fieldType: f.text(), required: true, label: 'Name' }),
+        email: field({ fieldType: f.text(), unique: true, indexed: true }),
+        age: field({ fieldType: f.number(), default: 18 }),
+        bio: field({ fieldType: f.text(), description: 'User biography' })
       }
     })
 
@@ -101,7 +101,7 @@ describe('collection', () => {
     const posts = collection({
       slug: 'posts',
       fields: {
-        status: field({ fieldType: select(['draft', 'published', 'archived']) })
+        status: field({ fieldType: f.select(['draft', 'published', 'archived']) })
       }
     })
 
@@ -112,9 +112,9 @@ describe('collection', () => {
     const posts = collection({
       slug: 'posts',
       fields: {
-        author: field({ fieldType: relation({ collection: 'users' }) }),
-        category: field({ fieldType: relation({ collection: 'categories', singular: true }) }),
-        tags: field({ fieldType: relation({ collection: 'tags', many: true }) })
+        author: field({ fieldType: f.relation({ collection: 'users' }) }),
+        category: field({ fieldType: f.relation({ collection: 'categories', singular: true }) }),
+        tags: field({ fieldType: f.relation({ collection: 'tags', many: true }) })
       }
     })
 

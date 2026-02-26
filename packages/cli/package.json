@@ -1,26 +1,12 @@
 {
-  "name": "@deessejs/collections",
+  "name": "@deessejs/collections-cli",
   "version": "0.0.1",
-  "description": "High-level abstraction layer built on top of Drizzle ORM",
+  "description": "CLI for @deessejs/collections",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./fields": {
-      "types": "./dist/fields/index.d.ts",
-      "import": "./dist/fields/index.mjs",
-      "require": "./dist/fields/index.js"
-    },
-    "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.mjs",
-      "require": "./dist/plugins/index.js"
-    }
+  "bin": {
+    "collections": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
@@ -32,8 +18,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "drizzle-orm": "^0.31.2",
-    "zod": "^3.23.8"
+    "@deessejs/collections": "workspace:*",
+    "commander": "^12.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",

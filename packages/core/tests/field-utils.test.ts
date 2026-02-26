@@ -1,67 +1,67 @@
 import { describe, it, expect } from 'vitest'
 import { field } from '../src'
-import * as fields from '../src/fields'
+import { f } from '../src'
 import { required, optional, unique, indexed, defaultValue, label, description } from '../src/field-utils'
 
 describe('field utilities', () => {
   describe('required', () => {
     it('marks field as required', () => {
-      const f = required(field({ fieldType: fields.text() }))
-      expect(f.required).toBe(true)
+      const myField = required(field({ fieldType: f.text() }))
+      expect(myField.required).toBe(true)
     })
   })
 
   describe('optional', () => {
     it('marks field as optional', () => {
-      const f = optional(field({ fieldType: fields.text() }))
-      expect(f.required).toBe(false)
+      const myField = optional(field({ fieldType: f.text() }))
+      expect(myField.required).toBe(false)
     })
   })
 
   describe('unique', () => {
     it('marks field as unique', () => {
-      const f = unique(field({ fieldType: fields.text() }))
-      expect(f.unique).toBe(true)
+      const myField = unique(field({ fieldType: f.text() }))
+      expect(myField.unique).toBe(true)
     })
   })
 
   describe('indexed', () => {
     it('marks field as indexed', () => {
-      const f = indexed(field({ fieldType: fields.text() }))
-      expect(f.indexed).toBe(true)
+      const myField = indexed(field({ fieldType: f.text() }))
+      expect(myField.indexed).toBe(true)
     })
   })
 
   describe('defaultValue', () => {
     it('sets default value', () => {
-      const f = defaultValue(18, field({ fieldType: fields.number() }))
-      expect(f.default).toBe(18)
+      const myField = defaultValue(18, field({ fieldType: f.number() }))
+      expect(myField.default).toBe(18)
     })
   })
 
   describe('label', () => {
     it('sets label', () => {
-      const f = label('Name', field({ fieldType: fields.text() }))
-      expect(f.label).toBe('Name')
+      const myField = label('Name', field({ fieldType: f.text() }))
+      expect(myField.label).toBe('Name')
     })
   })
 
   describe('description', () => {
     it('sets description', () => {
-      const f = description('User name', field({ fieldType: fields.text() }))
-      expect(f.description).toBe('User name')
+      const myField = description('User name', field({ fieldType: f.text() }))
+      expect(myField.description).toBe('User name')
     })
   })
 
   it('composes multiple utilities', () => {
-    const baseField = field({ fieldType: fields.text() })
-    const f = required(unique(indexed(defaultValue('John', label('Name', description('User name', baseField))))))
+    const baseField = field({ fieldType: f.text() })
+    const myField = required(unique(indexed(defaultValue('John', label('Name', description('User name', baseField))))))
 
-    expect(f.required).toBe(true)
-    expect(f.unique).toBe(true)
-    expect(f.indexed).toBe(true)
-    expect(f.default).toBe('John')
-    expect(f.label).toBe('Name')
-    expect(f.description).toBe('User name')
+    expect(myField.required).toBe(true)
+    expect(myField.unique).toBe(true)
+    expect(myField.indexed).toBe(true)
+    expect(myField.default).toBe('John')
+    expect(myField.label).toBe('Name')
+    expect(myField.description).toBe('User name')
   })
 })

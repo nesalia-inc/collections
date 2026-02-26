@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
-import * as f from '../src/fields'
+import { f } from '../src'
 import { required, unique, indexed, defaultValue, label, description } from '../src/field-utils'
 
 describe('collection', () => {

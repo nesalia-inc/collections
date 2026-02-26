@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { defineConfig } from '../src/config'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
-import * as f from '../src/fields'
+import { f } from '../src'
 
 describe('defineConfig', () => {
   it('creates a config with a single collection', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fieldType } from '../src/field-type'
 import { field } from '../src/field'
-import * as f from '../src/fields'
+import { f } from '../src'
 import { z } from 'zod'
 
 describe('fieldType', () => {

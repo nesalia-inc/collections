@@ -6,6 +6,7 @@ export { required, optional, unique, indexed, defaultValue, label, description }
 export { field, type FieldDefinition, type FieldOptions } from './field'
 
 // Built-in field types
+export { f } from './fields'
 export * from './fields'
 
 // Collection

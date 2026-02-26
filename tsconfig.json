@@ -31,5 +31,5 @@
       "@deessejs/collections/*": ["./packages/core/src/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "build", ".turbo"]
+  "exclude": ["node_modules", "dist", "build", ".turbo", "coverage", "apps"]
 }

@@ -1,10 +1,10 @@
-import type { FieldTypeInstance, FieldTypeCreator } from './field-type'
+import type { FieldTypeInstance } from './field-type'
 
 /**
  * Field configuration options
  */
 export type FieldOptions = {
-  fieldType: FieldTypeCreator
+  fieldType: FieldTypeInstance
   required?: boolean
   unique?: boolean
   indexed?: boolean
@@ -36,7 +36,7 @@ export const field = (config: FieldOptions): FieldDefinition => {
  * A field definition
  */
 export type FieldDefinition = {
-  fieldType: FieldTypeCreator
+  fieldType: FieldTypeInstance
   required: boolean
   unique: boolean
   indexed: boolean

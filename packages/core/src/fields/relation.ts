@@ -1,4 +1,4 @@
-import { fieldType, type FieldTypeCreator } from '../field-type'
+import { fieldType, type FieldTypeInstance } from '../field-type'
 import { z } from 'zod'
 
 /**
@@ -14,7 +14,7 @@ export type RelationOptions = {
 /**
  * Creates a relation field type for foreign key relationships
  */
-export const relation = (options: RelationOptions): FieldTypeCreator => {
+export const relation = (options: RelationOptions): FieldTypeInstance => {
   const isMany = options.many ?? false
   const isSingular = options.singular ?? false
 
@@ -27,5 +27,5 @@ export const relation = (options: RelationOptions): FieldTypeCreator => {
       many: isMany,
       singular: isSingular
     }
-  })
+  })()
 }

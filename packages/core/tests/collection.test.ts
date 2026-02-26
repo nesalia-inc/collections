@@ -8,8 +8,8 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text }),
-        email: field({ fieldType: text })
+        name: field({ fieldType: text() }),
+        email: field({ fieldType: text() })
       }
     })
 
@@ -24,7 +24,7 @@ describe('collection', () => {
       slug: 'users',
       name: 'Users',
       fields: {
-        name: field({ fieldType: text })
+        name: field({ fieldType: text() })
       }
     })
 
@@ -36,13 +36,13 @@ describe('collection', () => {
     const posts = collection({
       slug: 'posts',
       fields: {
-        title: field({ fieldType: text }),
-        views: field({ fieldType: number }),
-        published: field({ fieldType: boolean }),
-        createdAt: field({ fieldType: date }),
-        updatedAt: field({ fieldType: timestamp }),
+        title: field({ fieldType: text() }),
+        views: field({ fieldType: number() }),
+        published: field({ fieldType: boolean() }),
+        createdAt: field({ fieldType: date() }),
+        updatedAt: field({ fieldType: timestamp() }),
         metadata: field({ fieldType: json() }),
-        tags: field({ fieldType: array(text) }),
+        tags: field({ fieldType: array(text()) }),
         author: field({ fieldType: relation({ collection: 'users' }) })
       }
     })
@@ -57,7 +57,7 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text })
+        name: field({ fieldType: text() })
       },
       hooks: {
         beforeCreate: [mockHook],
@@ -81,10 +81,10 @@ describe('collection', () => {
     const users = collection({
       slug: 'users',
       fields: {
-        name: field({ fieldType: text, required: true, label: 'Name' }),
-        email: field({ fieldType: text, unique: true, indexed: true }),
-        age: field({ fieldType: number, default: 18 }),
-        bio: field({ fieldType: text, description: 'User biography' })
+        name: field({ fieldType: text(), required: true, label: 'Name' }),
+        email: field({ fieldType: text(), unique: true, indexed: true }),
+        age: field({ fieldType: number(), default: 18 }),
+        bio: field({ fieldType: text(), description: 'User biography' })
       }
     })
 

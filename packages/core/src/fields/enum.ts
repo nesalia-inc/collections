@@ -1,4 +1,4 @@
-import { fieldType, type FieldTypeCreator } from '../field-type'
+import { fieldType, type FieldTypeInstance } from '../field-type'
 import { z } from 'zod'
 
 /**
@@ -6,9 +6,9 @@ import { z } from 'zod'
  */
 export const enumField = <T extends readonly [string, ...string[]]>(
   options: T
-): FieldTypeCreator => {
+): FieldTypeInstance => {
   return fieldType({
     schema: z.enum(options),
     database: { type: 'text' }
-  })
+  })()
 }

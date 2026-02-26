@@ -7,3 +7,6 @@ export * from './fields'
 
 // Collection
 export { collection, type CollectionConfig, type Collection, type CollectionHooks, type HookFunction, type HookContext } from './collection'
+
+// Config
+export { defineConfig, type Plugin, type DatabaseConfig, type ConfigOptions, type DefineConfigReturn } from './config'

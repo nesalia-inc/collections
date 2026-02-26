@@ -4,9 +4,9 @@ import { z } from 'zod'
 /**
  * Creates an enum field type
  */
-export function enumField<T extends readonly [string, ...string[]]>(
+export const enumField = <T extends readonly [string, ...string[]]>(
   options: T
-): FieldTypeCreator {
+): FieldTypeCreator => {
   return fieldType({
     schema: z.enum(options),
     database: { type: 'text' }

@@ -3,7 +3,7 @@ import type { FieldTypeInstance, FieldTypeCreator } from './field-type'
 /**
  * Field configuration options
  */
-export interface FieldOptions {
+export type FieldOptions = {
   fieldType: FieldTypeCreator
   required?: boolean
   unique?: boolean
@@ -20,7 +20,7 @@ export interface FieldOptions {
  * name: field({ fieldType: text() })
  * email: field({ fieldType: email(), unique: true })
  */
-export function field(config: FieldOptions): FieldDefinition {
+export const field = (config: FieldOptions): FieldDefinition => {
   return {
     fieldType: config.fieldType,
     required: config.required ?? false,
@@ -35,7 +35,7 @@ export function field(config: FieldOptions): FieldDefinition {
 /**
  * A field definition
  */
-export interface FieldDefinition {
+export type FieldDefinition = {
   fieldType: FieldTypeCreator
   required: boolean
   unique: boolean

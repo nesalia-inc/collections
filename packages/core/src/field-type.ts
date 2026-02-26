@@ -3,7 +3,7 @@ import { z } from 'zod'
 /**
  * A field type instance (already configured)
  */
-export interface FieldTypeInstance {
+export type FieldTypeInstance = {
   schema: z.ZodType
   database: unknown
 }
@@ -12,6 +12,14 @@ export interface FieldTypeInstance {
  * A field type creator (needs to be called to get instance)
  */
 export type FieldTypeCreator = () => FieldTypeInstance
+
+/**
+ * Field type configuration
+ */
+export type FieldTypeConfig = {
+  schema: z.ZodType
+  database?: unknown
+}
 
 /**
  * Creates a new field type
@@ -24,12 +32,7 @@ export type FieldTypeCreator = () => FieldTypeInstance
  *
  * const textField = text() // Get instance
  */
-export function fieldType(
-  config: {
-    schema: z.ZodType
-    database?: unknown
-  }
-): () => FieldTypeInstance {
+export const fieldType = (config: FieldTypeConfig): (() => FieldTypeInstance) => {
   return () => ({
     schema: config.schema,
     database: config.database ?? {}

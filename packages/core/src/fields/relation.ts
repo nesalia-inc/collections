@@ -4,7 +4,7 @@ import { z } from 'zod'
 /**
  * Relation field type options
  */
-export interface RelationOptions {
+export type RelationOptions = {
   collection: string
   singular?: boolean
   many?: boolean
@@ -14,7 +14,7 @@ export interface RelationOptions {
 /**
  * Creates a relation field type for foreign key relationships
  */
-export function relation(options: RelationOptions): FieldTypeCreator {
+export const relation = (options: RelationOptions): FieldTypeCreator => {
   const isMany = options.many ?? false
   const isSingular = options.singular ?? false
 

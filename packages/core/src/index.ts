@@ -1,5 +1,5 @@
 // Field type system
-export { fieldType, type FieldTypeInstance } from './field-type'
+export { fieldType, type FieldTypeInstance, type FieldTypeCreator, type FieldTypeConfig } from './field-type'
 export { field, type FieldDefinition, type FieldOptions } from './field'
 
 // Built-in field types

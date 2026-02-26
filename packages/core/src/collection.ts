@@ -3,7 +3,7 @@ import type { FieldDefinition } from './field'
 /**
  * Collection configuration
  */
-export interface CollectionConfig {
+export type CollectionConfig = {
   slug: string
   name?: string
   fields: Record<string, FieldDefinition>
@@ -13,7 +13,7 @@ export interface CollectionConfig {
 /**
  * Collection hooks
  */
-export interface CollectionHooks {
+export type CollectionHooks = {
   beforeCreate?: HookFunction[]
   afterCreate?: HookFunction[]
   beforeUpdate?: HookFunction[]
@@ -30,7 +30,7 @@ export type HookFunction = (context: HookContext) => Promise<void> | void
 /**
  * Hook context
  */
-export interface HookContext {
+export type HookContext = {
   data?: Record<string, unknown>
   result?: unknown
   where?: Record<string, unknown>
@@ -39,7 +39,7 @@ export interface HookContext {
 /**
  * A collection definition
  */
-export interface Collection {
+export type Collection = {
   slug: string
   name?: string
   fields: Record<string, FieldDefinition>
@@ -59,7 +59,7 @@ export interface Collection {
  *   }
  * })
  */
-export function collection(config: CollectionConfig): Collection {
+export const collection = (config: CollectionConfig): Collection => {
   return {
     slug: config.slug,
     name: config.name,

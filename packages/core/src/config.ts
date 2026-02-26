@@ -3,7 +3,7 @@ import type { Collection } from './collection'
 /**
  * Plugin interface
  */
-export interface Plugin {
+export type Plugin = {
   name: string
   collections?: Record<string, Collection>
   hooks?: Record<string, unknown[]>
@@ -12,14 +12,14 @@ export interface Plugin {
 /**
  * Database configuration
  */
-export interface DatabaseConfig {
+export type DatabaseConfig = {
   url: string
 }
 
 /**
  * Configuration options
  */
-export interface ConfigOptions {
+export type ConfigOptions = {
   database: DatabaseConfig
   collections: Collection[]
   plugins?: Plugin[]
@@ -28,7 +28,7 @@ export interface ConfigOptions {
 /**
  * Define config return type
  */
-export interface DefineConfigReturn {
+export type DefineConfigReturn = {
   collections: Record<string, unknown>
   db: unknown
   $meta: {
@@ -49,7 +49,7 @@ export interface DefineConfigReturn {
  *   plugins: [timestampsPlugin()]
  * })
  */
-export function defineConfig(options: ConfigOptions): DefineConfigReturn {
+export const defineConfig = (options: ConfigOptions): DefineConfigReturn => {
   // Build collections map
   const collectionsMap: Record<string, unknown> = {}
   const collectionNames: string[] = []

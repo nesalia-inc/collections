@@ -1,8 +1,7 @@
 // Field type system
 export { fieldType, type FieldTypeInstance, type FieldTypeCreator, type FieldTypeConfig } from './field-type'
 
-// Field utilities
-export { required, optional, unique, indexed, defaultValue, label, description } from './field-utils'
+// Field
 export { field, type FieldDefinition, type FieldOptions } from './field'
 
 // Built-in field types

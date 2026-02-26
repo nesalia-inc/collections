@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { fieldType } from './field-type'
-import { field } from './field'
-import { text, number, boolean, date, timestamp, enumField, json, array, relation } from './fields'
+import { fieldType } from '../src/field-type'
+import { field } from '../src/field'
+import { text, number, boolean, date, timestamp, enumField, json, array, relation } from '../src/fields'
 import { z } from 'zod'
 
 describe('fieldType', () => {

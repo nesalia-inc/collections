@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { defineConfig } from './config'
-import { collection } from './collection'
-import { field } from './field'
-import { text } from './fields'
+import { defineConfig } from '../src/config'
+import { collection } from '../src/collection'
+import { field } from '../src/field'
+import { text } from '../src/fields'
 
 describe('defineConfig', () => {
   it('creates a config with a single collection', () => {

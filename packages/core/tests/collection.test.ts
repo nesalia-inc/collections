@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
-import { text, number, boolean, date, timestamp, enumField, json, array, relation } from '../src/fields'
+import { text, number, boolean, date, timestamp, select, json, array, relation } from '../src/fields'
+import { required, unique, indexed, defaultValue, label, description } from '../src/field-utils'
 
 describe('collection', () => {
   it('creates a basic collection', () => {
@@ -100,7 +101,7 @@ describe('collection', () => {
     const posts = collection({
       slug: 'posts',
       fields: {
-        status: field({ fieldType: enumField(['draft', 'published', 'archived']) })
+        status: field({ fieldType: select(['draft', 'published', 'archived']) })
       }
     })
 

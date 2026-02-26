@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fieldType } from '../src/field-type'
 import { field } from '../src/field'
-import { text, number, boolean, date, timestamp, enumField, json, array, relation } from '../src/fields'
+import { text, number, boolean, date, timestamp, select, json, array, relation } from '../src/fields'
 import { z } from 'zod'
 
 describe('fieldType', () => {
@@ -98,7 +98,7 @@ describe('built-in field types', () => {
   })
 
   it('enum field type', () => {
-    const status = enumField(['draft', 'published', 'archived'])
+    const status = select(['draft', 'published', 'archived'])
     expect(status.schema).toBeInstanceOf(z.ZodEnum)
   })
 

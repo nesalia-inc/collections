@@ -2,9 +2,9 @@ import { fieldType, type FieldTypeInstance } from '../field-type'
 import { z } from 'zod'
 
 /**
- * Creates an enum field type
+ * Creates a select field type (enum)
  */
-export const enumField = <T extends readonly [string, ...string[]]>(
+export const select = <T extends readonly [string, ...string[]]>(
   options: T
 ): FieldTypeInstance => {
   return fieldType({
@@ -12,3 +12,8 @@ export const enumField = <T extends readonly [string, ...string[]]>(
     database: { type: 'text' }
   })()
 }
+
+/**
+ * @deprecated Use select instead
+ */
+export const enumField = select

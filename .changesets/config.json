@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@2/schema.json",
+  "changelog": "@changesets/changelog-github",
+  "commit": false,
+  "fixed": [
+    "@deessejs/collections",
+    "@deessejs/collections-cli"
+  ],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch"
+}

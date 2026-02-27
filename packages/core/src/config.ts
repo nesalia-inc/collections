@@ -66,6 +66,8 @@ export const defineConfig = <T extends Collection[]>(
   let pool: PoolType | null = null
   let dbInstance: ReturnType<typeof drizzle<Record<string, unknown>>> | null = null
 
+  let schema: Record<string, unknown> = {}
+
   if (options.database.type === 'postgres') {
     // Create pool from adapter config
     pool = new Pool({
@@ -73,7 +75,7 @@ export const defineConfig = <T extends Collection[]>(
     })
 
     // Build schema from collections
-    const schema = buildSchema(options.collections as Collection[])
+    schema = buildSchema(options.collections as Collection[])
 
     // Create Drizzle instance with schema
     dbInstance = drizzle(pool, { schema })
@@ -84,9 +86,10 @@ export const defineConfig = <T extends Collection[]>(
   const collectionNames: string[] = []
 
   for (const coll of options.collections) {
+    const table = schema[coll.slug]
     const collectionWithOps: CollectionWithOperations = {
       ...coll,
-      ...createCollectionOperations(coll, coll.slug)
+      ...createCollectionOperations(coll, coll.slug, dbInstance!, table)
     }
     collectionsMap[coll.slug] = collectionWithOps
     collectionNames.push(coll.slug)
@@ -101,9 +104,10 @@ export const defineConfig = <T extends Collection[]>(
       // Register plugin collections
       if (plugin.collections) {
         for (const [name, coll] of Object.entries(plugin.collections)) {
+          const table = schema[name]
           const collectionWithOps: CollectionWithOperations = {
             ...coll,
-            ...createCollectionOperations(coll, name)
+            ...createCollectionOperations(coll, name, dbInstance!, table)
           }
           collectionsMap[name] = collectionWithOps
           collectionNames.push(name)

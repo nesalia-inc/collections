@@ -1,4 +1,10 @@
 import type { Collection } from './collection'
+import type { CollectionOperations } from './operations'
+
+/**
+ * Collection with operations
+ */
+export type CollectionWithOperations = Collection & CollectionOperations
 
 /**
  * Plugin interface
@@ -29,7 +35,7 @@ export type ConfigOptions = {
  * Define config return type
  */
 export type DefineConfigReturn = {
-  collections: Record<string, unknown>
+  collections: Record<string, CollectionWithOperations>
   db: unknown
   $meta: {
     collections: string[]
@@ -49,13 +55,19 @@ export type DefineConfigReturn = {
  *   plugins: [timestampsPlugin()]
  * })
  */
+import { createCollectionOperations } from './operations'
+
 export const defineConfig = (options: ConfigOptions): DefineConfigReturn => {
   // Build collections map
-  const collectionsMap: Record<string, unknown> = {}
+  const collectionsMap: Record<string, CollectionWithOperations> = {}
   const collectionNames: string[] = []
 
   for (const coll of options.collections) {
-    collectionsMap[coll.slug] = coll
+    const collectionWithOps: CollectionWithOperations = {
+      ...coll,
+      ...createCollectionOperations(coll, coll.slug)
+    }
+    collectionsMap[coll.slug] = collectionWithOps
     collectionNames.push(coll.slug)
   }
 
@@ -68,7 +80,11 @@ export const defineConfig = (options: ConfigOptions): DefineConfigReturn => {
       // Register plugin collections
       if (plugin.collections) {
         for (const [name, coll] of Object.entries(plugin.collections)) {
-          collectionsMap[name] = coll
+          const collectionWithOps: CollectionWithOperations = {
+            ...coll,
+            ...createCollectionOperations(coll, name)
+          }
+          collectionsMap[name] = collectionWithOps
           collectionNames.push(name)
         }
       }

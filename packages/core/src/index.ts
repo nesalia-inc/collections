@@ -11,5 +11,8 @@ export * from './fields'
 // Collection
 export { collection, type CollectionConfig, type Collection, type CollectionHooks, type HookFunction, type HookContext } from './collection'
 
+// Operations
+export * from './operations'
+
 // Config
-export { defineConfig, type Plugin, type DatabaseConfig, type ConfigOptions, type DefineConfigReturn } from './config'
+export { defineConfig, type Plugin, type DatabaseConfig, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'

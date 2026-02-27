@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import type { Collection } from './collection'
 import type { CollectionOperations } from './operations'
 import type { DatabaseAdapter } from './adapter'
+import { buildSchema } from './schema'
 
 /**
  * Collection with operations
@@ -71,8 +72,11 @@ export const defineConfig = <T extends Collection[]>(
       connectionString: options.database.config.url
     })
 
-    // Create Drizzle instance (schema will be added later after tables are registered)
-    dbInstance = drizzle(pool)
+    // Build schema from collections
+    const schema = buildSchema(options.collections as Collection[])
+
+    // Create Drizzle instance with schema
+    dbInstance = drizzle(pool, { schema })
   }
 
   // Build collections map

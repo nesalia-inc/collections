@@ -17,5 +17,8 @@ export * from './operations'
 // Adapter
 export { pgAdapter, type PgAdapter, type PgAdapterConfig, type DatabaseAdapter } from './adapter'
 
+// Schema
+export { buildSchema, buildTable } from './schema'
+
 // Config
 export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'

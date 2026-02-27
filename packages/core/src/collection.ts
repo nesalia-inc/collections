@@ -3,11 +3,12 @@ import type { FieldDefinition } from './field'
 /**
  * Collection configuration
  */
-export type CollectionConfig = {
+export type CollectionConfig<T extends Record<string, unknown> = Record<string, unknown>> = {
   slug: string
   name?: string
   fields: Record<string, FieldDefinition>
   hooks?: CollectionHooks
+  dataType?: T
 }
 
 /**
@@ -39,11 +40,12 @@ export type HookContext = {
 /**
  * A collection definition
  */
-export type Collection = {
+export type Collection<T extends Record<string, unknown> = Record<string, unknown>> = {
   slug: string
   name?: string
   fields: Record<string, FieldDefinition>
   hooks?: CollectionHooks
+  dataType?: T
 }
 
 /**
@@ -59,11 +61,14 @@ export type Collection = {
  *   }
  * })
  */
-export const collection = (config: CollectionConfig): Collection => {
+export const collection = <T extends Record<string, unknown> = Record<string, unknown>>(
+  config: CollectionConfig<T>
+): Collection<T> => {
   return {
     slug: config.slug,
     name: config.name,
     fields: config.fields,
-    hooks: config.hooks
+    hooks: config.hooks,
+    dataType: config.dataType
   }
 }

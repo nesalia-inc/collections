@@ -1,4 +1,14 @@
 /**
+ * Extract field names from a collection's fields
+ */
+export type CollectionFieldNames<T extends Record<string, { fieldType: { schema: unknown } }>> = keyof T
+
+/**
+ * Extract field schema type from a field definition
+ */
+export type FieldSchema<T extends { fieldType: { schema: unknown } }> = T['fieldType']['schema']
+
+/**
  * Where condition operators
  */
 export type WhereOperator<T> =
@@ -24,7 +34,7 @@ export type WhereValue<T> = T | WhereOperator<T>
 /**
  * Where conditions
  */
-export type WhereConditions = Record<string, unknown>
+export type WhereConditions<T = Record<string, unknown>> = T
 
 /**
  * Order by direction
@@ -34,39 +44,39 @@ export type OrderByDirection = 'asc' | 'desc'
 /**
  * Order by clause
  */
-export type OrderByClause = Record<string, OrderByDirection>
+export type OrderByClause<T = Record<string, unknown>> = T
 
 /**
  * Select clause - fields to return
  */
-export type SelectClause = Record<string, boolean>
+export type SelectClause<T = Record<string, unknown>> = Partial<Record<keyof T, boolean>>
 
 /**
  * Find many options
  */
-export type FindManyOptions = {
-  where?: WhereConditions
-  orderBy?: OrderByClause | OrderByClause[]
+export type FindManyOptions<T = Record<string, unknown>> = {
+  where?: WhereConditions<T>
+  orderBy?: OrderByClause<T> | OrderByClause<T>[]
   limit?: number
   offset?: number
-  select?: SelectClause
+  select?: SelectClause<T>
 }
 
 /**
  * Find unique options
  */
-export type FindUniqueOptions = {
-  where: WhereConditions
-  select?: SelectClause
+export type FindUniqueOptions<T = Record<string, unknown>> = {
+  where: WhereConditions<T>
+  select?: SelectClause<T>
 }
 
 /**
  * Find first options
  */
-export type FindFirstOptions = {
-  where: WhereConditions
-  orderBy?: OrderByClause | OrderByClause[]
-  select?: SelectClause
+export type FindFirstOptions<T = Record<string, unknown>> = {
+  where: WhereConditions<T>
+  orderBy?: OrderByClause<T> | OrderByClause<T>[]
+  select?: SelectClause<T>
 }
 
 /**
@@ -87,45 +97,45 @@ export type CreateManyOptions<T> = {
 /**
  * Update options
  */
-export type UpdateOptions<T> = {
-  where: WhereConditions
-  data: T
+export type UpdateOptions<T, TFields = Record<string, unknown>> = {
+  where: WhereConditions<TFields>
+  data: Partial<T>
   returning?: boolean
 }
 
 /**
  * Update many options
  */
-export type UpdateManyOptions<T> = {
-  where: WhereConditions
-  data: T
+export type UpdateManyOptions<T, TFields = Record<string, unknown>> = {
+  where: WhereConditions<TFields>
+  data: Partial<T>
 }
 
 /**
  * Delete options
  */
-export type DeleteOptions = {
-  where: WhereConditions
+export type DeleteOptions<TFields = Record<string, unknown>> = {
+  where: WhereConditions<TFields>
   returning?: boolean
 }
 
 /**
  * Delete many options
  */
-export type DeleteManyOptions = {
-  where: WhereConditions
+export type DeleteManyOptions<TFields = Record<string, unknown>> = {
+  where: WhereConditions<TFields>
 }
 
 /**
  * Count options
  */
-export type CountOptions = {
-  where?: WhereConditions
+export type CountOptions<TFields = Record<string, unknown>> = {
+  where?: WhereConditions<TFields>
 }
 
 /**
  * Exists options
  */
-export type ExistsOptions = {
-  where: WhereConditions
+export type ExistsOptions<TFields = Record<string, unknown>> = {
+  where: WhereConditions<TFields>
 }

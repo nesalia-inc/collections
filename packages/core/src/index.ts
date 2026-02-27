@@ -20,5 +20,8 @@ export { pgAdapter, type PgAdapter, type PgAdapterConfig, type DatabaseAdapter }
 // Schema
 export { buildSchema, buildTable } from './schema'
 
+// Migrations
+export { push, generate, migrate } from './migrations'
+
 // Config
 export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'

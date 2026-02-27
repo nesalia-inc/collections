@@ -14,7 +14,7 @@ const config = defineConfig({
   collections: [users, posts]
 })
 
-// Autocomplete: config.collections.⟨users|posts⟩ ✅
+// Autocomplete: config.collections.users | config.collections.posts
 const allUsers = await config.collections.users.findMany()
 const allPosts = await config.collections.posts.findMany()
 ```

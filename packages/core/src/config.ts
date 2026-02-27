@@ -25,20 +25,22 @@ export type DatabaseConfig = {
 /**
  * Configuration options
  */
-export type ConfigOptions = {
+export type ConfigOptions<T extends Collection[] = []> = {
   database: DatabaseConfig
-  collections: Collection[]
+  collections: T
   plugins?: Plugin[]
 }
 
 /**
- * Define config return type
+ * Define config return type with inferred collection keys
  */
-export type DefineConfigReturn = {
-  collections: Record<string, CollectionWithOperations>
+export type DefineConfigReturn<T extends Collection[] = []> = {
+  collections: {
+    [K in T[number] as K['slug']]: CollectionWithOperations
+  }
   db: unknown
   $meta: {
-    collections: string[]
+    collections: T[number]['slug'][]
     plugins: string[]
   }
 }
@@ -57,7 +59,9 @@ export type DefineConfigReturn = {
  */
 import { createCollectionOperations } from './operations'
 
-export const defineConfig = (options: ConfigOptions): DefineConfigReturn => {
+export const defineConfig = <T extends Collection[]>(
+  options: ConfigOptions<T>
+): DefineConfigReturn<T> => {
   // Build collections map
   const collectionsMap: Record<string, CollectionWithOperations> = {}
   const collectionNames: string[] = []
@@ -92,10 +96,10 @@ export const defineConfig = (options: ConfigOptions): DefineConfigReturn => {
   }
 
   return {
-    collections: collectionsMap,
-    db: null, // Would be the actual DB connection in real implementation
+    collections: collectionsMap as DefineConfigReturn<T>['collections'],
+    db: null,
     $meta: {
-      collections: collectionNames,
+      collections: collectionNames as DefineConfigReturn<T>['$meta']['collections'],
       plugins: pluginNames
     }
   }

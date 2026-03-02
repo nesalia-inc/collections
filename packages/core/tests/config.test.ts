@@ -5,6 +5,31 @@ import { field } from '../src/field'
 import { f } from '../src'
 
 describe('defineConfig', () => {
+  it('collections returns metadata (slug, name, fields)', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
+    const users = collection({
+      slug: 'users',
+      name: 'Users',
+      fields: {
+        name: field({ fieldType: f.text() }),
+        email: field({ fieldType: f.email() })
+      }
+    })
+
+    const config = defineConfig({
+      database: adapter,
+      collections: [users]
+    })
+
+    // Collections returns metadata
+    expect(config.collections.users.slug).toBe('users')
+    expect(config.collections.users.name).toBe('Users')
+    expect(config.collections.users.fields).toBeDefined()
+    expect(config.collections.users.fields.name).toBeDefined()
+    expect(config.collections.users.fields.email).toBeDefined()
+  })
+
   it('creates a config with a single collection', () => {
     const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
 

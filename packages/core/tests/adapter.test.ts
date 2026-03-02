@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pgAdapter, type PgAdapter, type DatabaseAdapter } from '../src'
+import { testAdapter } from './fixtures'
 
 describe('pgAdapter', () => {
   it('creates a postgres adapter with url', () => {
@@ -25,10 +26,8 @@ describe('pgAdapter', () => {
   })
 
   it('has correct type', () => {
-    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-
-    const _typeCheck: PgAdapter = adapter
-    const _dbTypeCheck: DatabaseAdapter = adapter
+    const _typeCheck: PgAdapter = testAdapter
+    const _dbTypeCheck: DatabaseAdapter = testAdapter
 
     expect(_typeCheck).toBeDefined()
     expect(_dbTypeCheck).toBeDefined()

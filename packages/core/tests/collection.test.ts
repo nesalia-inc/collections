@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
 import { f } from '../src'
-import { required, unique, indexed, defaultValue, label, description } from '../src/field-utils'
 
 describe('collection', () => {
   describe('basic creation', () => {
@@ -157,14 +156,4 @@ describe('collection', () => {
     })
   })
 
-  describe('field-utils', () => {
-    it('field-utils are exported', () => {
-      expect(required).toBeDefined()
-      expect(unique).toBeDefined()
-      expect(indexed).toBeDefined()
-      expect(defaultValue).toBeDefined()
-      expect(label).toBeDefined()
-      expect(description).toBeDefined()
-    })
-  })
 })

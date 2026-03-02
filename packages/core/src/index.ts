@@ -24,4 +24,4 @@ export { buildSchema, buildTable } from './schema'
 export { push, generate, migrate } from './migrations'
 
 // Config
-export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'
+export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn } from './config'

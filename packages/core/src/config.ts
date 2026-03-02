@@ -2,14 +2,8 @@ import { Pool, type Pool as PoolType } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 
 import type { Collection } from './collection'
-import type { CollectionOperations } from './operations'
 import type { DatabaseAdapter } from './adapter'
 import { buildSchema } from './schema'
-
-/**
- * Collection with operations
- */
-export type CollectionWithOperations = Collection & CollectionOperations
 
 /**
  * Plugin interface
@@ -31,10 +25,14 @@ export type ConfigOptions<T extends Collection[] = []> = {
 
 /**
  * Define config return type with inferred collection keys
+ *
+ * - collections: metadata only (slug, name, fields, hooks, dataType)
+ * - db: Drizzle instance with operations (via schema tables)
+ * - $meta: array of collection slugs and plugin names
  */
 export type DefineConfigReturn<T extends Collection[] = []> = {
   collections: {
-    [K in T[number] as K['slug']]: CollectionWithOperations
+    [K in T[number] as K['slug']]: Collection
   }
   db: ReturnType<typeof drizzle<Record<string, unknown>>>
   $meta: {
@@ -56,9 +54,15 @@ export type DefineConfigReturn<T extends Collection[] = []> = {
  *   collections: [users, posts],
  *   plugins: [timestampsPlugin()]
  * })
+ *
+ * // collections: metadata only
+ * collections.users.slug     // 'users'
+ * collections.users.fields   // { name, email, ... }
+ *
+ * // db: Drizzle instance with operations
+ * await db.users.findMany()
+ * await db.users.insert(values)
  */
-import { createCollectionOperations } from './operations'
-
 export const defineConfig = <T extends Collection[]>(
   options: ConfigOptions<T>
 ): DefineConfigReturn<T> => {
@@ -81,17 +85,19 @@ export const defineConfig = <T extends Collection[]>(
     dbInstance = drizzle(pool, { schema })
   }
 
-  // Build collections map
-  const collectionsMap: Record<string, CollectionWithOperations> = {}
+  // Build collections map (metadata only)
+  const collectionsMap: Record<string, Collection> = {}
   const collectionNames: string[] = []
 
   for (const coll of options.collections) {
-    const table = schema[coll.slug]
-    const collectionWithOps: CollectionWithOperations = {
-      ...coll,
-      ...createCollectionOperations(coll, coll.slug, dbInstance!, table)
+    // Store only metadata (not operations)
+    collectionsMap[coll.slug] = {
+      slug: coll.slug,
+      name: coll.name,
+      fields: coll.fields,
+      hooks: coll.hooks,
+      dataType: coll.dataType
     }
-    collectionsMap[coll.slug] = collectionWithOps
     collectionNames.push(coll.slug)
   }
 
@@ -101,15 +107,16 @@ export const defineConfig = <T extends Collection[]>(
     for (const plugin of options.plugins) {
       pluginNames.push(plugin.name)
 
-      // Register plugin collections
+      // Register plugin collections (metadata only)
       if (plugin.collections) {
         for (const [name, coll] of Object.entries(plugin.collections)) {
-          const table = schema[name]
-          const collectionWithOps: CollectionWithOperations = {
-            ...coll,
-            ...createCollectionOperations(coll, name, dbInstance!, table)
+          collectionsMap[name] = {
+            slug: coll.slug,
+            name: coll.name,
+            fields: coll.fields,
+            hooks: coll.hooks,
+            dataType: coll.dataType
           }
-          collectionsMap[name] = collectionWithOps
           collectionNames.push(name)
         }
       }

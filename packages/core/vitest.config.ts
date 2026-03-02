@@ -6,6 +6,8 @@ export default defineConfig({
     coverage: {
       reporter: ['text', 'json', 'html', 'json-summary'],
       provider: 'v8',
+      reportsDirectory: '../../coverage',
+      include: ['src/**/*.ts'],
       exclude: [
         'tests/**',
         'vitest.config.ts',

@@ -6,91 +6,38 @@ A functional-first collection and data modeling layer built on Drizzle ORM.
 
 ### Type-Safe Collection Access
 
-Collections are inferred from your configuration, providing full autocompletion:
+Collections are inferred from your configuration, providing full autocompletion for metadata:
 
 ```typescript
 const config = defineConfig({
-  database: { url: process.env.DATABASE_URL! },
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [users, posts]
 })
 
-// Autocomplete: config.collections.users | config.collections.posts
-const allUsers = await config.collections.users.findMany()
-const allPosts = await config.collections.posts.findMany()
+// Metadata access (autocomplete)
+config.collections.users.slug    // 'users'
+config.collections.users.fields  // { name, email, ... }
+config.$meta.collections        // ['users', 'posts']
 ```
 
-### Type-Safe Operations
+### Database Operations
 
-All CRUD operations are fully typed with autocompletion support:
-
-```typescript
-// findMany - with filters, sorting, pagination
-const users = await config.collections.users.findMany({
-  where: { email: { contains: '@example.com' } },
-  orderBy: { createdAt: 'desc' },
-  limit: 10,
-  offset: 0
-})
-
-// findUnique - find by unique identifier
-const user = await config.collections.users.findUnique({
-  where: { id: 1 }
-})
-
-// findFirst - find first match with ordering
-const activeUser = await config.collections.users.findFirst({
-  where: { status: 'active' },
-  orderBy: { createdAt: 'asc' }
-})
-
-// create - insert a record
-const newUser = await config.collections.users.create({
-  data: { name: 'John', email: 'john@example.com' }
-})
-
-// update - update a record
-const updatedUser = await config.collections.users.update({
-  where: { id: 1 },
-  data: { name: 'Jane' }
-})
-
-// delete - delete a record
-await config.collections.users.delete({
-  where: { id: 1 }
-})
-
-// count - count records
-const count = await config.collections.users.count({
-  where: { status: 'active' }
-})
-
-// exists - check if record exists
-const exists = await config.collections.users.exists({
-  where: { email: 'john@example.com' })
-})
-```
-
-### Where Operators
-
-The `where` clause supports various operators with full type inference:
+All CRUD operations are available through the Drizzle instance:
 
 ```typescript
-const results = await config.collections.users.findMany({
-  where: {
-    // Equality
-    email: 'john@example.com',
-    // Comparison
-    age: { gt: 18, lte: 65 },
-    // Inclusion
-    role: { in: ['admin', 'user'] },
-    // String matching
-    name: { contains: 'John', startsWith: 'J' },
-    // Null handling
-    deletedAt: { isNull: true },
-    // Negation
-    status: { not: 'banned' }
-  }
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [users, posts]
 })
+
+// Access Drizzle db
+const { db } = config
+
+// Drizzle operations
+const allUsers = await db.users.findMany()
+const newUser = await db.users.insert({ name: 'John', email: 'john@example.com' })
+const updatedUser = await db.users.update({ where: { id: 1 }, data: { name: 'Jane' } })
+await db.users.delete({ where: { id: 1 } })
 ```
 
 ### Metadata Access
@@ -112,7 +59,7 @@ pnpm install @deessejs/collections
 ```
 
 ```typescript
-import { defineConfig, collection, field, f } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 // Define collections
 const users = collection({
@@ -120,7 +67,7 @@ const users = collection({
   name: 'Users',
   fields: {
     name: field({ fieldType: f.text() }),
-    email: field({ fieldType: f.text(), unique: true }),
+    email: field({ fieldType: f.email(), unique: true }),
     age: field({ fieldType: f.number() })
   }
 })
@@ -136,12 +83,16 @@ const posts = collection({
 })
 
 // Create configuration
-export const { collections, db, $meta } = defineConfig({
-  database: {
-    url: process.env.DATABASE_URL!
-  },
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [users, posts]
 })
+
+// Access metadata
+console.log(config.collections.users.slug) // 'users'
+
+// Access Drizzle db for operations
+const { db } = config
 ```
 
 ## Features
@@ -150,3 +101,35 @@ export const { collections, db, $meta } = defineConfig({
 - **Functional** - Clean, composable API
 - **Plugin system** - Extend with hooks and custom collections
 - **Drizzle-based** - Built on top of Drizzle ORM
+- **Schema generation** - Auto-generate Drizzle schema from collections
+
+## Field Types
+
+```typescript
+import { f } from '@deessejs/collections'
+
+// Primitive types
+f.text()           // Text/string
+f.email()          // Email (with validation)
+f.url()            // URL (with validation)
+f.number()         // Number
+f.boolean()        // Boolean
+f.date()           // Date
+f.timestamp()      // Timestamp
+f.json()           // JSON
+
+// Complex types
+f.select(['draft', 'published'])  // Enum
+f.array(f.text())                  // Array
+f.relation({ collection: 'users' }) // Relations
+```
+
+## Current Status
+
+- **Collection system** ✅
+- **Field types** ✅
+- **Hooks** ✅
+- **Plugins** ✅
+- **Schema generation** ✅
+- **CRUD via db** ✅
+- **Full CRUD via collections.*** - Not implemented (use `config.db` instead)

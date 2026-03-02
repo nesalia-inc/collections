@@ -31,8 +31,7 @@ jobs:
       - name: Post coverage comment
         uses: davelosert/vitest-coverage-report-action@v2
         with:
-          coverage-threshold: 90
-          comment: true
+          comment-on: pr
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

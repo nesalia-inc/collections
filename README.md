@@ -126,10 +126,10 @@ f.relation({ collection: 'users' }) // Relations
 
 ## Current Status
 
-- **Collection system** ✅
-- **Field types** ✅
-- **Hooks** ✅
-- **Plugins** ✅
-- **Schema generation** ✅
-- **CRUD via db** ✅
+- **Collection system** - Implemented
+- **Field types** - Implemented
+- **Hooks** - Implemented
+- **Plugins** - Implemented
+- **Schema generation** - Implemented
+- **CRUD via db** - Implemented
 - **Full CRUD via collections.*** - Not implemented (use `config.db` instead)

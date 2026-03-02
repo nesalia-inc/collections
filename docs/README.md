@@ -12,16 +12,16 @@ This documentation covers the product vision, features, architecture, and use ca
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **Collection System** | ✅ Implemented | Define data models using `collection()` function |
-| **Field Types** | ✅ Implemented | Text, number, boolean, date, timestamp, JSON, array, select (enum), relations |
-| **Field Options** | ✅ Implemented | required, unique, indexed, default, label, description |
-| **Hooks** | ✅ Implemented | beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeDelete, afterDelete |
-| **Plugins** | ✅ Implemented | Extensible plugin system for adding collections |
-| **Config System** | ✅ Implemented | `defineConfig()` for centralized configuration |
-| **PostgreSQL Adapter** | ✅ Implemented | `pgAdapter()` for PostgreSQL database connection |
-| **Schema Generation** | ✅ Implemented | `buildSchema()` and `buildTable()` from collections |
-| **Migration Commands** | ✅ Implemented | `push()`, `generate()`, `migrate()` functions |
-| **Type Inference** | ✅ Implemented | Full TypeScript inference from collection definitions |
+| **Collection System** | Done | Define data models using `collection()` function |
+| **Field Types** | Done | Text, number, boolean, date, timestamp, JSON, array, select (enum), relations |
+| **Field Options** | Done | required, unique, indexed, default, label, description |
+| **Hooks** | Done | beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeDelete, afterDelete |
+| **Plugins** | Done | Extensible plugin system for adding collections |
+| **Config System** | Done | `defineConfig()` for centralized configuration |
+| **PostgreSQL Adapter** | Done | `pgAdapter()` for PostgreSQL database connection |
+| **Schema Generation** | Done | `buildSchema()` and `buildTable()` from collections |
+| **Migration Commands** | Done | `push()`, `generate()`, `migrate()` functions |
+| **Type Inference** | Done | Full TypeScript inference from collection definitions |
 
 ### Field Types Available
 

@@ -16,6 +16,17 @@ describe('fieldType', () => {
     expect(instance.schema).toBeInstanceOf(z.ZodString)
     expect(instance.database).toEqual({ type: 'text' })
   })
+
+  it('creates field type without database config', () => {
+    const textField = fieldType({
+      schema: z.string()
+    })
+
+    const instance = textField()
+
+    expect(instance.schema).toBeInstanceOf(z.ZodString)
+    expect(instance.database).toEqual({})
+  })
 })
 
 describe('field', () => {
@@ -75,6 +86,18 @@ describe('built-in field types', () => {
     })
     const instance = emailField()
     expect(instance.schema).toBeInstanceOf(z.ZodString)
+  })
+
+  it('f.email() creates email field type', () => {
+    const instance = f.email()
+    expect(instance.schema).toBeInstanceOf(z.ZodString)
+    expect(instance.database).toEqual({ type: 'text' })
+  })
+
+  it('f.url() creates url field type', () => {
+    const instance = f.url()
+    expect(instance.schema).toBeInstanceOf(z.ZodString)
+    expect(instance.database).toEqual({ type: 'text' })
   })
 
   it('number field type', () => {

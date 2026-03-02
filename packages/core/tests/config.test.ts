@@ -1,11 +1,38 @@
 import { describe, it, expect } from 'vitest'
-import { defineConfig } from '../src/config'
+import { defineConfig, pgAdapter } from '../src'
 import { collection } from '../src/collection'
 import { field } from '../src/field'
 import { f } from '../src'
 
 describe('defineConfig', () => {
+  it('collections returns metadata (slug, name, fields)', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
+    const users = collection({
+      slug: 'users',
+      name: 'Users',
+      fields: {
+        name: field({ fieldType: f.text() }),
+        email: field({ fieldType: f.email() })
+      }
+    })
+
+    const config = defineConfig({
+      database: adapter,
+      collections: [users]
+    })
+
+    // Collections returns metadata
+    expect(config.collections.users.slug).toBe('users')
+    expect(config.collections.users.name).toBe('Users')
+    expect(config.collections.users.fields).toBeDefined()
+    expect(config.collections.users.fields.name).toBeDefined()
+    expect(config.collections.users.fields.email).toBeDefined()
+  })
+
   it('creates a config with a single collection', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
     const users = collection({
       slug: 'users',
       fields: {
@@ -14,7 +41,7 @@ describe('defineConfig', () => {
     })
 
     const config = defineConfig({
-      database: { url: 'postgres://localhost:5432/db' },
+      database: adapter,
       collections: [users]
     })
 
@@ -24,6 +51,8 @@ describe('defineConfig', () => {
   })
 
   it('creates a config with multiple collections', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
     const users = collection({
       slug: 'users',
       fields: { name: field({ fieldType: f.text() }) }
@@ -35,7 +64,7 @@ describe('defineConfig', () => {
     })
 
     const config = defineConfig({
-      database: { url: 'postgres://localhost:5432/db' },
+      database: adapter,
       collections: [users, posts]
     })
 
@@ -47,6 +76,8 @@ describe('defineConfig', () => {
   })
 
   it('creates a config with plugins', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
     const users = collection({
       slug: 'users',
       fields: { name: field({ fieldType: f.text() }) }
@@ -63,7 +94,7 @@ describe('defineConfig', () => {
     }
 
     const config = defineConfig({
-      database: { url: 'postgres://localhost:5432/db' },
+      database: adapter,
       collections: [users],
       plugins: [mockPlugin]
     })
@@ -76,6 +107,8 @@ describe('defineConfig', () => {
   })
 
   it('tracks plugin collections correctly', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
     const users = collection({
       slug: 'users',
       fields: { name: field({ fieldType: f.text() }) }
@@ -102,7 +135,7 @@ describe('defineConfig', () => {
     }
 
     const config = defineConfig({
-      database: { url: 'postgres://localhost:5432/db' },
+      database: adapter,
       collections: [users],
       plugins: [mockPlugin1, mockPlugin2]
     })
@@ -113,17 +146,20 @@ describe('defineConfig', () => {
     expect(config.$meta.plugins).toContain('plugin-2')
   })
 
-  it('returns null for db (placeholder)', () => {
+  it('returns drizzle instance for db', () => {
+    const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
+
     const users = collection({
       slug: 'users',
       fields: { name: field({ fieldType: f.text() }) }
     })
 
     const config = defineConfig({
-      database: { url: 'postgres://localhost:5432/db' },
+      database: adapter,
       collections: [users]
     })
 
-    expect(config.db).toBeNull()
+    expect(config.db).not.toBeNull()
+    expect(config.db).toBeDefined()
   })
 })

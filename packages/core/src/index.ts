@@ -14,5 +14,14 @@ export { collection, type CollectionConfig, type Collection, type CollectionHook
 // Operations
 export * from './operations'
 
+// Adapter
+export { pgAdapter, type PgAdapter, type PgAdapterConfig, type DatabaseAdapter } from './adapter'
+
+// Schema
+export { buildSchema, buildTable } from './schema'
+
+// Migrations
+export { push, generate, migrate } from './migrations'
+
 // Config
-export { defineConfig, type Plugin, type DatabaseConfig, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'
+export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn, type CollectionWithOperations } from './config'

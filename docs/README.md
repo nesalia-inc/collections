@@ -44,17 +44,17 @@ f.array(f.text())                 // Array of strings
 f.relation({ collection: 'users' }) // Relations (one-to-one, one-to-many, many-to-many)
 ```
 
-### What's Planned / Not Yet Implemented
+### What's Implemented vs What's Not
 
-The following features are documented but not yet implemented:
+**Implemented:**
+- Full CRUD via `config.db` (Drizzle instance)
+- Schema generation from collections
 
+**Not Implemented:**
+- CRUD via `config.collections.*` (currently metadata only)
 - Dynamic field generation (auto-slug, computed fields)
-- Full CRUD operations on collections (findMany, create, update, delete)
 - Relationship cascade operations
 - Field-level validation system
-- Custom field type creation
-- Virtual collections (views)
-- Query optimization and caching
 
 ## Documentation Structure
 

@@ -6,47 +6,99 @@ Welcome to the documentation for `@deessejs/collections`, a functional-first col
 
 This documentation covers the product vision, features, architecture, and use cases. For implementation details and API references, see the individual documentation files.
 
+## What is Currently Implemented
+
+### Core Functionality
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Collection System** | ✅ Implemented | Define data models using `collection()` function |
+| **Field Types** | ✅ Implemented | Text, number, boolean, date, timestamp, JSON, array, select (enum), relations |
+| **Field Options** | ✅ Implemented | required, unique, indexed, default, label, description |
+| **Hooks** | ✅ Implemented | beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeDelete, afterDelete |
+| **Plugins** | ✅ Implemented | Extensible plugin system for adding collections |
+| **Config System** | ✅ Implemented | `defineConfig()` for centralized configuration |
+| **PostgreSQL Adapter** | ✅ Implemented | `pgAdapter()` for PostgreSQL database connection |
+| **Schema Generation** | ✅ Implemented | `buildSchema()` and `buildTable()` from collections |
+| **Migration Commands** | ✅ Implemented | `push()`, `generate()`, `migrate()` functions |
+| **Type Inference** | ✅ Implemented | Full TypeScript inference from collection definitions |
+
+### Field Types Available
+
+```typescript
+import { f } from '@deessejs/collections'
+
+// Primitive types
+f.text()           // Text/string
+f.email()          // Email (with validation)
+f.url()            // URL (with validation)
+f.number()         // Number
+f.boolean()        // Boolean
+f.date()           // Date (without timestamp)
+f.timestamp()      // Date with timestamp
+f.json()           // JSON object
+
+// Complex types
+f.select(['draft', 'published'])  // Enum/select
+f.array(f.text())                 // Array of strings
+f.relation({ collection: 'users' }) // Relations (one-to-one, one-to-many, many-to-many)
+```
+
+### What's Planned / Not Yet Implemented
+
+The following features are documented but not yet implemented:
+
+- Dynamic field generation (auto-slug, computed fields)
+- Full CRUD operations on collections (findMany, create, update, delete)
+- Relationship cascade operations
+- Field-level validation system
+- Custom field type creation
+- Virtual collections (views)
+- Query optimization and caching
+
 ## Documentation Structure
 
 ### [Overview](overview.md)
-Introduction to the project, its vision, philosophy, and target audience. Understand what `@deessejs/collections` is and what it is not.
+Introduction to the project, its vision, philosophy, and target audience.
 
 ### [Features](features.md)
 Comprehensive list of features including the collection system, field types, query API, hooks, plugins, and developer experience enhancements.
 
 ### [Philosophy](philosophy.md)
-Deep dive into the design principles behind the project: functional-first design, type safety, pragmatic flexibility, and the relationship with Drizzle ORM.
+Deep dive into the design principles behind the project.
 
 ### [Architecture](architecture.md)
-Technical architecture covering core components, data flow, type system, plugin architecture, and integration patterns.
+Technical architecture covering core components, data flow, type system, and plugin architecture.
 
 ### [Use Cases](use-cases.md)
-Real-world scenarios where `@deessejs/collections` excels, from API-first applications to content management, e-commerce, and microservices.
+Real-world scenarios where `@deessejs/collections` excels.
 
-## Key Concepts
+## Quick Start
 
-### Collections
-Collections are the primary unit of organization, encapsulating fields, relationships, hooks, and behaviors.
+```typescript
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
-### Fields
-Fields define the structure of your data with rich types, validation, and relationships.
+// Define your collections
+const users = collection({
+  slug: 'users',
+  name: 'Users',
+  fields: {
+    name: field({ fieldType: f.text(), required: true }),
+    email: field({ fieldType: f.email(), unique: true }),
+    age: field({ fieldType: f.number() })
+  }
+})
 
-### Hooks
-Lifecycle hooks enable cross-cutting concerns and business logic at operation boundaries.
+// Create configuration
+const config = defineConfig({
+  database: pgAdapter({ url: 'postgres://localhost:5432/mydb' }),
+  collections: [users]
+})
 
-### Plugins
-Plugins provide extensibility for adding fields, operations, and behaviors across collections.
-
-### Type Safety
-Full TypeScript inference from collection definitions ensures type safety throughout your application.
-
-## Who Should Use This
-
-- Backend developers building type-safe data layers
-- Teams wanting structure beyond raw ORM usage
-- Applications needing CMS-like collection management
-- Developers who value composability and functional programming
+// Access generated Drizzle schema
+const { users: usersTable } = config.db
+```
 
 ## Project Status
 
-This is currently in the design and planning phase. The documentation here captures the intended feature set and architecture. Implementation will follow this specification.
+**Active Development** - Core foundation is implemented. Full CRUD operations and advanced features are on the roadmap.

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { defineConfig, collection, field, f, pgAdapter } from '../src'
+import { defineConfig, collection, field, f } from '../src'
+import { testAdapter, testCollections } from './fixtures'
 
 describe('Collection Metadata', () => {
   describe('collections return metadata (slug, name, fields)', () => {
     it('collections.users has slug property', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const users = collection({
         slug: 'users',
         name: 'Users',
@@ -15,7 +15,7 @@ describe('Collection Metadata', () => {
       })
 
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: [users]
       })
 
@@ -25,14 +25,13 @@ describe('Collection Metadata', () => {
     })
 
     it('collections.users has optional name property', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const users = collection({
         slug: 'users',
         fields: { name: field({ fieldType: f.text() }) }
       })
 
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: [users]
       })
 
@@ -40,7 +39,6 @@ describe('Collection Metadata', () => {
     })
 
     it('collections.users has fields property', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const users = collection({
         slug: 'users',
         fields: {
@@ -50,7 +48,7 @@ describe('Collection Metadata', () => {
       })
 
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: [users]
       })
 
@@ -59,7 +57,6 @@ describe('Collection Metadata', () => {
     })
 
     it('preserves collection slug and name', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const users = collection({
         slug: 'users',
         name: 'Users',
@@ -67,7 +64,7 @@ describe('Collection Metadata', () => {
       })
 
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: [users]
       })
 
@@ -78,15 +75,9 @@ describe('Collection Metadata', () => {
 
   describe('collections do NOT have operations', () => {
     it('collections does NOT have findMany, create, update, delete', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       expect(config.collections.users.findMany).toBeUndefined()
@@ -98,23 +89,9 @@ describe('Collection Metadata', () => {
 
   describe('multiple collections metadata', () => {
     it('config.collections has correct keys for multiple collections', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-      const posts = collection({
-        slug: 'posts',
-        fields: { title: field({ fieldType: f.text() }) }
-      })
-      const comments = collection({
-        slug: 'comments',
-        fields: { body: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users, posts, comments]
+        database: testAdapter,
+        collections: [testCollections.users, testCollections.posts, testCollections.comments]
       })
 
       expect(config.collections.users).toBeDefined()
@@ -126,19 +103,9 @@ describe('Collection Metadata', () => {
     })
 
     it('can access different collections metadata', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-      const posts = collection({
-        slug: 'posts',
-        fields: { title: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users, posts]
+        database: testAdapter,
+        collections: [testCollections.users, testCollections.posts]
       })
 
       expect(config.collections.users.slug).toBe('users')
@@ -148,19 +115,9 @@ describe('Collection Metadata', () => {
 
   describe('$meta collections tracking', () => {
     it('$meta.collections is array of slugs', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-      const posts = collection({
-        slug: 'posts',
-        fields: { title: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users, posts]
+        database: testAdapter,
+        collections: [testCollections.users, testCollections.posts]
       })
 
       expect(config.$meta.collections).toContain('users')
@@ -169,20 +126,14 @@ describe('Collection Metadata', () => {
     })
 
     it('$meta.plugins is array of plugin names', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-
       const mockPlugin = {
         name: 'test-plugin',
         collections: {}
       }
 
       const config = defineConfig({
-        database: adapter,
-        collections: [users],
+        database: testAdapter,
+        collections: [testCollections.users],
         plugins: [mockPlugin]
       })
 
@@ -190,13 +141,6 @@ describe('Collection Metadata', () => {
     })
 
     it('tracks plugin collections correctly', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-
       const mockPlugin1 = {
         name: 'plugin-1',
         collections: {
@@ -218,8 +162,8 @@ describe('Collection Metadata', () => {
       }
 
       const config = defineConfig({
-        database: adapter,
-        collections: [users],
+        database: testAdapter,
+        collections: [testCollections.users],
         plugins: [mockPlugin1, mockPlugin2]
       })
 
@@ -230,9 +174,8 @@ describe('Collection Metadata', () => {
     })
 
     it('works with empty collections array', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: []
       })
 
@@ -245,15 +188,9 @@ describe('Collection Metadata', () => {
 describe('DB Instance', () => {
   describe('db is Drizzle instance', () => {
     it('db is defined', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       expect(config.db).toBeDefined()

@@ -1,29 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { defineConfig, collection, field, f, pgAdapter } from '../src'
-import type { Collection } from '../src/collection'
+import { defineConfig, collection, field, f } from '../src'
+import { testAdapter, testCollections } from './fixtures'
 
 describe('Type Inference', () => {
   describe('collection slug inference', () => {
     it('infers users and posts as collection keys', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() }),
-          email: field({ fieldType: f.text() })
-        }
-      })
-
-      const posts = collection({
-        slug: 'posts',
-        fields: {
-          title: field({ fieldType: f.text() })
-        }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users, posts]
+        database: testAdapter,
+        collections: [testCollections.users, testCollections.posts]
       })
 
       // Type test: config.collections should have users and posts keys
@@ -35,17 +19,9 @@ describe('Type Inference', () => {
     })
 
     it('infers single collection slug', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       const _users = config.collections.users
@@ -53,20 +29,9 @@ describe('Type Inference', () => {
     })
 
     it('infers $meta.collections as array of slugs', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })
-
-      const posts = collection({
-        slug: 'posts',
-        fields: { title: field({ fieldType: f.text() }) }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users, posts]
+        database: testAdapter,
+        collections: [testCollections.users, testCollections.posts]
       })
 
       // Type test: $meta.collections should be string[]
@@ -78,17 +43,9 @@ describe('Type Inference', () => {
 
   describe('collections have metadata only', () => {
     it('collections have slug property', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       // Collections have metadata
@@ -97,17 +54,9 @@ describe('Type Inference', () => {
     })
 
     it('collections do NOT have operations', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       // Operations should not exist on collections
@@ -118,17 +67,9 @@ describe('Type Inference', () => {
 
   describe('db is Drizzle instance', () => {
     it('db is defined', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
       const config = defineConfig({
-        database: adapter,
-        collections: [users]
+        database: testAdapter,
+        collections: [testCollections.users]
       })
 
       expect(config.db).toBeDefined()
@@ -137,9 +78,8 @@ describe('Type Inference', () => {
 
   describe('empty collections', () => {
     it('works with empty collections array', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: []
       })
 
@@ -150,7 +90,6 @@ describe('Type Inference', () => {
 
   describe('collection metadata type', () => {
     it('preserves collection slug and name', () => {
-      const adapter = pgAdapter({ url: 'postgres://localhost:5432/db' })
       const users = collection({
         slug: 'users',
         name: 'Users',
@@ -158,7 +97,7 @@ describe('Type Inference', () => {
       })
 
       const config = defineConfig({
-        database: adapter,
+        database: testAdapter,
         collections: [users]
       })
 

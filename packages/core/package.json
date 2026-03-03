@@ -43,6 +43,7 @@
     "@types/node": "^20.14.12",
     "@types/pg": "^8.11.0",
     "eslint": "^8.57.0",
+    "neon-serverless": "^0.5.3",
     "tsup": "^8.2.2",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"

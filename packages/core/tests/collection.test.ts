@@ -54,7 +54,7 @@ describe('collection', () => {
   })
 
   describe('hooks', () => {
-    it('creates a collection with hooks', () => {
+    it('creates a collection with all hook types', () => {
       const mockHook = async () => {}
 
       const users = collection({
@@ -63,21 +63,29 @@ describe('collection', () => {
           name: field({ fieldType: f.text() })
         },
         hooks: {
+          beforeOperation: [mockHook],
+          afterOperation: [mockHook],
           beforeCreate: [mockHook],
           afterCreate: [mockHook],
           beforeUpdate: [mockHook],
           afterUpdate: [mockHook],
           beforeDelete: [mockHook],
-          afterDelete: [mockHook]
+          afterDelete: [mockHook],
+          beforeRead: [mockHook],
+          afterRead: [mockHook]
         }
       })
 
+      expect(users.hooks?.beforeOperation).toHaveLength(1)
+      expect(users.hooks?.afterOperation).toHaveLength(1)
       expect(users.hooks?.beforeCreate).toHaveLength(1)
       expect(users.hooks?.afterCreate).toHaveLength(1)
       expect(users.hooks?.beforeUpdate).toHaveLength(1)
       expect(users.hooks?.afterUpdate).toHaveLength(1)
       expect(users.hooks?.beforeDelete).toHaveLength(1)
       expect(users.hooks?.afterDelete).toHaveLength(1)
+      expect(users.hooks?.beforeRead).toHaveLength(1)
+      expect(users.hooks?.afterRead).toHaveLength(1)
     })
 
     it('creates a collection without hooks', () => {
@@ -106,6 +114,44 @@ describe('collection', () => {
       })
 
       expect(users.hooks?.beforeCreate).toHaveLength(2)
+    })
+
+    it('creates a collection with only beforeOperation and afterOperation hooks', () => {
+      const mockHook = async () => {}
+
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        },
+        hooks: {
+          beforeOperation: [mockHook],
+          afterOperation: [mockHook]
+        }
+      })
+
+      expect(users.hooks?.beforeOperation).toHaveLength(1)
+      expect(users.hooks?.afterOperation).toHaveLength(1)
+      expect(users.hooks?.beforeCreate).toBeUndefined()
+    })
+
+    it('creates a collection with only read hooks', () => {
+      const mockHook = async () => {}
+
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        },
+        hooks: {
+          beforeRead: [mockHook],
+          afterRead: [mockHook]
+        }
+      })
+
+      expect(users.hooks?.beforeRead).toHaveLength(1)
+      expect(users.hooks?.afterRead).toHaveLength(1)
+      expect(users.hooks?.beforeCreate).toBeUndefined()
     })
   })
 

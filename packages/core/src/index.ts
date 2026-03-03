@@ -9,7 +9,7 @@ export { f } from './fields'
 export * from './fields'
 
 // Collection
-export { collection, type CollectionConfig, type Collection, type CollectionHooks, type HookFunction, type HookContext } from './collection'
+export { collection, type CollectionConfig, type Collection, type CollectionHooks, type OperationType, type CreateHookContext, type UpdateHookContext, type DeleteHookContext, type ReadHookContext, type OperationHookContext, type CreateHookFunction, type UpdateHookFunction, type DeleteHookFunction, type ReadHookFunction, type GenericHookFunction } from './collection'
 
 // Operations
 export * from './operations'

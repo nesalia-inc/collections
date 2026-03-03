@@ -13,6 +13,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:integration": "turbo test:integration",
     "test:watch": "turbo test --filter=./packages/*",
     "test:coverage": "turbo test:coverage --filter=@deessejs/collections",
     "changeset": "changeset",

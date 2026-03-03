@@ -28,6 +28,7 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run tests/integration",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
@@ -39,10 +40,13 @@
   },
   "devDependencies": {
     "@deessejs/type-testing": "^0.1.5",
+    "@neondatabase/serverless": "^1.0.2",
     "@types/node": "^20.14.12",
     "@types/pg": "^8.11.0",
     "eslint": "^8.57.0",
+    "neon-serverless": "^0.5.3",
     "tsup": "^8.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   },

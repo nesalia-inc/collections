@@ -12,29 +12,93 @@ export type CollectionConfig<T extends Record<string, unknown> = Record<string, 
 }
 
 /**
- * Collection hooks
+ * Operation types
  */
-export type CollectionHooks = {
-  beforeCreate?: HookFunction[]
-  afterCreate?: HookFunction[]
-  beforeUpdate?: HookFunction[]
-  afterUpdate?: HookFunction[]
-  beforeDelete?: HookFunction[]
-  afterDelete?: HookFunction[]
+export type OperationType = 'create' | 'update' | 'delete' | 'read'
+
+/**
+ * Hook context base
+ */
+export type HookContextBase = {
+  collection: string
+  operation: OperationType
 }
 
 /**
- * Hook function type
+ * Before/After Operation context
  */
-export type HookFunction = (context: HookContext) => Promise<void> | void
+export type OperationHookContext = HookContextBase & {
+  data?: Record<string, unknown>
+  where?: Record<string, unknown>
+  result?: unknown
+}
 
 /**
- * Hook context
+ * Before/After Create context
  */
-export type HookContext = {
-  data?: Record<string, unknown>
+export type CreateHookContext = HookContextBase & {
+  operation: 'create'
+  data: Record<string, unknown>
   result?: unknown
-  where?: Record<string, unknown>
+  db?: unknown
+}
+
+/**
+ * Before/After Update context
+ */
+export type UpdateHookContext = HookContextBase & {
+  operation: 'update'
+  data: Record<string, unknown>
+  where: Record<string, unknown>
+  previousData?: Record<string, unknown>
+  result?: unknown
+  db?: unknown
+}
+
+/**
+ * Before/After Delete context
+ */
+export type DeleteHookContext = HookContextBase & {
+  operation: 'delete'
+  where: Record<string, unknown>
+  previousData?: Record<string, unknown>
+  result?: unknown
+  db?: unknown
+}
+
+/**
+ * Before/After Read context
+ */
+export type ReadHookContext = HookContextBase & {
+  operation: 'read'
+  query?: Record<string, unknown>
+  result?: unknown[]
+  db?: unknown
+}
+
+/**
+ * Generic hook function type
+ */
+export type GenericHookFunction = (context: OperationHookContext) => Promise<void> | void
+export type CreateHookFunction = (context: CreateHookContext) => Promise<void> | void
+export type UpdateHookFunction = (context: UpdateHookContext) => Promise<void> | void
+export type DeleteHookFunction = (context: DeleteHookContext) => Promise<void> | void
+export type ReadHookFunction = (context: ReadHookContext) => Promise<void> | void
+
+/**
+ * Collection hooks
+ */
+export type CollectionHooks = {
+  beforeOperation?: GenericHookFunction[]
+  afterOperation?: GenericHookFunction[]
+  beforeCreate?: CreateHookFunction[]
+  afterCreate?: CreateHookFunction[]
+  beforeUpdate?: UpdateHookFunction[]
+  afterUpdate?: UpdateHookFunction[]
+  beforeDelete?: DeleteHookFunction[]
+  afterDelete?: DeleteHookFunction[]
+  beforeRead?: ReadHookFunction[]
+  afterRead?: ReadHookFunction[]
 }
 
 /**

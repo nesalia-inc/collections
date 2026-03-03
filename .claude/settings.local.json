@@ -18,7 +18,12 @@
       "Bash(pnpm test:coverage)",
       "WebSearch",
       "WebFetch(domain:payloadcms.com)",
-      "Bash(gh search code:*)"
+      "Bash(gh search code:*)",
+      "Bash(pnpm:*)",
+      "Bash(npm test:*)",
+      "Bash(npx vitest run tests/hooks.test.ts)",
+      "Bash(npx vitest run:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_gSR40rxYoeac@ep-frosty-violet-aiw2vnhq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx vitest run:*)"
     ]
   }
 }

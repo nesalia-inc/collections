@@ -1,7 +1,13 @@
 {
   "name": "@deessejs/collections",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "High-level abstraction layer built on top of Drizzle ORM",
+  "readme": "README.md",
+  "files": [
+    "dist",
+    "public",
+    "LICENSE"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

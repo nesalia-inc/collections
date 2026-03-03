@@ -94,7 +94,6 @@ function loadCollectionsFromConfig(configPath: string): Record<string, Collectio
       delete require.cache[require.resolve(configPath)]
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const config = require(configPath)
 
     // Handle both default export and named exports

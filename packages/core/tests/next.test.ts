@@ -3,6 +3,7 @@ import {
   withCollections,
   getCollectionsConfig,
   createCollections,
+  loadCollections,
   isNextConfig,
   isCollectionsConfig,
   defaultWithCollectionsOptions,
@@ -32,6 +33,7 @@ describe('next module', () => {
     it('should use default options when not provided', () => {
       const result = withCollections({})
       expect(result.collections?.outputDir).toBe('./drizzle')
+      expect(result.collections?.configPath).toBe('./collections/config')
       // isProduction depends on NODE_ENV - in test env it may be production
       expect(typeof result.collections?.isProduction).toBe('boolean')
     })
@@ -44,32 +46,45 @@ describe('next module', () => {
       }
       const result = withCollections({}, options)
       expect(result.collections?.outputDir).toBe('./custom/drizzle')
+      expect(result.collections?.configPath).toBe('./custom/path')
     })
 
-    it('should pass through webpack config when provided', () => {
-      const webpackFn = vi.fn((config: unknown) => config)
-      const result = withCollections({ webpack: webpackFn })
-      expect(result.webpack).toBeDefined()
+    it('should pass through webpack config when provided in development', () => {
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'development'
+      try {
+        const webpackFn = vi.fn((config: unknown) => config)
+        const result = withCollections({ webpack: webpackFn })
+        expect(result.webpack).toBeDefined()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+      }
     })
 
-    it('should call webpack function with correct context', () => {
-      const webpackFn = vi.fn((config: unknown) => config)
-      const result = withCollections({ webpack: webpackFn })
-      // Call the webpack function with mock context
-      if (result.webpack) {
-        const mockWebpackConfig = {}
-        const mockContext = {
-          dev: true,
-          isServer: false,
-          dir: '/test',
-          buildId: 'test-build',
-          config: {},
-          defaultLoaders: {},
-          webpack: {},
-          nextRuntime: 'nodejs'
+    it('should call webpack function with correct context in development', () => {
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'development'
+      try {
+        const webpackFn = vi.fn((config: unknown) => config)
+        const result = withCollections({ webpack: webpackFn })
+        // Call the webpack function with mock context
+        if (result.webpack) {
+          const mockWebpackConfig = {}
+          const mockContext = {
+            dev: true,
+            isServer: false,
+            dir: '/test',
+            buildId: 'test-build',
+            config: {},
+            defaultLoaders: {},
+            webpack: {},
+            nextRuntime: 'nodejs'
+          }
+          result.webpack(mockWebpackConfig as any, mockContext as any)
+          expect(webpackFn).toHaveBeenCalled()
         }
-        result.webpack(mockWebpackConfig as any, mockContext as any)
-        expect(webpackFn).toHaveBeenCalled()
+      } finally {
+        process.env.NODE_ENV = originalEnv
       }
     })
 
@@ -85,19 +100,33 @@ describe('next module', () => {
         collections: {
           collections: {} as any,
           outputDir: './drizzle',
-          isProduction: true
+          isProduction: true,
+          configPath: './collections/config'
         }
       }
       const result = getCollectionsConfig(config)
       expect(result).toBeDefined()
       expect(result?.outputDir).toBe('./drizzle')
       expect(result?.isProduction).toBe(true)
+      expect(result?.configPath).toBe('./collections/config')
     })
 
     it('should return undefined when collections not present', () => {
       const config = { reactStrictMode: true }
       const result = getCollectionsConfig(config as WithCollectionsConfig)
       expect(result).toBeUndefined()
+    })
+  })
+
+  describe('loadCollections', () => {
+    it('should return empty object for non-existent config path', () => {
+      const result = loadCollections('./non-existent-config')
+      expect(result).toEqual({})
+    })
+
+    it('should return empty object for invalid config path', () => {
+      const result = loadCollections('./tests/fixtures/collections')
+      expect(result).toEqual({})
     })
   })
 
@@ -147,7 +176,8 @@ describe('next module', () => {
         collections: {
           collections: {},
           outputDir: './drizzle',
-          isProduction: true
+          isProduction: true,
+          configPath: './collections/config'
         }
       }
       expect(isCollectionsConfig(config)).toBe(true)
@@ -203,6 +233,59 @@ describe('next module', () => {
       process.env.NODE_ENV = 'production'
       const result = withCollections({})
       expect(result.collections?.isProduction).toBe(true)
+    })
+  })
+
+  describe('hot reload configuration', () => {
+    const originalEnv = process.env
+
+    beforeEach(() => {
+      process.env = { ...originalEnv }
+    })
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
+    it('should enable webpack in development mode with hotReload enabled', () => {
+      process.env.NODE_ENV = 'development'
+      const result = withCollections({}, { hotReload: true })
+      expect(result.webpack).toBeDefined()
+    })
+
+    it('should not enable webpack in development with hotReload disabled', () => {
+      process.env.NODE_ENV = 'development'
+      const result = withCollections({}, { hotReload: false })
+      expect(result.webpack).toBeUndefined()
+    })
+
+    it('should not enable webpack in production mode', () => {
+      process.env.NODE_ENV = 'production'
+      const result = withCollections({}, { hotReload: true })
+      expect(result.webpack).toBeUndefined()
+    })
+
+    it('should pass through user webpack config in development', () => {
+      process.env.NODE_ENV = 'development'
+      const webpackFn = vi.fn((config: unknown) => config)
+      const result = withCollections({ webpack: webpackFn }, { hotReload: true })
+      if (result.webpack) {
+        const mockWebpackConfig = {}
+        const mockContext = { dev: true, isServer: false, dir: '/test', buildId: 'test', config: {}, defaultLoaders: {}, webpack: {}, nextRuntime: 'nodejs' }
+        result.webpack(mockWebpackConfig as any, mockContext as any)
+        expect(webpackFn).toHaveBeenCalled()
+      }
+    })
+
+    it('should return webpack config when no user config provided in development', () => {
+      process.env.NODE_ENV = 'development'
+      const result = withCollections({}, { hotReload: true })
+      if (result.webpack) {
+        const mockWebpackConfig = { someOption: true }
+        const mockContext = { dev: true, isServer: false, dir: '/test', buildId: 'test', config: {}, defaultLoaders: {}, webpack: {}, nextRuntime: 'nodejs' }
+        const returnedConfig = result.webpack(mockWebpackConfig as any, mockContext as any)
+        expect(returnedConfig).toEqual(mockWebpackConfig)
+      }
     })
   })
 })

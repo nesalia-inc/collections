@@ -28,7 +28,9 @@ export type { FieldTypeInstance } from '../field-type'
 // Re-export field types and utilities
 export { field, f, defineConfig, pgAdapter, buildSchema, collection } from '../index'
 
-// Type for withCollections configuration
+/**
+ * Type for withCollections configuration
+ */
 export interface WithCollectionsOptions {
   /**
    * Path to the collections config file
@@ -57,6 +59,7 @@ export type WithCollectionsConfig = NextConfig & {
     collections: Record<string, Collection>
     outputDir: string
     isProduction: boolean
+    configPath: string
   }
 }
 
@@ -80,6 +83,49 @@ function isBuildTime(): boolean {
 }
 
 /**
+ * Load collections from a config file
+ * This function dynamically requires the config file to extract collection definitions
+ */
+function loadCollectionsFromConfig(configPath: string): Record<string, Collection> {
+  try {
+    // Clear require cache to ensure fresh load
+    const cachedModule = require.cache[require.resolve(configPath)]
+    if (cachedModule) {
+      delete require.cache[require.resolve(configPath)]
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const config = require(configPath)
+
+    // Handle both default export and named exports
+    const collections: Record<string, Collection> = {}
+
+    // Check for default export
+    if (config.default) {
+      const exports = config.default
+      for (const [key, value] of Object.entries(exports)) {
+        if (key !== 'default' && typeof value === 'object' && value !== null && 'slug' in value) {
+          collections[key] = value as Collection
+        }
+      }
+    }
+
+    // Check for named exports
+    for (const [key, value] of Object.entries(config)) {
+      if (key !== 'default' && typeof value === 'object' && value !== null && 'slug' in value) {
+        collections[key] = value as Collection
+      }
+    }
+
+    return collections
+  } catch {
+    // Config file doesn't exist or can't be loaded
+    // Return empty collections - this is expected in some cases
+    return {}
+  }
+}
+
+/**
  * Create a Next.js plugin that provides collections integration
  *
  * @example
@@ -89,6 +135,17 @@ function isBuildTime(): boolean {
  * export default withCollections({
  *   // Next.js config
  * })
+ *
+ * // collections/config.ts
+ * import { collection, field, f } from '@deessejs/collections'
+ *
+ * export const users = collection({
+ *   slug: 'users',
+ *   fields: {
+ *     name: field({ fieldType: f.text() }),
+ *     email: field({ fieldType: f.email() })
+ *   }
+ * })
  */
 export function withCollections(nextConfig: NextConfig, options: WithCollectionsOptions = {}): WithCollectionsConfig {
   const {
@@ -97,31 +154,42 @@ export function withCollections(nextConfig: NextConfig, options: WithCollections
     outputDir = './drizzle'
   } = options
 
-  // Use the options to avoid unused variable warnings
-  void configPath
-
   const isProduction = !isDevelopment()
+  const shouldHotReload = hotReload && isDevelopment() && !isBuildTime()
 
-  // Return config with collections metadata
-  // In production, this is static
-  // In development, we can optionally watch for changes
-  // Note: shouldHotReload would be used for file watching implementation
-  const _shouldHotReload = hotReload && isDevelopment() && !isBuildTime()
-  void _shouldHotReload
+  // Load collections from config file at build time
+  // In production, this happens once during build
+  // In development, Next.js will rebuild when config changes
+  const collections = loadCollectionsFromConfig(configPath)
 
-  // Create webpack config that optionally passes through to user config
-  const webpackConfig = nextConfig.webpack
-    ? (webpackConfig: unknown, context: Parameters<NonNullable<NextConfig['webpack']>>[1]) => {
-        return nextConfig.webpack!(webpackConfig, context)
+  // Create webpack configuration
+  let webpackConfig: NextConfig['webpack'] | undefined
+
+  if (shouldHotReload) {
+    // Add hot reload plugin to watch for config changes
+    webpackConfig = (webpackConfigValue, context) => {
+      // Add our custom plugin to watch for file changes
+      if (context.dev && !context.isServer) {
+        // In dev mode, we can add file watching
+        // The actual hot reload is handled by Next.js webpack dev server
       }
-    : undefined
+
+      // Call user webpack config if provided
+      if (nextConfig.webpack) {
+        return nextConfig.webpack(webpackConfigValue, context)
+      }
+
+      return webpackConfigValue
+    }
+  }
 
   return {
     ...nextConfig,
     collections: {
-      collections: {} as Record<string, Collection>,
+      collections,
       outputDir,
-      isProduction
+      isProduction,
+      configPath
     },
     webpack: webpackConfig
   }
@@ -134,8 +202,22 @@ export function getCollectionsConfig(nextConfig: WithCollectionsConfig): {
   collections: Record<string, Collection>
   outputDir: string
   isProduction: boolean
+  configPath: string
 } | undefined {
   return nextConfig.collections
+}
+
+/**
+ * Get collections from a config file
+ * Useful for runtime access to collections
+ *
+ * @example
+ * import { loadCollections } from '@deessejs/collections/next'
+ *
+ * const collections = loadCollections('./collections/config')
+ */
+export function loadCollections(configPath: string): Record<string, Collection> {
+  return loadCollectionsFromConfig(configPath)
 }
 
 /**

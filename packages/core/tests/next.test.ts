@@ -5,7 +5,6 @@ import {
   getCollectionsConfig,
   loadCollections,
   getCollectionsFromConfig,
-  getDbFromConfig,
   isNextConfig,
   isCollectionsConfig,
   defaultWithCollectionsOptions,
@@ -49,6 +48,15 @@ describe('next module', () => {
       const result = await withCollections({}, options)
       expect(result.collections?.outputDir).toBe('./custom/drizzle')
       expect(result.collections?.configPath).toBe('./custom/path')
+    })
+
+    it('should accept debug option', async () => {
+      const options: WithCollectionsOptions = {
+        configPath: './custom/path',
+        debug: true
+      }
+      const result = await withCollections({}, options)
+      expect(result.collections).toBeDefined()
     })
 
     it('should pass through webpack config when provided in development', async () => {
@@ -107,6 +115,23 @@ describe('next module', () => {
       const result = withCollectionsSync({})
       expect(result.collections?.collections).toEqual({})
     })
+
+    it('should pass through webpack config in development mode', () => {
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'development'
+      try {
+        const webpackFn = vi.fn((config: unknown) => config)
+        const result = withCollectionsSync({ webpack: webpackFn })
+        expect(result.webpack).toBeDefined()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+      }
+    })
+
+    it('should not have webpack when not provided', () => {
+      const result = withCollectionsSync({})
+      expect(result.webpack).toBeUndefined()
+    })
   })
 
   describe('getCollectionsConfig', () => {
@@ -138,6 +163,17 @@ describe('next module', () => {
       const result = await loadCollections('./non-existent-config')
       expect(result).toEqual({})
     })
+
+    it('should return empty object for absolute path rejection', async () => {
+      // Absolute paths are rejected and return empty due to error handling
+      const result = await loadCollections('/etc/passwd')
+      expect(result).toEqual({})
+    })
+
+    it('should return empty for invalid extension path', async () => {
+      const result = await loadCollections('./config.txt')
+      expect(result).toEqual({})
+    })
   })
 
   describe('getCollectionsFromConfig', () => {
@@ -158,21 +194,6 @@ describe('next module', () => {
       const config = { reactStrictMode: true } as WithCollectionsConfig
       const result = getCollectionsFromConfig(config)
       expect(result).toEqual({})
-    })
-  })
-
-  describe('getDbFromConfig', () => {
-    it('should return null by default', () => {
-      const config: WithCollectionsConfig = {
-        collections: {
-          collections: {},
-          outputDir: './drizzle',
-          isProduction: true,
-          configPath: './collections/config'
-        }
-      }
-      const result = getDbFromConfig(config)
-      expect(result).toBeNull()
     })
   })
 
@@ -197,6 +218,11 @@ describe('next module', () => {
 
     it('should return false for object without Next.js properties', () => {
       expect(isNextConfig({ foo: 'bar' })).toBe(false)
+    })
+
+    it('should return false for wrong property types', () => {
+      // reactStrictMode should be boolean, not string
+      expect(isNextConfig({ reactStrictMode: 'true' as any })).toBe(false)
     })
   })
 
@@ -228,6 +254,7 @@ describe('next module', () => {
       expect(defaultWithCollectionsOptions.configPath).toBe('./collections/config')
       expect(defaultWithCollectionsOptions.hotReload).toBe(true)
       expect(defaultWithCollectionsOptions.outputDir).toBe('./drizzle')
+      expect(defaultWithCollectionsOptions.debug).toBe(false)
     })
 
     it('should be a required version of WithCollectionsOptions', () => {
@@ -235,6 +262,7 @@ describe('next module', () => {
       expect(options.configPath).toBeDefined()
       expect(options.hotReload).toBeDefined()
       expect(options.outputDir).toBeDefined()
+      expect(options.debug).toBeDefined()
     })
   })
 
@@ -273,9 +301,9 @@ describe('next module', () => {
       process.env = originalEnv
     })
 
-    it('should enable webpack in development mode with hotReload enabled', async () => {
+    it('should enable webpack in development mode with hotReload and user webpack config', async () => {
       process.env.NODE_ENV = 'development'
-      const result = await withCollections({}, { hotReload: true })
+      const result = await withCollections({ webpack: vi.fn() }, { hotReload: true })
       expect(result.webpack).toBeDefined()
     })
 
@@ -287,7 +315,7 @@ describe('next module', () => {
 
     it('should not enable webpack in production mode', async () => {
       process.env.NODE_ENV = 'production'
-      const result = await withCollections({}, { hotReload: true })
+      const result = await withCollections({ webpack: vi.fn() }, { hotReload: true })
       expect(result.webpack).toBeUndefined()
     })
 
@@ -306,12 +334,8 @@ describe('next module', () => {
     it('should return webpack config when no user config provided in development', async () => {
       process.env.NODE_ENV = 'development'
       const result = await withCollections({}, { hotReload: true })
-      if (result.webpack) {
-        const mockWebpackConfig = { someOption: true }
-        const mockContext = { dev: true, isServer: false, dir: '/test', buildId: 'test', config: {}, defaultLoaders: {}, webpack: {}, nextRuntime: 'nodejs' }
-        const returnedConfig = result.webpack(mockWebpackConfig as any, mockContext as any)
-        expect(returnedConfig).toEqual(mockWebpackConfig)
-      }
+      // Without user webpack config, webpack should be undefined
+      expect(result.webpack).toBeUndefined()
     })
   })
 })

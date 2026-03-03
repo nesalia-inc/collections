@@ -112,7 +112,6 @@ function validateConfigPath(configPath: string, debug: boolean): string {
  * Extract collections from a loaded module
  */
 function extractCollectionsFromModule(module: Record<string, unknown>): Record<string, Collection> {
-  const collections: Record<string, Collection> = {}
   const defaultExport = module.default as Record<string, unknown> | undefined
   const defaultCollections = defaultExport ? extractFromObject(defaultExport) : {}
   const namedCollections = extractFromObject(module)

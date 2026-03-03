@@ -1,11 +1,11 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/index.ts', 'src/next/index.ts'],
   format: ['cjs', 'esm'],
   dts: false,
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['pg', 'drizzle-orm', 'drizzle-kit']
+  external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
 })

@@ -17,6 +17,8 @@ export type MigrationOptions = {
   verbose?: boolean
   /** Dry run mode - don't apply changes */
   dryRun?: boolean
+  /** Custom migrations table name */
+  migrationsTable?: string
 }
 
 /**
@@ -95,22 +97,28 @@ export const push = async (
   _collections: Collection[],
   options: MigrationOptions = {}
 ): Promise<void> => {
-  const { verbose = false, dryRun = false, out = './drizzle' } = options
+  const {
+    verbose = false,
+    dryRun = false,
+    out = './drizzle',
+    configPath = './collections/config.ts',
+    migrationsTable = '__drizzle_collections'
+  } = options
 
   // Build temporary drizzle config
   const configContent = buildDrizzleConfig({
     out,
-    schemaPath: './collections/config.ts',
+    schemaPath: configPath,
     dbUrl: adapter.config.url,
-    migrationsTable: '__drizzle_collections'
+    migrationsTable
   })
 
-  const configPath = resolve(process.cwd(), './drizzle.config.json')
+  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
   const { writeFileSync, unlinkSync } = await import('fs')
 
   try {
     // Write config file
-    writeFileSync(configPath, configContent)
+    writeFileSync(drizzleConfigPath, configContent)
 
     const args = ['drizzle-kit', 'push']
 
@@ -130,7 +138,7 @@ export const push = async (
   } finally {
     // Cleanup config file
     try {
-      unlinkSync(configPath)
+      unlinkSync(drizzleConfigPath)
     } catch {
       // Ignore cleanup errors
     }
@@ -147,22 +155,27 @@ export const generate = async (
   _collections: Collection[],
   options: MigrationOptions = {}
 ): Promise<void> => {
-  const { verbose = false, out = './drizzle' } = options
+  const {
+    verbose = false,
+    out = './drizzle',
+    configPath = './collections/config.ts',
+    migrationsTable = '__drizzle_collections'
+  } = options
 
   // Build temporary drizzle config
   const configContent = buildDrizzleConfig({
     out,
-    schemaPath: './collections/config.ts',
+    schemaPath: configPath,
     dbUrl: adapter.config.url,
-    migrationsTable: '__drizzle_collections'
+    migrationsTable
   })
 
-  const configPath = resolve(process.cwd(), './drizzle.config.json')
+  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
   const { writeFileSync, unlinkSync } = await import('fs')
 
   try {
     // Write config file
-    writeFileSync(configPath, configContent)
+    writeFileSync(drizzleConfigPath, configContent)
 
     const args = ['drizzle-kit', 'generate']
 
@@ -178,7 +191,7 @@ export const generate = async (
   } finally {
     // Cleanup config file
     try {
-      unlinkSync(configPath)
+      unlinkSync(drizzleConfigPath)
     } catch {
       // Ignore cleanup errors
     }
@@ -194,22 +207,27 @@ export const migrate = async (
   adapter: PgAdapter,
   options: MigrationOptions = {}
 ): Promise<void> => {
-  const { verbose = false, out = './drizzle' } = options
+  const {
+    verbose = false,
+    out = './drizzle',
+    configPath = './collections/config.ts',
+    migrationsTable = '__drizzle_collections'
+  } = options
 
   // Build temporary drizzle config
   const configContent = buildDrizzleConfig({
     out,
-    schemaPath: './collections/config.ts',
+    schemaPath: configPath,
     dbUrl: adapter.config.url,
-    migrationsTable: '__drizzle_collections'
+    migrationsTable
   })
 
-  const configPath = resolve(process.cwd(), './drizzle.config.json')
+  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
   const { writeFileSync, unlinkSync } = await import('fs')
 
   try {
     // Write config file
-    writeFileSync(configPath, configContent)
+    writeFileSync(drizzleConfigPath, configContent)
 
     const args = ['drizzle-kit', 'migrate']
 
@@ -225,7 +243,7 @@ export const migrate = async (
   } finally {
     // Cleanup config file
     try {
-      unlinkSync(configPath)
+      unlinkSync(drizzleConfigPath)
     } catch {
       // Ignore cleanup errors
     }

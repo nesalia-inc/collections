@@ -26,10 +26,11 @@ Commands:
   db:migrate   Apply pending migrations
 
 Global Options:
-  --config <path>    Path to collections config file (default: ./collections/config.ts)
-  --out <path>      Output directory for migrations (default: ./drizzle)
-  --verbose         Enable verbose output
-  --dry-run         Dry run mode (only for db:push)
+  --config <path>       Path to collections config file (default: ./collections/config.ts)
+  --out <path>         Output directory for migrations (default: ./drizzle)
+  --migrations-table    Custom migrations table name (default: __drizzle_collections)
+  --verbose            Enable verbose output
+  --dry-run            Dry run mode (only for db:push)
 
 Examples:
   collections db:push
@@ -37,7 +38,18 @@ Examples:
   collections db:generate
   collections db:migrate --verbose
   collections db:push --dry-run
+  collections db:push --config ./my-config.ts --out ./my-drizzle
 `)
+}
+
+/**
+ * Validate path to prevent path traversal attacks
+ */
+function validatePath(path: string, name: string): void {
+  if (path.includes('..')) {
+    console.error(`Error: ${name} path cannot contain ".." (path traversal not allowed)`)
+    process.exit(1)
+  }
 }
 
 /**
@@ -51,10 +63,13 @@ function parseArgs(): {
   const options: MigrationOptions = {
     verbose: false,
     dryRun: false,
-    out: './drizzle'
+    out: './drizzle',
+    configPath: './collections/config.ts',
+    migrationsTable: '__drizzle_collections'
   }
 
   let command: string | null = null
+  let dryRunWarningShown = false
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -65,8 +80,31 @@ function parseArgs(): {
       options.verbose = true
     } else if (arg === '--dry-run') {
       options.dryRun = true
+      // Warn if --dry-run is used with non-push command
+      if (command && command !== 'db:push' && !dryRunWarningShown) {
+        console.warn('Warning: --dry-run is only applicable to db:push command')
+        dryRunWarningShown = true
+      }
     } else if (arg === '--out' || arg === '-o') {
-      options.out = args[++i]
+      const outValue = args[++i]
+      if (!outValue || outValue.startsWith('-')) {
+        console.error('Error: --out requires a value')
+        printUsage()
+        process.exit(1)
+      }
+      validatePath(outValue, '--out')
+      options.out = outValue
+    } else if (arg === '--config' || arg === '-c') {
+      const configValue = args[++i]
+      if (!configValue || configValue.startsWith('-')) {
+        console.error('Error: --config requires a value')
+        printUsage()
+        process.exit(1)
+      }
+      validatePath(configValue, '--config')
+      options.configPath = configValue
+    } else if (arg === '--migrations-table') {
+      options.migrationsTable = args[++i]
     } else if (arg === '--help' || arg === '-h') {
       printUsage()
       process.exit(0)
@@ -91,6 +129,12 @@ async function main(): Promise<void> {
   if (options.verbose) {
     console.log('[collections] Command:', command)
     console.log('[collections] Options:', options)
+  }
+
+  // Validate --dry-run is only used with db:push
+  if (options.dryRun && command !== 'db:push') {
+    console.warn('Warning: --dry-run is only applicable to db:push command, ignoring')
+    options.dryRun = false
   }
 
   // Get database URL from environment or prompt
@@ -141,7 +185,9 @@ async function main(): Promise<void> {
 }
 
 // Export for testing
-export { main, parseArgs, printUsage }
+export { main, parseArgs, printUsage, validatePath }
 
-// Run if executed directly
-main()
+// Run if executed directly (not when imported for tests)
+if (process.argv[1]?.includes('cli')) {
+  main()
+}

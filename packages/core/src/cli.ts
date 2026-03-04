@@ -8,12 +8,13 @@
 
 import process from 'process'
 
-// Load dotenv to read .env file
-import('dotenv').then((dotenv) => {
-  dotenv.config()
-}).catch(() => {
+// Load dotenv to read .env file (synchronous)
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require('dotenv').config()
+} catch {
   // dotenv not installed, ignore
-})
+}
 
 import { push, generate, migrate, type MigrationOptions } from './migrations'
 import { pgAdapter } from './adapter'

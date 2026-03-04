@@ -1,0 +1,193 @@
+#!/usr/bin/env node
+
+/**
+ * CLI entry point for @deessejs/collections
+ *
+ * Provides commands for database migrations and schema management
+ */
+
+import process from 'process'
+
+import { push, generate, migrate, type MigrationOptions } from './migrations'
+import { pgAdapter } from './adapter'
+
+/**
+ * Print usage information
+ */
+function printUsage(): void {
+  console.log(`
+@deessejs/collections CLI
+
+Usage: collections <command> [options]
+
+Commands:
+  db:push       Push schema to database (development mode)
+  db:generate  Generate migration files
+  db:migrate   Apply pending migrations
+
+Global Options:
+  --config <path>       Path to collections config file (default: ./collections/config.ts)
+  --out <path>         Output directory for migrations (default: ./drizzle)
+  --migrations-table    Custom migrations table name (default: __drizzle_collections)
+  --verbose            Enable verbose output
+  --dry-run            Dry run mode (only for db:push)
+
+Examples:
+  collections db:push
+  collections db:push --verbose
+  collections db:generate
+  collections db:migrate --verbose
+  collections db:push --dry-run
+  collections db:push --config ./my-config.ts --out ./my-drizzle
+`)
+}
+
+/**
+ * Validate path to prevent path traversal attacks
+ */
+function validatePath(path: string, name: string): void {
+  if (path.includes('..')) {
+    console.error(`Error: ${name} path cannot contain ".." (path traversal not allowed)`)
+    process.exit(1)
+  }
+}
+
+/**
+ * Parse command line arguments
+ */
+function parseArgs(): {
+  command: string | null
+  options: MigrationOptions
+} {
+  const args = process.argv.slice(2)
+  const options: MigrationOptions = {
+    verbose: false,
+    dryRun: false,
+    out: './drizzle',
+    configPath: './collections/config.ts',
+    migrationsTable: '__drizzle_collections'
+  }
+
+  let command: string | null = null
+  let dryRunWarningShown = false
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (arg === 'db:push' || arg === 'db:generate' || arg === 'db:migrate') {
+      command = arg
+    } else if (arg === '--verbose' || arg === '-v') {
+      options.verbose = true
+    } else if (arg === '--dry-run') {
+      options.dryRun = true
+      // Warn if --dry-run is used with non-push command
+      if (command && command !== 'db:push' && !dryRunWarningShown) {
+        console.warn('Warning: --dry-run is only applicable to db:push command')
+        dryRunWarningShown = true
+      }
+    } else if (arg === '--out' || arg === '-o') {
+      const outValue = args[++i]
+      if (!outValue || outValue.startsWith('-')) {
+        console.error('Error: --out requires a value')
+        printUsage()
+        process.exit(1)
+      }
+      validatePath(outValue, '--out')
+      options.out = outValue
+    } else if (arg === '--config' || arg === '-c') {
+      const configValue = args[++i]
+      if (!configValue || configValue.startsWith('-')) {
+        console.error('Error: --config requires a value')
+        printUsage()
+        process.exit(1)
+      }
+      validatePath(configValue, '--config')
+      options.configPath = configValue
+    } else if (arg === '--migrations-table') {
+      options.migrationsTable = args[++i]
+    } else if (arg === '--help' || arg === '-h') {
+      printUsage()
+      process.exit(0)
+    }
+  }
+
+  return { command, options }
+}
+
+/**
+ * Main CLI function
+ */
+async function main(): Promise<void> {
+  const { command, options } = parseArgs()
+
+  if (!command) {
+    console.error('Error: No command specified')
+    printUsage()
+    process.exit(1)
+  }
+
+  if (options.verbose) {
+    console.log('[collections] Command:', command)
+    console.log('[collections] Options:', options)
+  }
+
+  // Validate --dry-run is only used with db:push
+  if (options.dryRun && command !== 'db:push') {
+    console.warn('Warning: --dry-run is only applicable to db:push command, ignoring')
+    options.dryRun = false
+  }
+
+  // Get database URL from environment or prompt
+  const dbUrl = process.env.DATABASE_URL
+  if (!dbUrl) {
+    console.error('Error: DATABASE_URL environment variable is required')
+    console.error('Set it with: export DATABASE_URL="postgres://user:pass@localhost:5432/db"')
+    process.exit(1)
+  }
+
+  const adapter = pgAdapter({ url: dbUrl })
+
+  try {
+    switch (command) {
+      case 'db:push':
+        if (options.verbose) {
+          console.log('[collections] Pushing schema to database...')
+        }
+        await push(adapter, [], options)
+        console.log('Schema pushed successfully')
+        break
+
+      case 'db:generate':
+        if (options.verbose) {
+          console.log('[collections] Generating migrations...')
+        }
+        await generate(adapter, [], options)
+        console.log('Migrations generated successfully')
+        break
+
+      case 'db:migrate':
+        if (options.verbose) {
+          console.log('[collections] Applying migrations...')
+        }
+        await migrate(adapter, options)
+        console.log('Migrations applied successfully')
+        break
+
+      default:
+        console.error(`Error: Unknown command "${command}"`)
+        printUsage()
+        process.exit(1)
+    }
+  } catch (error) {
+    console.error('Error:', error instanceof Error ? error.message : error)
+    process.exit(1)
+  }
+}
+
+// Export for testing
+export { main, parseArgs, printUsage, validatePath }
+
+// Run if executed directly (not when imported for tests)
+if (process.argv[1]?.includes('cli')) {
+  main()
+}

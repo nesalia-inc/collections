@@ -26,11 +26,9 @@ Commands:
   db:migrate   Apply pending migrations
 
 Global Options:
-  --config <path>       Path to collections config file (default: ./collections/config.ts)
-  --out <path>         Output directory for migrations (default: ./drizzle)
-  --migrations-table    Custom migrations table name (default: __drizzle_collections)
-  --verbose            Enable verbose output
-  --dry-run            Dry run mode (only for db:push)
+  --out <path>      Output directory for migrations (default: ./drizzle)
+  --verbose         Enable verbose output
+  --dry-run         Dry run mode (only for db:push)
 
 Examples:
   collections db:push
@@ -38,7 +36,6 @@ Examples:
   collections db:generate
   collections db:migrate --verbose
   collections db:push --dry-run
-  collections db:push --config ./my-config.ts --out ./my-drizzle
 `)
 }
 
@@ -63,9 +60,7 @@ function parseArgs(): {
   const options: MigrationOptions = {
     verbose: false,
     dryRun: false,
-    out: './drizzle',
-    configPath: './collections/config.ts',
-    migrationsTable: '__drizzle_collections'
+    out: './drizzle'
   }
 
   let command: string | null = null
@@ -94,17 +89,6 @@ function parseArgs(): {
       }
       validatePath(outValue, '--out')
       options.out = outValue
-    } else if (arg === '--config' || arg === '-c') {
-      const configValue = args[++i]
-      if (!configValue || configValue.startsWith('-')) {
-        console.error('Error: --config requires a value')
-        printUsage()
-        process.exit(1)
-      }
-      validatePath(configValue, '--config')
-      options.configPath = configValue
-    } else if (arg === '--migrations-table') {
-      options.migrationsTable = args[++i]
     } else if (arg === '--help' || arg === '-h') {
       printUsage()
       process.exit(0)

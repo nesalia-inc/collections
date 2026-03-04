@@ -86,30 +86,6 @@ describe('CLI', () => {
       expect(options.out).toBe('./custom-drizzle')
     })
 
-    it('parses --config flag', () => {
-      process.argv = ['node', 'collections', 'db:push', '--config', './my-config.ts']
-
-      const { options } = parseArgs()
-
-      expect(options.configPath).toBe('./my-config.ts')
-    })
-
-    it('parses -c short flag', () => {
-      process.argv = ['node', 'collections', 'db:push', '-c', './my-config.ts']
-
-      const { options } = parseArgs()
-
-      expect(options.configPath).toBe('./my-config.ts')
-    })
-
-    it('parses --migrations-table flag', () => {
-      process.argv = ['node', 'collections', 'db:push', '--migrations-table', 'my_migrations']
-
-      const { options } = parseArgs()
-
-      expect(options.migrationsTable).toBe('my_migrations')
-    })
-
     it('returns default values when no options provided', () => {
       process.argv = ['node', 'collections', 'db:push']
 
@@ -118,8 +94,6 @@ describe('CLI', () => {
       expect(options.verbose).toBe(false)
       expect(options.dryRun).toBe(false)
       expect(options.out).toBe('./drizzle')
-      expect(options.configPath).toBe('./collections/config.ts')
-      expect(options.migrationsTable).toBe('__drizzle_collections')
     })
 
     it('shows warning when --dry-run used with non-push command', () => {
@@ -150,18 +124,6 @@ describe('CLI', () => {
       parseArgs()
 
       expect(consoleError).toHaveBeenCalledWith('Error: --out requires a value')
-      expect(exitMock).toHaveBeenCalledWith(1)
-
-      consoleError.mockRestore()
-    })
-
-    it('errors when --config value starts with -', () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-      process.argv = ['node', 'collections', 'db:push', '--config', '-v']
-
-      parseArgs()
-
-      expect(consoleError).toHaveBeenCalledWith('Error: --config requires a value')
       expect(exitMock).toHaveBeenCalledWith(1)
 
       consoleError.mockRestore()

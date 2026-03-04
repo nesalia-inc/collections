@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { parseArgs, printUsage, validatePath } from '../src/cli'
+import { pgAdapter } from '../src/adapter'
 
 describe('CLI', () => {
   describe('parseArgs', () => {
@@ -141,6 +142,30 @@ describe('CLI', () => {
       expect(command).toBeNull()
       expect(options).toBeDefined()
     })
+
+    it('errors when --out value starts with -', () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      process.argv = ['node', 'collections', 'db:push', '--out', '-v']
+
+      parseArgs()
+
+      expect(consoleError).toHaveBeenCalledWith('Error: --out requires a value')
+      expect(exitMock).toHaveBeenCalledWith(1)
+
+      consoleError.mockRestore()
+    })
+
+    it('errors when --config value starts with -', () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      process.argv = ['node', 'collections', 'db:push', '--config', '-v']
+
+      parseArgs()
+
+      expect(consoleError).toHaveBeenCalledWith('Error: --config requires a value')
+      expect(exitMock).toHaveBeenCalledWith(1)
+
+      consoleError.mockRestore()
+    })
   })
 
   describe('validatePath', () => {
@@ -178,6 +203,22 @@ describe('CLI', () => {
 
       exitMock.mockRestore()
       consoleErrorMock.mockRestore()
+    })
+  })
+
+  describe('pgAdapter', () => {
+    it('creates adapter with url', () => {
+      const adapter = pgAdapter({ url: 'postgres://test:test@localhost:5432/test' })
+      expect(adapter.config.url).toBe('postgres://test:test@localhost:5432/test')
+      expect(adapter.config.migrationsPath).toBe('./migrations')
+    })
+
+    it('creates adapter with custom migrations path', () => {
+      const adapter = pgAdapter({
+        url: 'postgres://test:test@localhost:5432/test',
+        migrationsPath: './custom/migrations'
+      })
+      expect(adapter.config.migrationsPath).toBe('./custom/migrations')
     })
   })
 })

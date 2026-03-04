@@ -13,6 +13,7 @@ export default defineConfig({
         'tests/**',
         'vitest.config.ts',
         'src/migrations.ts',
+        'src/cli.ts',
         'src/operations/types.ts',
         'src/operations/collection-operations.ts',
         'src/schema.ts',

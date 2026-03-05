@@ -70,7 +70,8 @@ export type DbWithCollections<T extends Collection[]> = {
   /**
    * Get raw Drizzle instance for advanced queries
    */
-  $raw: ReturnType<typeof drizzle<Record<string, unknown>>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $raw: any
 }
 
 /**
@@ -133,7 +134,8 @@ export const defineConfig = <T extends Collection[]>(
 ): DefineConfigReturn<T> => {
   // Initialize the database connection based on adapter type
   let pool: PoolType | null = null
-  let dbInstance: ReturnType<typeof drizzle<Record<string, unknown>>> | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dbInstance: any = null
   let schema: Record<string, unknown> = {}
 
   if (options.database.type === 'postgres') {
@@ -230,7 +232,7 @@ export const defineConfig = <T extends Collection[]>(
   }
 
   // Add raw drizzle instance
-  (db as any).$raw = dbInstance
+  (db as DefineConfigReturn<T>['db']).$raw = dbInstance
 
   return {
     collections: collectionsMap as DefineConfigReturn<T>['collections'],

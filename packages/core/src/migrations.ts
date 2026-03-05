@@ -1,6 +1,8 @@
 import { Pool } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { pushSchema, generateMigration, generateDrizzleJson } from 'drizzle-kit/api'
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs'
+import { join, dirname } from 'path'
 
 import type { PgAdapter } from './adapter'
 import type { Collection } from './collection'
@@ -41,6 +43,46 @@ export type GenerateResult = {
 }
 
 /**
+ * Get the path to the schema JSON file
+ */
+function getSchemaJsonPath(outputDir: string): string {
+  return join(outputDir, 'schema.json')
+}
+
+/**
+ * Load existing schema JSON from file
+ */
+function loadExistingSchema(outputDir: string): Record<string, unknown> | null {
+  const schemaPath = getSchemaJsonPath(outputDir)
+
+  if (!existsSync(schemaPath)) {
+    return null
+  }
+
+  try {
+    const content = readFileSync(schemaPath, 'utf-8')
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Save schema JSON to file
+ */
+function saveSchemaJson(outputDir: string, schema: Record<string, unknown>): void {
+  const schemaPath = getSchemaJsonPath(outputDir)
+
+  // Ensure directory exists
+  const dir = dirname(schemaPath)
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+
+  writeFileSync(schemaPath, JSON.stringify(schema, null, 2))
+}
+
+/**
  * Push schema to database (development mode)
  *
  * Uses drizzle-kit programmatic API to push schema changes to the database
@@ -63,7 +105,7 @@ export const push = async (
   collections: Collection[],
   options: MigrationOptions = {}
 ): Promise<PushResult> => {
-  const { verbose = false, dryRun = false } = options
+  const { verbose = false, dryRun = false, out = './drizzle' } = options
 
   // Build schema from collections
   const schema = buildSchema(collections)
@@ -83,6 +125,10 @@ export const push = async (
       console.log('[collections] Warnings:', result.warnings)
       console.log('[collections] Statements to execute:', result.statementsToExecute.length)
     }
+
+    // Save the new schema after push
+    const schemaJson = generateDrizzleJson(schema)
+    saveSchemaJson(out, schemaJson)
 
     return {
       statements: result.statementsToExecute,
@@ -108,14 +154,15 @@ export const push = async (
 /**
  * Generate migration files
  *
- * Uses drizzle-kit programmatic API to create migration files
+ * Uses drizzle-kit programmatic API to create migration files by comparing
+ * the current schema against the saved schema from a previous push.
  *
  * @example
  * import { generate } from '@deessejs/collections'
  * import { pgAdapter } from '@deessejs/collections'
  *
  * const adapter = pgAdapter({ url: process.env.DATABASE_URL })
- * const result = await generate(adapter, collections, { out: './migrations' })
+ * const result = await generate(adapter, collections, { out: './drizzle' })
  *
  * console.log(result.sql) // SQL statements
  */
@@ -129,17 +176,27 @@ export const generate = async (
   // Build schema from collections
   const schema = buildSchema(collections)
 
-  // Generate JSON snapshots
-  const currentJson = generateDrizzleJson(schema)
+  // Generate new schema JSON
   const newJson = generateDrizzleJson(schema)
 
-  // Generate migration SQL
-  const sqlStatements = await generateMigration(currentJson, newJson)
+  // Load existing schema JSON (from previous push)
+  const existingJson = loadExistingSchema(out)
+
+  // Generate migration SQL by comparing existing vs new schema
+  const sqlStatements = await generateMigration(existingJson, newJson)
 
   if (verbose) {
     console.log('[collections] Migration SQL generated')
     console.log('[collections] Statements:', sqlStatements.length)
+    if (existingJson) {
+      console.log('[collections] Compared against existing schema')
+    } else {
+      console.log('[collections] No existing schema found, generating initial migration')
+    }
   }
+
+  // Save the new schema
+  saveSchemaJson(out, newJson)
 
   return {
     sql: sqlStatements,

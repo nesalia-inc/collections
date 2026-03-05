@@ -150,6 +150,7 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
    * Create a record
    */
   async create(options: { data: Record<string, unknown>; returning?: boolean }): Promise<OperationResult<T | undefined>> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.operations.create<T>(options as any)
     const invalidateKeys = generateInvalidateKeys(this.slug)
 
@@ -184,6 +185,7 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
     data: Record<string, unknown>
     returning?: boolean
   }): Promise<OperationResult<T | undefined>> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await this.operations.update<T>(options as any)
     const invalidateKeys = generateInvalidateKeys(this.slug)
 

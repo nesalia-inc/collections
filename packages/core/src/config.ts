@@ -230,7 +230,7 @@ export const defineConfig = <T extends Collection[]>(
   }
 
   // Add raw drizzle instance
-  ;(db as any).$raw = dbInstance
+  (db as any).$raw = dbInstance
 
   return {
     collections: collectionsMap as DefineConfigReturn<T>['collections'],

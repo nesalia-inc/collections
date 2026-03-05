@@ -1,5 +1,5 @@
 import { Pool, type Pool as PoolType } from 'pg'
-import { drizzle, type DrizzleType } from 'drizzle-orm/node-postgres'
+import { drizzle } from 'drizzle-orm/node-postgres'
 
 import type { Collection } from './collection'
 import type { DatabaseAdapter } from './adapter'
@@ -136,7 +136,8 @@ export const defineConfig = <T extends Collection[]>(
 ): DefineConfigReturn<T> => {
   // Initialize the database connection based on adapter type
   let pool: PoolType | null = null
-  let dbInstance: DrizzleType | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dbInstance: ReturnType<typeof drizzle> | null = null
   let schema: Record<string, unknown> = {}
 
   if (options.database.type === 'postgres') {

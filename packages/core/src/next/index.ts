@@ -148,7 +148,8 @@ async function loadCollectionsFromConfig(configPath: string, debug: boolean): Pr
     const collections = extractCollectionsFromModule(module as Record<string, unknown>)
     debugLog(debug, `Loaded ${Object.keys(collections).length} collections`)
     return collections
-  } catch {
+  } catch (error) {
+    debugLog(debug, `Failed to load collections from ${configPath}:`, error instanceof Error ? error.message : 'Unknown error')
     return {}
   }
 }

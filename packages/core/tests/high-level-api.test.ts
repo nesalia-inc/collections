@@ -418,6 +418,21 @@ describe('DbWrapper', () => {
       expect(keys).toContain('users')
       expect(keys).toContain('posts')
     })
+
+    it('should set validation options', () => {
+      const wrapper = new DbWrapper()
+      wrapper.setValidationOptions({ maxLimit: 5000, maxOffset: 50000 })
+
+      const users = collection({
+        slug: 'users',
+        fields: { name: field({ fieldType: f.text() }) }
+      })
+
+      const mockDbWithValidation = createMockDb({ selectReturn: [] })
+      wrapper.register('users', users, mockDbWithValidation as any, mockTable as any)
+
+      expect(wrapper.has('users')).toBe(true)
+    })
   })
 
   describe('generateCacheKey', () => {

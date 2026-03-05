@@ -1,8 +1,9 @@
 import { Pool, type Pool as PoolType } from 'pg'
-import { drizzle } from 'drizzle-orm/node-postgres'
+import { drizzle, type DrizzleType } from 'drizzle-orm/node-postgres'
 
 import type { Collection } from './collection'
 import type { DatabaseAdapter } from './adapter'
+import type { ValidationOptions } from './operations/types'
 import { buildSchema } from './schema'
 import { DbWrapper, type OperationResult } from './operations/db-wrapper'
 
@@ -22,6 +23,7 @@ export type ConfigOptions<T extends Collection[] = []> = {
   database: DatabaseAdapter
   collections: T
   plugins?: Plugin[]
+  validation?: ValidationOptions
 }
 
 /**
@@ -134,8 +136,7 @@ export const defineConfig = <T extends Collection[]>(
 ): DefineConfigReturn<T> => {
   // Initialize the database connection based on adapter type
   let pool: PoolType | null = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let dbInstance: any = null
+  let dbInstance: DrizzleType | null = null
   let schema: Record<string, unknown> = {}
 
   if (options.database.type === 'postgres') {
@@ -153,6 +154,11 @@ export const defineConfig = <T extends Collection[]>(
 
   // Create DB wrapper
   const dbWrapper = new DbWrapper()
+
+  // Configure validation options if provided
+  if (options.validation) {
+    dbWrapper.setValidationOptions(options.validation)
+  }
 
   // Register each collection
   if (dbInstance) {

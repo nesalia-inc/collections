@@ -14,7 +14,8 @@ import type {
   DeleteManyOptions,
   CountOptions,
   ExistsOptions,
-  WhereOperator
+  WhereOperator,
+  ValidationOptions
 } from './types'
 
 /**
@@ -248,11 +249,18 @@ export const createCollectionOperations = (
   _slug: string,
   _db: any,
   _table: any,
-  _hooks?: CollectionHooks
+  _hooks?: CollectionHooks,
+  _validationOptions?: ValidationOptions
 ): CollectionOperations => {
   const tableColumns = _table as Record<string, any>
   const db = _db as any
   const hooks = _hooks as CollectionHooks | undefined
+
+  // Default validation options
+  const validationOptions: Required<ValidationOptions> = {
+    maxLimit: _validationOptions?.maxLimit ?? 10000,
+    maxOffset: _validationOptions?.maxOffset ?? 100000
+  }
 
   // If no db instance, return placeholder operations
   if (!db) {
@@ -302,8 +310,8 @@ export const createCollectionOperations = (
         if (!Number.isInteger(limit) || limit < 0) {
           throw new Error('limit must be a non-negative integer')
         }
-        if (limit > 10000) {
-          throw new Error('limit cannot exceed 10000')
+        if (limit > validationOptions.maxLimit) {
+          throw new Error(`limit cannot exceed ${validationOptions.maxLimit}`)
         }
       }
 
@@ -312,8 +320,8 @@ export const createCollectionOperations = (
         if (!Number.isInteger(offset) || offset < 0) {
           throw new Error('offset must be a non-negative integer')
         }
-        if (offset > 100000) {
-          throw new Error('offset cannot exceed 100000')
+        if (offset > validationOptions.maxOffset) {
+          throw new Error(`offset cannot exceed ${validationOptions.maxOffset}`)
         }
       }
 
@@ -515,6 +523,9 @@ export const createCollectionOperations = (
 
       const result = await db.insert(_table).values(options.data as any)
 
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? dataArray.length
+
       // Execute after operation hooks for each item
       for (let i = 0; i < dataArray.length; i++) {
         await executeAfterCreateHooks(hooks, {
@@ -533,7 +544,7 @@ export const createCollectionOperations = (
         })
       }
 
-      return result.length || 0
+      return affectedCount
     },
 
     update: async <T>(options: UpdateOptions<T>): Promise<T | undefined> => {

@@ -4,6 +4,7 @@
 
 import type { Collection, CollectionHooks } from '../collection'
 import { createCollectionOperations, type CollectionOperations } from './collection-operations'
+import type { ValidationOptions } from './types'
 
 /**
  * Cache key generation
@@ -57,10 +58,11 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
     slug: string,
     db: unknown,
     table: Record<string, unknown>,
-    hooks?: CollectionHooks
+    hooks?: CollectionHooks,
+    validationOptions?: ValidationOptions
   ) {
     this.slug = slug
-    this.operations = createCollectionOperations(collection, slug, db, table, hooks)
+    this.operations = createCollectionOperations(collection, slug, db, table, hooks, validationOptions)
   }
 
   /**
@@ -251,6 +253,14 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
  */
 export class DbWrapper {
   private collections: Map<string, CollectionDbWrapper> = new Map()
+  private validationOptions?: ValidationOptions
+
+  /**
+   * Configure validation options
+   */
+  setValidationOptions(options: ValidationOptions): void {
+    this.validationOptions = options
+  }
 
   /**
    * Register a collection
@@ -261,7 +271,7 @@ export class DbWrapper {
     db: unknown,
     table: Record<string, unknown>
   ): void {
-    this.collections.set(slug, new CollectionDbWrapper(collection, slug, db, table, collection.hooks))
+    this.collections.set(slug, new CollectionDbWrapper(collection, slug, db, table, collection.hooks, this.validationOptions))
   }
 
   /**

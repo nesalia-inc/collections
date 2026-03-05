@@ -3,7 +3,6 @@
  */
 
 import type { Collection, CollectionHooks } from '../collection'
-import type { PgDatabase } from 'drizzle-orm/node-postgres'
 import { createCollectionOperations, type CollectionOperations } from './collection-operations'
 
 /**
@@ -56,7 +55,7 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
   constructor(
     collection: Collection,
     slug: string,
-    db: PgDatabase<Record<string, unknown>>,
+    db: unknown,
     table: Record<string, unknown>,
     hooks?: CollectionHooks
   ) {
@@ -151,7 +150,7 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
    * Create a record
    */
   async create(options: { data: Record<string, unknown>; returning?: boolean }): Promise<OperationResult<T | undefined>> {
-    const data = await this.operations.create<T>(options)
+    const data = await this.operations.create<T>(options as any)
     const invalidateKeys = generateInvalidateKeys(this.slug)
 
     return {
@@ -185,7 +184,7 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
     data: Record<string, unknown>
     returning?: boolean
   }): Promise<OperationResult<T | undefined>> {
-    const data = await this.operations.update<T>(options)
+    const data = await this.operations.update<T>(options as any)
     const invalidateKeys = generateInvalidateKeys(this.slug)
 
     return {
@@ -257,7 +256,7 @@ export class DbWrapper {
   register(
     slug: string,
     collection: Collection,
-    db: PgDatabase<Record<string, unknown>>,
+    db: unknown,
     table: Record<string, unknown>
   ): void {
     this.collections.set(slug, new CollectionDbWrapper(collection, slug, db, table, collection.hooks))

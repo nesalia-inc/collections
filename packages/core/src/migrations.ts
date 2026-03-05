@@ -1,4 +1,4 @@
-import { Pool, type Pool as PoolType } from 'pg'
+import { Pool } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { pushSchema, generateMigration, generateDrizzleJson } from 'drizzle-kit/api'
 
@@ -74,18 +74,18 @@ export const push = async (
   })
 
   try {
-    const db = drizzle(pool, { schema })
+    const db = drizzle(pool, { schema }) as any
 
     // Use pushSchema from drizzle-kit API
     const result = await pushSchema(schema, db)
 
     if (verbose) {
       console.log('[collections] Warnings:', result.warnings)
-      console.log('[collections] Statements to execute:', result.statements.length)
+      console.log('[collections] Statements to execute:', result.statementsToExecute.length)
     }
 
     return {
-      statements: result.statements,
+      statements: result.statementsToExecute,
       warnings: result.warnings,
       apply: async () => {
         if (dryRun) {
@@ -120,7 +120,7 @@ export const push = async (
  * console.log(result.sql) // SQL statements
  */
 export const generate = async (
-  adapter: PgAdapter,
+  _adapter: PgAdapter,
   collections: Collection[],
   options: MigrationOptions = {}
 ): Promise<GenerateResult> => {
@@ -129,32 +129,21 @@ export const generate = async (
   // Build schema from collections
   const schema = buildSchema(collections)
 
-  // Create pool and drizzle instance
-  const pool = new Pool({
-    connectionString: adapter.config.url
-  })
+  // Generate JSON snapshots
+  const currentJson = generateDrizzleJson(schema)
+  const newJson = generateDrizzleJson(schema)
 
-  try {
-    const db = drizzle(pool, { schema })
+  // Generate migration SQL
+  const sqlStatements = await generateMigration(currentJson, newJson)
 
-    // Generate JSON snapshots
-    const currentJson = generateDrizzleJson(schema)
-    const newJson = generateDrizzleJson(schema)
+  if (verbose) {
+    console.log('[collections] Migration SQL generated')
+    console.log('[collections] Statements:', sqlStatements.length)
+  }
 
-    // Generate migration SQL
-    const sqlStatements = await generateMigration(currentJson, newJson)
-
-    if (verbose) {
-      console.log('[collections] Migration SQL generated')
-      console.log('[collections] Statements:', sqlStatements.length)
-    }
-
-    return {
-      sql: sqlStatements,
-      directory: out
-    }
-  } finally {
-    await pool.end()
+  return {
+    sql: sqlStatements,
+    directory: out
   }
 }
 
@@ -172,7 +161,7 @@ export const generate = async (
  * await migrate(adapter)
  */
 export const migrate = async (
-  adapter: PgAdapter,
+  _adapter: PgAdapter,
   _options: MigrationOptions = {}
 ): Promise<void> => {
   // With programmatic API, migrations are handled by push()

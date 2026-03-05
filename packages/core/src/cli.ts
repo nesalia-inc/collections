@@ -141,7 +141,7 @@ async function main(): Promise<void> {
 
   try {
     switch (command) {
-      case 'db:push':
+      case 'db:push': {
         if (options.verbose) {
           console.log('[collections] Pushing schema to database...')
         }
@@ -156,8 +156,9 @@ async function main(): Promise<void> {
         await pushResult.apply()
         console.log('Schema pushed successfully')
         break
+      }
 
-      case 'db:generate':
+      case 'db:generate': {
         if (options.verbose) {
           console.log('[collections] Generating migrations...')
         }
@@ -167,6 +168,7 @@ async function main(): Promise<void> {
         }
         console.log('Migrations generated successfully')
         break
+      }
 
       case 'db:migrate':
         if (options.verbose) {

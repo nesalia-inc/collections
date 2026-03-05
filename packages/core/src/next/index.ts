@@ -9,7 +9,7 @@ import type { Collection } from '../collection'
 import { resolve } from 'path'
 import process from 'process'
 import { watch } from 'fs'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 
 // Re-export types from core for convenience
 export type {
@@ -264,8 +264,7 @@ export function withCollectionsSync(
     configPath = './collections/config',
     hotReload = true,
     outputDir = './drizzle',
-    autoSchemaPush = true,
-    debug = false
+    autoSchemaPush = true
   } = options
 
   const isProduction = !isDevelopment()

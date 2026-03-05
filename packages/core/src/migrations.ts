@@ -180,10 +180,10 @@ export const generate = async (
   const newJson = generateDrizzleJson(schema)
 
   // Load existing schema JSON (from previous push)
-  const existingJson = loadExistingSchema(out)
+  const existingJson = loadExistingSchema(out) as Parameters<typeof generateMigration>[0]
 
   // Generate migration SQL by comparing existing vs new schema
-  const sqlStatements = await generateMigration(existingJson, newJson)
+  const sqlStatements = await generateMigration(existingJson ?? undefined, newJson)
 
   if (verbose) {
     console.log('[collections] Migration SQL generated')

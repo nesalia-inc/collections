@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { eq, and, like, gt, gte, lt, lte, isNull, inArray, not, desc, asc } from 'drizzle-orm'
+import { eq, and, like, gt, gte, lt, lte, isNull, inArray, not, desc, asc, count } from 'drizzle-orm'
 
 import type { Collection, CollectionHooks, CreateHookContext, UpdateHookContext, DeleteHookContext, ReadHookContext, OperationHookContext } from '../collection'
 import type {
@@ -293,6 +293,30 @@ export const createCollectionOperations = (
 
       let query = db.select().from(_table)
 
+      // Validate and normalize limit/offset
+      const limit = options?.limit
+      const offset = options?.offset
+
+      // Validate limit - must be positive integer
+      if (limit !== undefined) {
+        if (!Number.isInteger(limit) || limit < 0) {
+          throw new Error('limit must be a non-negative integer')
+        }
+        if (limit > 10000) {
+          throw new Error('limit cannot exceed 10000')
+        }
+      }
+
+      // Validate offset - must be positive integer
+      if (offset !== undefined) {
+        if (!Number.isInteger(offset) || offset < 0) {
+          throw new Error('offset must be a non-negative integer')
+        }
+        if (offset > 100000) {
+          throw new Error('offset cannot exceed 100000')
+        }
+      }
+
       if (whereClause) {
         query = query.where(whereClause)
       }
@@ -301,12 +325,12 @@ export const createCollectionOperations = (
         query = query.orderBy(...orderByClause)
       }
 
-      if (options?.offset) {
-        query = query.offset(options.offset)
+      if (offset !== undefined) {
+        query = query.offset(offset)
       }
 
-      if (options?.limit) {
-        query = query.limit(options.limit)
+      if (limit !== undefined) {
+        query = query.limit(limit)
       }
 
       const result = await query
@@ -599,6 +623,9 @@ export const createCollectionOperations = (
         .set(options.data as any)
         .where(whereClause)
 
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? 0
+
       // Execute after update hooks
       for (const previousData of previousResults) {
         await executeAfterUpdateHooks(hooks, {
@@ -619,7 +646,7 @@ export const createCollectionOperations = (
         where: options.where
       })
 
-      return result.length || 0
+      return affectedCount
     },
 
     delete: async <T>(options: DeleteOptions): Promise<T | undefined> => {
@@ -700,6 +727,9 @@ export const createCollectionOperations = (
 
       const result = await db.delete(_table).where(whereClause)
 
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? 0
+
       // Execute after delete hooks
       for (const previousData of previousResults) {
         await executeAfterDeleteHooks(hooks, {
@@ -718,7 +748,7 @@ export const createCollectionOperations = (
         where: options.where
       })
 
-      return result.length || 0
+      return affectedCount
     },
 
     count: async (options?: CountOptions): Promise<number> => {
@@ -739,9 +769,12 @@ export const createCollectionOperations = (
         db
       })
 
-      const result = whereClause
-        ? await db.select().from(_table).where(whereClause)
-        : await db.select().from(_table)
+      // Use SQL COUNT for efficiency
+      const countResult = whereClause
+        ? await db.select({ count: count() }).from(_table).where(whereClause)
+        : await db.select({ count: count() }).from(_table)
+
+      const result = countResult[0]?.count ?? 0
 
       // Execute after read hooks
       await executeAfterReadHooks(hooks, {
@@ -760,7 +793,7 @@ export const createCollectionOperations = (
         result
       })
 
-      return result.length
+      return result
     },
 
     exists: async (options: ExistsOptions): Promise<boolean> => {

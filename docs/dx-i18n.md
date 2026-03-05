@@ -548,9 +548,9 @@ export const posts = collection({
 })
 ```
 
-## Plugin i18n
+## i18n in Plugins
 
-### Localized Plugins
+### Adding i18n to Custom Plugins
 
 ```typescript
 // plugins/slug-plugin.ts

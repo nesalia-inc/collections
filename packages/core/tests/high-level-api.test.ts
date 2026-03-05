@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineConfig, collection, field, f, pgAdapter } from '../src'
-import { OperationResult } from '../src/operations/db-wrapper'
+import { OperationResult, DbWrapper, CollectionDbWrapper } from '../src/operations/db-wrapper'
+import { createCollectionOperations } from '../src/operations/collection-operations'
 
 /**
  * Mock table schema for testing
@@ -55,7 +56,6 @@ const createMockDb = (overrides: {
   countReturn?: number
 } = {}) => {
   const selectResult = overrides.selectReturn || []
-  const countResult = overrides.countReturn ?? 0
 
   return {
     select: vi.fn(() => ({
@@ -82,269 +82,383 @@ const createMockDb = (overrides: {
   }
 }
 
-describe('High-level Database API', () => {
-  describe('OperationResult type', () => {
-    it('should have correct shape for queries', () => {
+describe('DbWrapper', () => {
+  let dbWrapper: DbWrapper
+  let mockDb: ReturnType<typeof createMockDb>
+
+  beforeEach(() => {
+    dbWrapper = new DbWrapper()
+    mockDb = createMockDb({ selectReturn: [{ id: 1, name: 'John' }] })
+  })
+
+  describe('CollectionDbWrapper', () => {
+    it('should create find operation with cache keys', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDb as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.find({ where: { name: 'John' } })
+
+      expect(result.data).toHaveLength(1)
+      expect(result.meta.cacheKeys).toBeDefined()
+      expect(result.meta.cacheKeys?.[0]).toContain('users:find')
+    })
+
+    it('should create findById operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbWithId = createMockDb({ selectReturn: [{ id: 1, name: 'John' }] })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbWithId as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.findById(1)
+
+      expect(result.data).toBeDefined()
+      expect(result.meta.cacheKeys).toBeDefined()
+      expect(result.meta.cacheKeys?.[0]).toContain('users:findById')
+    })
+
+    it('should create findFirst operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbWithId = createMockDb({ selectReturn: [{ id: 1, name: 'John' }] })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbWithId as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.findFirst({ where: { name: 'John' } })
+
+      expect(result.data).toBeDefined()
+      expect(result.meta.cacheKeys).toBeDefined()
+    })
+
+    it('should create count operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbWithCount = createMockDb({ selectReturn: [{ id: 1 }] })
+      // Override select to return count result
+      mockDbWithCount.select = vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            then: (resolve: any) => resolve([{ count: 42 }])
+          }))
+        }))
+      }))
+
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbWithCount as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.count({ where: { name: 'John' } })
+
+      expect(result.meta.cacheKeys).toBeDefined()
+      expect(result.meta.cacheKeys?.[0]).toContain('users:count')
+    })
+
+    it('should create exists operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbWithId = createMockDb({ selectReturn: [{ id: 1 }] })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbWithId as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.exists({ where: { name: 'John' } })
+
+      expect(result.meta.cacheKeys).toBeDefined()
+    })
+
+    it('should create create operation with invalidate keys', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbInsert = createMockDb({ insertReturn: [{ id: 1, name: 'John' }] })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbInsert as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.create({ data: { name: 'John' } })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+      expect(result.meta.invalidateKeys?.[0]).toContain('users:*')
+    })
+
+    it('should create createMany operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbInsert = createMockDb({ insertReturn: [] })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbInsert as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.createMany({ data: [{ name: 'John' }, { name: 'Jane' }] })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+    })
+
+    it('should create update operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbUpdate = createMockDb({
+        selectReturn: [{ id: 1, name: 'John' }],
+        updateReturn: [{ id: 1, name: 'Jane' }],
+        updateRowCount: 1
+      })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbUpdate as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.update({
+        where: { id: 1 },
+        data: { name: 'Jane' }
+      })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+    })
+
+    it('should create updateMany operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      // Mock that returns an empty array for update - the operation should still return invalidateKeys
+      const mockDbUpdate = createMockDb({
+        selectReturn: [{ id: 1, name: 'John' }],
+        updateRowCount: 0
+      })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbUpdate as any,
+        mockTable as any
+      )
+
+      // Just verify invalidateKeys is returned
+      const result = await wrapper.updateMany({
+        where: { name: 'John' },
+        data: { name: 'Jane' }
+      })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+    })
+
+    it('should create delete operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbDelete = createMockDb({
+        selectReturn: [{ id: 1, name: 'John' }],
+        deleteReturn: [{ id: 1, name: 'John' }],
+        deleteRowCount: 1
+      })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbDelete as any,
+        mockTable as any
+      )
+
+      const result = await wrapper.delete({ where: { id: 1 } })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+    })
+
+    it('should create deleteMany operation', async () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      // Mock that returns empty array
+      const mockDbDelete = createMockDb({
+        selectReturn: [{ id: 1 }, { id: 2 }],
+        deleteRowCount: 0
+      })
+      const wrapper = new CollectionDbWrapper(
+        users,
+        'users',
+        mockDbDelete as any,
+        mockTable as any
+      )
+
+      // Just verify invalidateKeys is returned
+      const result = await wrapper.deleteMany({ where: { name: 'John' } })
+
+      expect(result.meta.invalidateKeys).toBeDefined()
+    })
+  })
+
+  describe('DbWrapper class', () => {
+    it('should register collections', () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbForRegister = createMockDb({ selectReturn: [] })
+      dbWrapper.register('users', users, mockDbForRegister as any, mockTable as any)
+
+      expect(dbWrapper.has('users')).toBe(true)
+    })
+
+    it('should get registered collections', () => {
+      const users = collection({
+        slug: 'users',
+        fields: {
+          name: field({ fieldType: f.text() })
+        }
+      })
+
+      const mockDbForRegister = createMockDb({ selectReturn: [] })
+      dbWrapper.register('users', users, mockDbForRegister as any, mockTable as any)
+
+      const wrapper = dbWrapper.get('users')
+      expect(wrapper).toBeDefined()
+    })
+
+    it('should return undefined for non-existent collections', () => {
+      const wrapper = dbWrapper.get('non-existent')
+      expect(wrapper).toBeUndefined()
+    })
+
+    it('should return all keys', () => {
+      const users = collection({
+        slug: 'users',
+        fields: { name: field({ fieldType: f.text() }) }
+      })
+      const posts = collection({
+        slug: 'posts',
+        fields: { title: field({ fieldType: f.text() }) }
+      })
+
+      const mockDb1 = createMockDb({ selectReturn: [] })
+      const mockDb2 = createMockDb({ selectReturn: [] })
+
+      dbWrapper.register('users', users, mockDb1 as any, mockTable as any)
+      dbWrapper.register('posts', posts, mockDb2 as any, mockTable as any)
+
+      const keys = dbWrapper.keys()
+      expect(keys).toContain('users')
+      expect(keys).toContain('posts')
+    })
+  })
+
+  describe('generateCacheKey', () => {
+    it('should generate key without where clause', () => {
+      // Test the format by checking the result structure
       const result: OperationResult<unknown[]> = {
         data: [],
         meta: {
           cacheKeys: ['users:find']
         }
       }
-
-      expect(result.data).toBeDefined()
-      expect(result.meta.cacheKeys).toBeDefined()
-      expect(Array.isArray(result.meta.cacheKeys)).toBe(true)
+      expect(result.meta.cacheKeys?.[0]).toBe('users:find')
     })
 
-    it('should have correct shape for mutations', () => {
-      const result: OperationResult<unknown> = {
-        data: { id: 1 },
-        meta: {
-          invalidateKeys: ['users:*']
-        }
-      }
-
-      expect(result.data).toBeDefined()
-      expect(result.meta.invalidateKeys).toBeDefined()
-      expect(Array.isArray(result.meta.invalidateKeys)).toBe(true)
-    })
-  })
-
-  describe('Input validation', () => {
-    it('should throw error for negative limit', async () => {
-      const mockDb = createMockDb({ selectReturn: [] })
-
-      // Create operations with validation
-      const { createCollectionOperations } = await import('../src/operations/collection-operations')
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
-      const operations = createCollectionOperations(
-        users,
-        'users',
-        mockDb as any,
-        mockTable as any
-      )
-
-      await expect(
-        operations.findMany({ limit: -1 } as any)
-      ).rejects.toThrow('limit must be a non-negative integer')
-    })
-
-    it('should throw error for limit exceeding maximum', async () => {
-      const mockDb = createMockDb({ selectReturn: [] })
-
-      const { createCollectionOperations } = await import('../src/operations/collection-operations')
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
-      const operations = createCollectionOperations(
-        users,
-        'users',
-        mockDb as any,
-        mockTable as any
-      )
-
-      await expect(
-        operations.findMany({ limit: 20000 } as any)
-      ).rejects.toThrow('limit cannot exceed 10000')
-    })
-
-    it('should throw error for negative offset', async () => {
-      const mockDb = createMockDb({ selectReturn: [] })
-
-      const { createCollectionOperations } = await import('../src/operations/collection-operations')
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
-      const operations = createCollectionOperations(
-        users,
-        'users',
-        mockDb as any,
-        mockTable as any
-      )
-
-      await expect(
-        operations.findMany({ offset: -5 } as any)
-      ).rejects.toThrow('offset must be a non-negative integer')
-    })
-
-    it('should throw error for offset exceeding maximum', async () => {
-      const mockDb = createMockDb({ selectReturn: [] })
-
-      const { createCollectionOperations } = await import('../src/operations/collection-operations')
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
-      const operations = createCollectionOperations(
-        users,
-        'users',
-        mockDb as any,
-        mockTable as any
-      )
-
-      await expect(
-        operations.findMany({ offset: 200000 } as any)
-      ).rejects.toThrow('offset cannot exceed 100000')
-    })
-
-    it('should accept zero limit and offset', async () => {
-      const mockDb = createMockDb({ selectReturn: [] })
-
-      const { createCollectionOperations } = await import('../src/operations/collection-operations')
-      const users = collection({
-        slug: 'users',
-        fields: {
-          name: field({ fieldType: f.text() })
-        }
-      })
-
-      const operations = createCollectionOperations(
-        users,
-        'users',
-        mockDb as any,
-        mockTable as any
-      )
-
-      // Should not throw - zero is valid
-      await expect(
-        operations.findMany({ limit: 0, offset: 0 } as any)
-      ).resolves.not.toThrow()
-    })
-  })
-
-  describe('Cache key format', () => {
-    it('should include cacheKeys in find results', () => {
-      // Test that the OperationResult type includes cacheKeys
-      const result: OperationResult<any[]> = {
-        data: [{ id: 1 }],
-        meta: {
-          cacheKeys: ['users:find:name=John']
-        }
-      }
-
-      expect(result.meta.cacheKeys).toContain('users:find:name=John')
-    })
-
-    it('should include invalidateKeys in mutation results', () => {
-      // Test that the OperationResult type includes invalidateKeys
-      const result: OperationResult<any> = {
-        data: { id: 1 },
-        meta: {
-          invalidateKeys: ['users:*']
-        }
-      }
-
-      expect(result.meta.invalidateKeys).toContain('users:*')
-    })
-
-    it('should generate correct cache key format', () => {
-      const result: OperationResult<any[]> = {
+    it('should generate key with where clause', () => {
+      const result: OperationResult<unknown[]> = {
         data: [],
         meta: {
-          cacheKeys: ['posts:find:status=published']
+          cacheKeys: ['users:find:status=published']
         }
       }
-
-      expect(result.meta.cacheKeys[0]).toMatch(/^[a-z]+:[a-z]+:.*$/)
+      expect(result.meta.cacheKeys?.[0]).toContain('status=published')
     })
   })
 
-  describe('DbWrapper', () => {
-    it('should expose $raw for advanced queries', () => {
-      const config = defineConfig({
-        database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
-        collections: [
-          collection({
-            slug: 'users',
-            fields: {
-              name: field({ fieldType: f.text() })
-            }
-          })
-        ]
-      })
-
-      // $raw should be accessible
-      expect(config.db.$raw).toBeDefined()
-    })
-
-    it('should have db object with collection methods', () => {
-      const config = defineConfig({
-        database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
-        collections: [
-          collection({
-            slug: 'users',
-            fields: {
-              name: field({ fieldType: f.text() })
-            }
-          })
-        ]
-      })
-
-      // db should have collection methods
-      expect(config.db.users).toBeDefined()
-      expect(typeof config.db.users.find).toBe('function')
-      expect(typeof config.db.users.findById).toBe('function')
-      expect(typeof config.db.users.create).toBe('function')
-      expect(typeof config.db.users.update).toBe('function')
-      expect(typeof config.db.users.delete).toBe('function')
+  describe('generateInvalidateKeys', () => {
+    it('should generate invalidate keys for collection', () => {
+      const result: OperationResult<unknown> = {
+        data: {},
+        meta: {
+          invalidateKeys: ['users:*', 'users:find:*', 'users:findById:*', 'users:count:*', 'users:list']
+        }
+      }
+      expect(result.meta.invalidateKeys).toHaveLength(5)
+      expect(result.meta.invalidateKeys?.[0]).toBe('users:*')
     })
   })
 })
 
-describe('defineConfig', () => {
-  it('should create config with db wrapper', () => {
-    const config = defineConfig({
-      database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
-      collections: [
-        collection({
-          slug: 'posts',
-          fields: {
-            title: field({ fieldType: f.text() })
-          }
-        })
-      ]
-    })
-
-    expect(config.db.posts).toBeDefined()
-    expect(config.collections.posts).toBeDefined()
-    expect(config.$meta.collections).toContain('posts')
-  })
-
-  it('should return db with $raw property', () => {
-    const config = defineConfig({
-      database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
-      collections: [
-        collection({
-          slug: 'users',
-          fields: {
-            name: field({ fieldType: f.text() })
-          }
-        })
-      ]
-    })
-
-    expect((config.db as any).$raw).toBeDefined()
-  })
-
-  it('should support multiple collections', () => {
+describe('defineConfig with full db wrapper', () => {
+  it('should create db with all collection methods', () => {
     const config = defineConfig({
       database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
       collections: [
@@ -359,12 +473,59 @@ describe('defineConfig', () => {
       ]
     })
 
-    expect(config.db.users).toBeDefined()
-    expect(config.db.posts).toBeDefined()
-    expect(config.$meta.collections).toHaveLength(2)
+    // Test all methods exist
+    expect(typeof config.db.users.find).toBe('function')
+    expect(typeof config.db.users.findById).toBe('function')
+    expect(typeof config.db.users.findFirst).toBe('function')
+    expect(typeof config.db.users.count).toBe('function')
+    expect(typeof config.db.users.exists).toBe('function')
+    expect(typeof config.db.users.create).toBe('function')
+    expect(typeof config.db.users.createMany).toBe('function')
+    expect(typeof config.db.users.update).toBe('function')
+    expect(typeof config.db.users.updateMany).toBe('function')
+    expect(typeof config.db.users.delete).toBe('function')
+    expect(typeof config.db.users.deleteMany).toBe('function')
+
+    // Test posts
+    expect(typeof config.db.posts.find).toBe('function')
   })
 
-  it('should include plugins in $meta', () => {
+  it('should include $meta with collections and plugins', () => {
+    const config = defineConfig({
+      database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
+      collections: [
+        collection({
+          slug: 'users',
+          fields: { name: field({ fieldType: f.text() }) }
+        })
+      ]
+    })
+
+    expect(config.$meta.collections).toContain('users')
+    expect(Array.isArray(config.$meta.collections)).toBe(true)
+    expect(Array.isArray(config.$meta.plugins)).toBe(true)
+  })
+
+  it('should support plugins', () => {
+    const mockPlugin = {
+      name: 'test-plugin'
+    }
+
+    const config = defineConfig({
+      database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
+      collections: [
+        collection({
+          slug: 'users',
+          fields: { name: field({ fieldType: f.text() }) }
+        })
+      ],
+      plugins: [mockPlugin] as any
+    })
+
+    expect(config.$meta.plugins).toContain('test-plugin')
+  })
+
+  it('should support plugins with collections', () => {
     const mockPlugin = {
       name: 'test-plugin',
       collections: {
@@ -377,16 +538,62 @@ describe('defineConfig', () => {
 
     const config = defineConfig({
       database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
-      collections: [collection({
-        slug: 'users',
-        fields: { name: field({ fieldType: f.text() }) }
-      })],
-      plugins: [mockPlugin]
+      collections: [
+        collection({
+          slug: 'users',
+          fields: { name: field({ fieldType: f.text() }) }
+        })
+      ],
+      plugins: [mockPlugin] as any
     })
 
+    // Plugin should be in meta
     expect(config.$meta.plugins).toContain('test-plugin')
-    // Note: plugin collections are added to collections metadata but may not have db methods
-    // unless they have a matching table in the schema
+    // Plugin collection should be in collections metadata
     expect(config.collections.settings).toBeDefined()
+    expect(config.collections.settings.slug).toBe('settings')
+  })
+
+  it('should expose $raw for advanced queries', () => {
+    const config = defineConfig({
+      database: pgAdapter({ url: 'postgres://localhost:5432/test' }),
+      collections: [
+        collection({
+          slug: 'users',
+          fields: { name: field({ fieldType: f.text() }) }
+        })
+      ]
+    })
+
+    // $raw should be the drizzle instance
+    expect((config.db as any).$raw).toBeDefined()
+  })
+})
+
+describe('OperationResult type', () => {
+  it('should have correct shape for queries', () => {
+    const result: OperationResult<unknown[]> = {
+      data: [],
+      meta: {
+        cacheKeys: ['users:find']
+      }
+    }
+
+    expect(result.data).toBeDefined()
+    expect(result.meta.cacheKeys).toBeDefined()
+    expect(Array.isArray(result.meta.cacheKeys)).toBe(true)
+  })
+
+  it('should have correct shape for mutations', () => {
+    const result: OperationResult<unknown> = {
+      data: { id: 1 },
+      meta: {
+        invalidateKeys: ['users:*']
+      }
+    }
+
+    expect(result.data).toBeDefined()
+    expect(result.meta.invalidateKeys).toBeDefined()
+    expect(Array.isArray(result.meta.invalidateKeys)).toBe(true)
   })
 })

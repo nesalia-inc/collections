@@ -8,6 +8,7 @@ import {
   isNextConfig,
   isCollectionsConfig,
   defaultWithCollectionsOptions,
+  watchConfig,
   type WithCollectionsOptions,
   type WithCollectionsConfig
 } from '../src/next'
@@ -288,6 +289,30 @@ describe('next module', () => {
       const result = withCollectionsSync({})
       expect(result.collections?.isProduction).toBe(true)
     })
+
+    it('should detect __NEXT_BUILD context', () => {
+      process.env.NODE_ENV = 'development'
+      process.env.__NEXT_BUILD = '1'
+      const result = withCollectionsSync({})
+      expect(result.collections?.autoSchemaPush).toBe(false)
+      delete process.env.__NEXT_BUILD
+    })
+
+    it('should detect TURBO_BUILD context', () => {
+      process.env.NODE_ENV = 'development'
+      process.env.TURBO_BUILD = '1'
+      const result = withCollectionsSync({})
+      expect(result.collections?.autoSchemaPush).toBe(false)
+      delete process.env.TURBO_BUILD
+    })
+
+    it('should detect VERCEL build context', () => {
+      process.env.NODE_ENV = 'development'
+      process.env.VERCEL = '1'
+      const result = withCollectionsSync({})
+      expect(result.collections?.autoSchemaPush).toBe(false)
+      delete process.env.VERCEL
+    })
   })
 
   describe('hot reload configuration', () => {
@@ -336,6 +361,20 @@ describe('next module', () => {
       const result = await withCollections({}, { hotReload: true })
       // Without user webpack config, webpack should be undefined
       expect(result.webpack).toBeUndefined()
+    })
+  })
+
+  describe('watchConfig', () => {
+    it('should return cleanup function', () => {
+      const cleanup = watchConfig('./non-existent-config', () => {})
+      expect(typeof cleanup).toBe('function')
+      cleanup()
+    })
+
+    it('should accept debug option', () => {
+      const cleanup = watchConfig('./non-existent-config', () => {}, { debug: true })
+      expect(typeof cleanup).toBe('function')
+      cleanup()
     })
   })
 })

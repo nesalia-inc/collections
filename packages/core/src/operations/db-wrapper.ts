@@ -1,15 +1,128 @@
 /**
- * Database wrapper that provides high-level API with cache key support
+ * Database operations with cache key support
+ *
+ * This module provides pure functions for database operations.
+ * No classes - just data transformation functions.
  */
 
 import type { Collection, CollectionHooks } from '../collection'
 import { createCollectionOperations, type CollectionOperations } from './collection-operations'
 import type { ValidationOptions } from './types'
 
+// ============================================================================
+// Types
+// ============================================================================
+
 /**
- * Cache key generation
+ * Operation result with metadata (cache keys for reads, invalidate keys for writes)
  */
-function generateCacheKey(slug: string, method: string, where?: Record<string, unknown>): string {
+export interface OperationResult<T> {
+  data: T
+  meta: {
+    cacheKeys?: string[]
+    invalidateKeys?: string[]
+  }
+}
+
+/**
+ * Collection database with typed methods
+ */
+export interface CollectionDb<T = Record<string, unknown>> {
+  find: (options?: FindOptions) => Promise<OperationResult<T[]>>
+  findById: (id: number) => Promise<OperationResult<T | undefined>>
+  findFirst: (options: FindFirstOptions) => Promise<OperationResult<T | undefined>>
+  count: (options?: CountOptions) => Promise<OperationResult<number>>
+  exists: (options: ExistsOptions) => Promise<OperationResult<boolean>>
+  create: (options: CreateOptions) => Promise<OperationResult<T | undefined>>
+  createMany: (options: CreateManyOptions) => Promise<OperationResult<number>>
+  update: (options: UpdateOptions) => Promise<OperationResult<T | undefined>>
+  updateMany: (options: UpdateManyOptions) => Promise<OperationResult<number>>
+  delete: (options: DeleteOptions) => Promise<OperationResult<T | undefined>>
+  deleteMany: (options: DeleteManyOptions) => Promise<OperationResult<number>>
+}
+
+/**
+ * Database with all collections
+ */
+export interface Database {
+  [collection: string]: CollectionDb
+}
+
+// ============================================================================
+// Options Types (for documentation)
+// ============================================================================
+
+/** Options for find() */
+export interface FindOptions {
+  where?: Record<string, unknown>
+  orderBy?: Record<string, unknown> | Record<string, unknown>[]
+  limit?: number
+  offset?: number
+}
+
+/** Options for findFirst() */
+export interface FindFirstOptions {
+  where: Record<string, unknown>
+  orderBy?: Record<string, unknown> | Record<string, unknown>[]
+}
+
+/** Options for count() */
+export interface CountOptions {
+  where?: Record<string, unknown>
+}
+
+/** Options for exists() */
+export interface ExistsOptions {
+  where: Record<string, unknown>
+}
+
+/** Options for create() */
+export interface CreateOptions {
+  data: Record<string, unknown>
+  returning?: boolean
+}
+
+/** Options for createMany() */
+export interface CreateManyOptions {
+  data: Record<string, unknown>[]
+}
+
+/** Options for update() */
+export interface UpdateOptions {
+  where: Record<string, unknown>
+  data: Record<string, unknown>
+  returning?: boolean
+}
+
+/** Options for updateMany() */
+export interface UpdateManyOptions {
+  where: Record<string, unknown>
+  data: Record<string, unknown>
+}
+
+/** Options for delete() */
+export interface DeleteOptions {
+  where: Record<string, unknown>
+  returning?: boolean
+}
+
+/** Options for deleteMany() */
+export interface DeleteManyOptions {
+  where: Record<string, unknown>
+}
+
+// ============================================================================
+// Cache Key Generation (Pure Functions)
+// ============================================================================
+
+/**
+ * Generate a cache key for a query
+ */
+export const generateCacheKey = (
+  slug: string,
+  method: string,
+  where?: Record<string, unknown>
+): string => {
   let key = `${slug}:${method}`
 
   if (where && Object.keys(where).length > 0) {
@@ -23,35 +136,232 @@ function generateCacheKey(slug: string, method: string, where?: Record<string, u
 }
 
 /**
- * Generate invalidate keys for a collection
+ * Generate invalidate keys for a collection mutation
  */
-function generateInvalidateKeys(slug: string): string[] {
-  return [
-    `${slug}:*`,
-    `${slug}:find:*`,
-    `${slug}:findById:*`,
-    `${slug}:count:*`,
-    `${slug}:list`
-  ]
+export const generateInvalidateKeys = (slug: string): string[] => [
+  `${slug}:*`,
+  `${slug}:find:*`,
+  `${slug}:findById:*`,
+  `${slug}:count:*`,
+  `${slug}:list`
+]
+
+// ============================================================================
+// Higher-Order Metadata Functions
+// ============================================================================
+
+/**
+ * Create a metadata generator for read operations (cache keys)
+ */
+const createCacheKeyGenerator = (slug: string, method: string, where?: Record<string, unknown>) => ({
+  cacheKeys: [generateCacheKey(slug, method, where)]
+})
+
+/**
+ * Create a metadata generator for write operations (invalidate keys)
+ */
+const createInvalidateKeyGenerator = (slug: string) => ({
+  invalidateKeys: generateInvalidateKeys(slug)
+})
+
+// ============================================================================
+// Collection Database (Pure Function - No Class)
+// ============================================================================
+
+/**
+ * Create a collection database instance
+ *
+ * This is a pure function - it takes data and returns data.
+ * No mutation, no hidden state.
+ */
+export const collectionDb = <T = Record<string, unknown>>(
+  operations: CollectionOperations,
+  slug: string
+): CollectionDb<T> => ({
+  find: async (options) => {
+    const data = await operations.findMany<T>(options)
+    return {
+      data,
+      meta: createCacheKeyGenerator(slug, 'find', options?.where)
+    }
+  },
+
+  findById: async (id) => {
+    const data = await operations.findUnique<T>({ where: { id } })
+    return {
+      data,
+      meta: createCacheKeyGenerator(slug, 'findById', { id })
+    }
+  },
+
+  findFirst: async (options) => {
+    const data = await operations.findFirst<T>(options)
+    return {
+      data,
+      meta: createCacheKeyGenerator(slug, 'findFirst', options.where)
+    }
+  },
+
+  count: async (options) => {
+    const data = await operations.count(options)
+    return {
+      data,
+      meta: createCacheKeyGenerator(slug, 'count', options?.where)
+    }
+  },
+
+  exists: async (options) => {
+    const data = await operations.exists(options)
+    return {
+      data,
+      meta: createCacheKeyGenerator(slug, 'exists', options.where)
+    }
+  },
+
+  create: async (options) => {
+    const data = await operations.create<T>(options as Parameters<typeof operations.create>[0])
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  },
+
+  createMany: async (options) => {
+    const data = await operations.createMany(options)
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  },
+
+  update: async (options) => {
+    const data = await operations.update<T>(options as Parameters<typeof operations.update>[0])
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  },
+
+  updateMany: async (options) => {
+    const data = await operations.updateMany(options)
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  },
+
+  delete: async (options) => {
+    const data = await operations.delete<T>(options)
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  },
+
+  deleteMany: async (options) => {
+    const data = await operations.deleteMany(options)
+    return {
+      data,
+      meta: createInvalidateKeyGenerator(slug)
+    }
+  }
+})
+
+// ============================================================================
+// Database Builder (Pure Function)
+// ============================================================================
+
+/**
+ * Database configuration
+ */
+export interface DatabaseConfig {
+  collections: Collection[]
+  db: unknown
+  schema: Record<string, unknown>
+  validation?: ValidationOptions
 }
 
 /**
- * Operation result with metadata
+ * Create a database with all collections
+ *
+ * This is the main entry point - it takes config and returns a Database.
+ * Named as "database" because that's what it returns (not "createDatabase")
  */
-export interface OperationResult<T> {
-  data: T
-  meta: {
-    cacheKeys?: string[]
-    invalidateKeys?: string[]
+export const database = (config: DatabaseConfig): Database => {
+  const { collections, db, schema, validation } = config
+
+  return collections.reduce((acc, collection) => {
+    const table = schema[collection.slug]
+    if (!table) return acc
+
+    const operations = createCollectionOperations(
+      collection,
+      collection.slug,
+      db,
+      table,
+      collection.hooks,
+      validation
+    )
+
+    acc[collection.slug] = collectionDb(operations, collection.slug)
+    return acc
+  }, {} as Database)
+}
+
+// ============================================================================
+// Legacy Wrapper (For Backwards Compatibility)
+// ============================================================================
+
+/**
+ * @deprecated Use database() instead
+ *
+ * DbWrapper class for backwards compatibility
+ */
+export class DbWrapper {
+  private collections: Map<string, CollectionDb> = new Map()
+  private validationOptions?: ValidationOptions
+
+  setValidationOptions(options: ValidationOptions): void {
+    this.validationOptions = options
+  }
+
+  register(
+    slug: string,
+    collection: Collection,
+    db: unknown,
+    table: Record<string, unknown>
+  ): void {
+    const operations = createCollectionOperations(
+      collection,
+      slug,
+      db,
+      table,
+      collection.hooks,
+      this.validationOptions
+    )
+    this.collections.set(slug, collectionDb(operations, slug))
+  }
+
+  get<T = Record<string, unknown>>(slug: string): CollectionDb<T> | undefined {
+    return this.collections.get(slug) as CollectionDb<T> | undefined
+  }
+
+  has(slug: string): boolean {
+    return this.collections.has(slug)
+  }
+
+  keys(): string[] {
+    return Array.from(this.collections.keys())
   }
 }
 
 /**
- * Collection db wrapper with high-level API
+ * @deprecated Use collectionDb() instead
+ *
+ * CollectionDbWrapper class for backwards compatibility
  */
 export class CollectionDbWrapper<T = Record<string, unknown>> {
-  private operations: CollectionOperations
-  private slug: string
+  private db: CollectionDb<T>
 
   constructor(
     collection: Collection,
@@ -61,237 +371,58 @@ export class CollectionDbWrapper<T = Record<string, unknown>> {
     hooks?: CollectionHooks,
     validationOptions?: ValidationOptions
   ) {
-    this.slug = slug
-    this.operations = createCollectionOperations(collection, slug, db, table, hooks, validationOptions)
+    const operations = createCollectionOperations(
+      collection,
+      slug,
+      db,
+      table,
+      hooks,
+      validationOptions
+    )
+    this.db = collectionDb(operations, slug)
   }
 
-  /**
-   * Find many records
-   */
-  async find(options?: {
-    where?: Record<string, unknown>
-    orderBy?: Record<string, unknown> | Record<string, unknown>[]
-    limit?: number
-    offset?: number
-  }): Promise<OperationResult<T[]>> {
-    const data = await this.operations.findMany<T>(options)
-    const cacheKey = generateCacheKey(this.slug, 'find', options?.where)
-
-    return {
-      data,
-      meta: {
-        cacheKeys: [cacheKey]
-      }
-    }
+  async find(options?: FindOptions): Promise<OperationResult<T[]>> {
+    return this.db.find(options)
   }
 
-  /**
-   * Find by ID
-   */
   async findById(id: number): Promise<OperationResult<T | undefined>> {
-    const data = await this.operations.findUnique<T>({ where: { id } })
-    const cacheKey = generateCacheKey(this.slug, 'findById', { id })
-
-    return {
-      data,
-      meta: {
-        cacheKeys: [cacheKey]
-      }
-    }
+    return this.db.findById(id)
   }
 
-  /**
-   * Find first matching record
-   */
-  async findFirst(options: {
-    where: Record<string, unknown>
-    orderBy?: Record<string, unknown> | Record<string, unknown>[]
-  }): Promise<OperationResult<T | undefined>> {
-    const data = await this.operations.findFirst<T>(options)
-    const cacheKey = generateCacheKey(this.slug, 'findFirst', options.where)
-
-    return {
-      data,
-      meta: {
-        cacheKeys: [cacheKey]
-      }
-    }
+  async findFirst(options: FindFirstOptions): Promise<OperationResult<T | undefined>> {
+    return this.db.findFirst(options)
   }
 
-  /**
-   * Count records
-   */
-  async count(options?: { where?: Record<string, unknown> }): Promise<OperationResult<number>> {
-    const data = await this.operations.count(options)
-    const cacheKey = generateCacheKey(this.slug, 'count', options?.where)
-
-    return {
-      data,
-      meta: {
-        cacheKeys: [cacheKey]
-      }
-    }
+  async count(options?: CountOptions): Promise<OperationResult<number>> {
+    return this.db.count(options)
   }
 
-  /**
-   * Check if record exists
-   */
-  async exists(options: { where: Record<string, unknown> }): Promise<OperationResult<boolean>> {
-    const data = await this.operations.exists(options)
-    const cacheKey = generateCacheKey(this.slug, 'exists', options.where)
-
-    return {
-      data,
-      meta: {
-        cacheKeys: [cacheKey]
-      }
-    }
+  async exists(options: ExistsOptions): Promise<OperationResult<boolean>> {
+    return this.db.exists(options)
   }
 
-  /**
-   * Create a record
-   */
-  async create(options: { data: Record<string, unknown>; returning?: boolean }): Promise<OperationResult<T | undefined>> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.operations.create<T>(options as any)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
+  async create(options: CreateOptions): Promise<OperationResult<T | undefined>> {
+    return this.db.create(options)
   }
 
-  /**
-   * Create multiple records
-   */
-  async createMany(options: { data: Record<string, unknown>[] }): Promise<OperationResult<number>> {
-    const data = await this.operations.createMany(options)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
+  async createMany(options: CreateManyOptions): Promise<OperationResult<number>> {
+    return this.db.createMany(options)
   }
 
-  /**
-   * Update a record
-   */
-  async update(options: {
-    where: Record<string, unknown>
-    data: Record<string, unknown>
-    returning?: boolean
-  }): Promise<OperationResult<T | undefined>> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = await this.operations.update<T>(options as any)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
+  async update(options: UpdateOptions): Promise<OperationResult<T | undefined>> {
+    return this.db.update(options)
   }
 
-  /**
-   * Update multiple records
-   */
-  async updateMany(options: {
-    where: Record<string, unknown>
-    data: Record<string, unknown>
-  }): Promise<OperationResult<number>> {
-    const data = await this.operations.updateMany(options)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
+  async updateMany(options: UpdateManyOptions): Promise<OperationResult<number>> {
+    return this.db.updateMany(options)
   }
 
-  /**
-   * Delete a record
-   */
-  async delete(options: { where: Record<string, unknown>; returning?: boolean }): Promise<OperationResult<T | undefined>> {
-    const data = await this.operations.delete<T>(options)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
+  async delete(options: DeleteOptions): Promise<OperationResult<T | undefined>> {
+    return this.db.delete(options)
   }
 
-  /**
-   * Delete multiple records
-   */
-  async deleteMany(options: { where: Record<string, unknown> }): Promise<OperationResult<number>> {
-    const data = await this.operations.deleteMany(options)
-    const invalidateKeys = generateInvalidateKeys(this.slug)
-
-    return {
-      data,
-      meta: {
-        invalidateKeys
-      }
-    }
-  }
-}
-
-/**
- * Database wrapper with all collections
- */
-export class DbWrapper {
-  private collections: Map<string, CollectionDbWrapper> = new Map()
-  private validationOptions?: ValidationOptions
-
-  /**
-   * Configure validation options
-   */
-  setValidationOptions(options: ValidationOptions): void {
-    this.validationOptions = options
-  }
-
-  /**
-   * Register a collection
-   */
-  register(
-    slug: string,
-    collection: Collection,
-    db: unknown,
-    table: Record<string, unknown>
-  ): void {
-    this.collections.set(slug, new CollectionDbWrapper(collection, slug, db, table, collection.hooks, this.validationOptions))
-  }
-
-  /**
-   * Get a collection by slug
-   */
-  get<T = Record<string, unknown>>(slug: string): CollectionDbWrapper<T> | undefined {
-    return this.collections.get(slug) as CollectionDbWrapper<T> | undefined
-  }
-
-  /**
-   * Check if a collection exists
-   */
-  has(slug: string): boolean {
-    return this.collections.has(slug)
-  }
-
-  /**
-   * Get all collection slugs
-   */
-  keys(): string[] {
-    return Array.from(this.collections.keys())
+  async deleteMany(options: DeleteManyOptions): Promise<OperationResult<number>> {
+    return this.db.deleteMany(options)
   }
 }

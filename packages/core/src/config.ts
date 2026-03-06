@@ -1,3 +1,10 @@
+/**
+ * Configuration Module - Pure Functions for Building Database Config
+ *
+ * This module provides clean, composable functions for setting up the database.
+ * Each function has a single responsibility.
+ */
+
 import { Pool, type Pool as PoolType } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 
@@ -5,7 +12,11 @@ import type { Collection } from './collection'
 import type { DatabaseAdapter } from './adapter'
 import type { ValidationOptions } from './operations/types'
 import { buildSchema } from './schema'
-import { DbWrapper, type OperationResult } from './operations/db-wrapper'
+import { database, type Database, type CollectionDb } from './operations/db-wrapper'
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Plugin interface
@@ -30,44 +41,7 @@ export type ConfigOptions<T extends Collection[] = []> = {
  * Database wrapper type with collection methods
  */
 export type DbWithCollections<T extends Collection[]> = {
-  [K in T[number] as K['slug']]: {
-    find: (options?: {
-      where?: Record<string, unknown>
-      orderBy?: Record<string, unknown> | Record<string, unknown>[]
-      limit?: number
-      offset?: number
-    }) => Promise<OperationResult<any[]>>
-
-    findById: (id: number) => Promise<OperationResult<any | undefined>>
-
-    findFirst: (options: {
-      where: Record<string, unknown>
-      orderBy?: Record<string, unknown> | Record<string, unknown>[]
-    }) => Promise<OperationResult<any | undefined>>
-
-    count: (options?: { where?: Record<string, unknown> }) => Promise<OperationResult<number>>
-
-    exists: (options: { where: Record<string, unknown> }) => Promise<OperationResult<boolean>>
-
-    create: (options: { data: Record<string, unknown>; returning?: boolean }) => Promise<OperationResult<any | undefined>>
-
-    createMany: (options: { data: Record<string, unknown>[] }) => Promise<OperationResult<number>>
-
-    update: (options: {
-      where: Record<string, unknown>
-      data: Record<string, unknown>
-      returning?: boolean
-    }) => Promise<OperationResult<any | undefined>>
-
-    updateMany: (options: {
-      where: Record<string, unknown>
-      data: Record<string, unknown>
-    }) => Promise<OperationResult<number>>
-
-    delete: (options: { where: Record<string, unknown>; returning?: boolean }) => Promise<OperationResult<any | undefined>>
-
-    deleteMany: (options: { where: Record<string, unknown> }) => Promise<OperationResult<number>>
-  }
+  [K in T[number] as K['slug']]: CollectionDb
 } & {
   /**
    * Get raw Drizzle instance for advanced queries
@@ -78,10 +52,6 @@ export type DbWithCollections<T extends Collection[]> = {
 
 /**
  * Define config return type with inferred collection keys
- *
- * - collections: metadata only (slug, name, fields, hooks, dataType)
- * - db: High-level API with collection methods + cache keys
- * - $meta: array of collection slugs and plugin names
  */
 export type DefineConfigReturn<T extends Collection[] = []> = {
   collections: {
@@ -94,10 +64,36 @@ export type DefineConfigReturn<T extends Collection[] = []> = {
   }
 }
 
+// ============================================================================
+// Pure Functions (Each Has One Responsibility)
+// ============================================================================
+
+/**
+ * Connect to database based on adapter type
+ */
+export const connect = (
+  adapter: DatabaseAdapter
+): { pool: PoolType | null; dbInstance: ReturnType<typeof drizzle> | null } => {
+  if (adapter.type !== 'postgres') {
+    return { pool: null, dbInstance: null }
+  }
+
+  const pool = new Pool({
+    connectionString: adapter.config.url
+  })
+
+  const dbInstance = drizzle(pool, { schema: {} })
+
+  return { pool, dbInstance }
+}
+
 /**
  * Get table from schema by slug
  */
-function getTableFromSchema(schema: Record<string, unknown>, slug: string): Record<string, unknown> | undefined {
+export const getTableFromSchema = (
+  schema: Record<string, unknown>,
+  slug: string
+): Record<string, unknown> | undefined => {
   const table = schema[slug]
   if (table && typeof table === 'object' && table !== null) {
     return table as Record<string, unknown>
@@ -106,7 +102,83 @@ function getTableFromSchema(schema: Record<string, unknown>, slug: string): Reco
 }
 
 /**
+ * Build schema from collections
+ */
+export const buildRuntimeSchema = (
+  collections: Collection[]
+): Record<string, unknown> => {
+  return buildSchema(collections)
+}
+
+/**
+ * Apply plugins to collections (add more collections)
+ */
+export const applyPlugins = (
+  baseCollections: Collection[],
+  plugins: Plugin[] | undefined
+): Collection[] => {
+  if (!plugins) return baseCollections
+
+  const pluginCollections = plugins.flatMap(plugin =>
+    plugin.collections ? Object.values(plugin.collections) : []
+  )
+
+  return [...baseCollections, ...pluginCollections]
+}
+
+/**
+ * Extract collection metadata (without operations)
+ */
+export const toMetadata = (collection: Collection): Collection => ({
+  slug: collection.slug,
+  name: collection.name,
+  fields: collection.fields,
+  hooks: collection.hooks,
+  dataType: collection.dataType
+})
+
+/**
+ * Build collections map with metadata
+ */
+export const buildCollectionsMap = (
+  collections: Collection[]
+): Record<string, Collection> => {
+  return collections.reduce((acc, coll) => {
+    acc[coll.slug] = toMetadata(coll)
+    return acc
+  }, {} as Record<string, Collection>)
+}
+
+/**
+ * Get plugin names
+ */
+export const getPluginNames = (plugins: Plugin[] | undefined): string[] => {
+  return plugins?.map(p => p.name) ?? []
+}
+
+/**
+ * Build the final db object from database
+ */
+export const buildDbObject = (
+  db: Database,
+  dbInstance: ReturnType<typeof drizzle> | null
+): DbWithCollections<Collection[]> => {
+  // Add $raw for advanced queries
+  const dbWithRaw = db as DbWithCollections<Collection[]>
+  dbWithRaw.$raw = dbInstance
+
+  return dbWithRaw
+}
+
+// ============================================================================
+// Main Entry Point - Composition of Pure Functions
+// ============================================================================
+
+/**
  * Creates the configuration for the data layer
+ *
+ * This function wires everything together - it calls the pure functions
+ * in the right order to build the final config.
  *
  * @example
  * const adapter = pgAdapter({
@@ -134,118 +206,43 @@ function getTableFromSchema(schema: Record<string, unknown>, slug: string): Reco
 export const defineConfig = <T extends Collection[]>(
   options: ConfigOptions<T>
 ): DefineConfigReturn<T> => {
-  // Initialize the database connection based on adapter type
-  let pool: PoolType | null = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let dbInstance: ReturnType<typeof drizzle> | null = null
-  let schema: Record<string, unknown> = {}
+  // Step 1: Build schema from collections
+  const schema = buildRuntimeSchema(options.collections as Collection[])
 
-  if (options.database.type === 'postgres') {
-    // Create pool from adapter config
-    pool = new Pool({
-      connectionString: options.database.config.url
-    })
+  // Step 2: Connect to database (returns drizzle instance)
+  const { pool, dbInstance } = connect(options.database)
 
-    // Build schema from collections
-    schema = buildSchema(options.collections as Collection[])
-
-    // Create Drizzle instance with schema
-    dbInstance = drizzle(pool, { schema })
+  // If we have a db instance, update it with the schema
+  if (dbInstance && pool) {
+    // Recreate drizzle with the built schema
+    Object.assign(dbInstance, drizzle(pool, { schema }))
   }
 
-  // Create DB wrapper
-  const dbWrapper = new DbWrapper()
+  // Step 3: Apply plugins to get all collections
+  const allCollections = applyPlugins(options.collections, options.plugins)
 
-  // Configure validation options if provided
-  if (options.validation) {
-    dbWrapper.setValidationOptions(options.validation)
-  }
+  // Step 4: Build database with all collections
+  const db = database({
+    collections: allCollections,
+    db: dbInstance,
+    schema,
+    validation: options.validation
+  })
 
-  // Register each collection
-  if (dbInstance) {
-    for (const coll of options.collections) {
-      const table = getTableFromSchema(schema, coll.slug)
-      if (table) {
-        dbWrapper.register(coll.slug, coll, dbInstance, table)
-      }
-    }
-  }
+  // Step 5: Build collections metadata (without operations)
+  const collectionsMap = buildCollectionsMap(allCollections)
 
-  // Build collections map (metadata only)
-  const collectionsMap: Record<string, Collection> = {}
-  const collectionNames: string[] = []
+  // Step 6: Get plugin names
+  const pluginNames = getPluginNames(options.plugins)
 
-  for (const coll of options.collections) {
-    // Store only metadata (not operations)
-    collectionsMap[coll.slug] = {
-      slug: coll.slug,
-      name: coll.name,
-      fields: coll.fields,
-      hooks: coll.hooks,
-      dataType: coll.dataType
-    }
-    collectionNames.push(coll.slug)
-  }
-
-  // Build plugins map
-  const pluginNames: string[] = []
-  if (options.plugins) {
-    for (const plugin of options.plugins) {
-      pluginNames.push(plugin.name)
-
-      // Register plugin collections (metadata only)
-      if (plugin.collections) {
-        for (const [name, coll] of Object.entries(plugin.collections)) {
-          collectionsMap[name] = {
-            slug: coll.slug,
-            name: coll.name,
-            fields: coll.fields,
-            hooks: coll.hooks,
-            dataType: coll.dataType
-          }
-          collectionNames.push(name)
-
-          // Also register in DB wrapper
-          const table = getTableFromSchema(schema, coll.slug)
-          if (table && dbInstance) {
-            dbWrapper.register(name, coll, dbInstance, table)
-          }
-        }
-      }
-    }
-  }
-
-  // Create the db object with collection methods
-  const db: Record<string, unknown> = {}
-
-  for (const slug of collectionNames) {
-    const wrapper = dbWrapper.get(slug)
-    if (wrapper) {
-      // Add all methods to the db object
-      db[slug] = {
-        find: (opts: any) => wrapper.find(opts),
-        findById: (id: number) => wrapper.findById(id),
-        findFirst: (opts: any) => wrapper.findFirst(opts),
-        count: (opts: any) => wrapper.count(opts),
-        exists: (opts: any) => wrapper.exists(opts),
-        create: (opts: any) => wrapper.create(opts),
-        createMany: (opts: any) => wrapper.createMany(opts),
-        update: (opts: any) => wrapper.update(opts),
-        updateMany: (opts: any) => wrapper.updateMany(opts),
-        delete: (opts: any) => wrapper.delete(opts),
-        deleteMany: (opts: any) => wrapper.deleteMany(opts)
-      }
-    }
-  }
-
-  // Add raw drizzle instance
-  (db as DefineConfigReturn<T>['db']).$raw = dbInstance
+  // Step 7: Build final db object with $raw
+  const dbObject = buildDbObject(db, dbInstance)
 
   return {
     collections: collectionsMap as DefineConfigReturn<T>['collections'],
-    db: db as DefineConfigReturn<T>['db'],
+    db: dbObject as DefineConfigReturn<T>['db'],
     $meta: {
-      collections: collectionNames as DefineConfigReturn<T>['$meta']['collections'],
+      collections: allCollections.map(c => c.slug) as DefineConfigReturn<T>['$meta']['collections'],
       plugins: pluginNames
     }
   }

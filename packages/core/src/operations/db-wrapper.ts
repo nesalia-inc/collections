@@ -219,7 +219,8 @@ export const collectionDb = <T = Record<string, unknown>>(
   },
 
   create: async (options) => {
-    const data = await operations.create<T>(options as Parameters<typeof operations.create>[0])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await (operations.create as any)(options)
     return {
       data,
       meta: createInvalidateKeyGenerator(slug)
@@ -235,7 +236,8 @@ export const collectionDb = <T = Record<string, unknown>>(
   },
 
   update: async (options) => {
-    const data = await operations.update<T>(options as Parameters<typeof operations.update>[0])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await (operations.update as any)(options)
     return {
       data,
       meta: createInvalidateKeyGenerator(slug)

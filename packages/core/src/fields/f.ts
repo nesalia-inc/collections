@@ -127,62 +127,7 @@ export const f = {
 }
 
 /**
- * @deprecated Use f.text() instead
- */
-export const text = f.text
-
-/**
- * @deprecated Use f.email() instead
- */
-export const email = f.email
-
-/**
- * @deprecated Use f.url() instead
- */
-export const url = f.url
-
-/**
- * @deprecated Use f.number() instead
- */
-export const number = f.number
-
-/**
- * @deprecated Use f.boolean() instead
- */
-export const boolean = f.boolean
-
-/**
- * @deprecated Use f.date() instead
- */
-export const date = f.date
-
-/**
- * @deprecated Use f.timestamp() instead
- */
-export const timestamp = f.timestamp
-
-/**
- * @deprecated Use f.select() instead
- */
-export const select = f.select
-
-/**
- * @deprecated Use f.json() instead
- */
-export const json = f.json
-
-/**
- * @deprecated Use f.array() instead
- */
-export const array = f.array
-
-/**
- * @deprecated Use f.relation() instead
- */
-export const relation = f.relation
-
-/**
- * @deprecated Use f.relation instead
+ * Relation field options type
  */
 export type RelationOptions = {
   collection: string

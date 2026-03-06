@@ -141,21 +141,34 @@ async function main(): Promise<void> {
 
   try {
     switch (command) {
-      case 'db:push':
+      case 'db:push': {
         if (options.verbose) {
           console.log('[collections] Pushing schema to database...')
         }
-        await push(adapter, [], options)
+        const pushResult = await push(adapter, [], options)
+        if (options.verbose && pushResult.warnings.length > 0) {
+          console.log('[collections] Warnings:', pushResult.warnings)
+        }
+        if (options.verbose) {
+          console.log('[collections] Statements:', pushResult.statements.length)
+        }
+        // Apply the changes
+        await pushResult.apply()
         console.log('Schema pushed successfully')
         break
+      }
 
-      case 'db:generate':
+      case 'db:generate': {
         if (options.verbose) {
           console.log('[collections] Generating migrations...')
         }
-        await generate(adapter, [], options)
+        const generateResult = await generate(adapter, [], options)
+        if (options.verbose) {
+          console.log('[collections] SQL Statements:', generateResult.sql.length)
+        }
         console.log('Migrations generated successfully')
         break
+      }
 
       case 'db:migrate':
         if (options.verbose) {

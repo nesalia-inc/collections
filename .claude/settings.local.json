@@ -23,7 +23,14 @@
       "Bash(npm test:*)",
       "Bash(npx vitest run tests/hooks.test.ts)",
       "Bash(npx vitest run:*)",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_gSR40rxYoeac@ep-frosty-violet-aiw2vnhq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx vitest run:*)"
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_gSR40rxYoeac@ep-frosty-violet-aiw2vnhq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx vitest run:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm view:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(node -e:*)",
+      "Bash(gh run list:*)",
+      "Bash(npm run typecheck)"
     ]
   }
 }

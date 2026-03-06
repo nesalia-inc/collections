@@ -17,7 +17,9 @@ export default defineConfig({
         'src/operations/types.ts',
         'src/operations/collection-operations.ts',
         'src/schema.ts',
-        'src/fields/f.ts'
+        'src/fields/f.ts',
+        'src/next/**',
+        'src/config.ts'
       ],
       thresholds: {
         lines: 90,

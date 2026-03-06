@@ -139,3 +139,19 @@ export type CountOptions<TFields = Record<string, unknown>> = {
 export type ExistsOptions<TFields = Record<string, unknown>> = {
   where: WhereConditions<TFields>
 }
+
+/**
+ * Validation options for input validation
+ */
+export type ValidationOptions = {
+  /**
+   * Maximum allowed limit for queries
+   * @default 10000
+   */
+  maxLimit?: number
+  /**
+   * Maximum allowed offset for queries
+   * @default 100000
+   */
+  maxOffset?: number
+}

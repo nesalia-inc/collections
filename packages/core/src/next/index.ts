@@ -8,6 +8,8 @@ import type { NextConfig } from 'next'
 import type { Collection } from '../collection'
 import { resolve } from 'path'
 import process from 'process'
+import { watch } from 'fs'
+import { existsSync } from 'fs'
 
 // Re-export types from core for convenience
 export type {
@@ -52,6 +54,12 @@ export interface WithCollectionsOptions {
   outputDir?: string
 
   /**
+   * Enable auto-schema push in development
+   * @default true
+   */
+  autoSchemaPush?: boolean
+
+  /**
    * Enable debug logging
    * @default false
    */
@@ -67,6 +75,7 @@ export type WithCollectionsConfig = NextConfig & {
     outputDir: string
     isProduction: boolean
     configPath: string
+    autoSchemaPush: boolean
   }
 }
 
@@ -139,8 +148,48 @@ async function loadCollectionsFromConfig(configPath: string, debug: boolean): Pr
     const collections = extractCollectionsFromModule(module as Record<string, unknown>)
     debugLog(debug, `Loaded ${Object.keys(collections).length} collections`)
     return collections
-  } catch {
+  } catch (error) {
+    debugLog(debug, `Failed to load collections from ${configPath}:`, error instanceof Error ? error.message : 'Unknown error')
     return {}
+  }
+}
+
+/**
+ * Watch config file for changes and trigger callback
+ */
+function watchConfigFile(
+  configPath: string,
+  callback: () => void,
+  debug: boolean
+): () => void {
+  const validatedPath = validateConfigPath(configPath, debug)
+
+  if (!existsSync(validatedPath)) {
+    debugLog(debug, 'Config file does not exist, skipping watch')
+    return () => {}
+  }
+
+  let timeout: NodeJS.Timeout | null = null
+
+  const watcher = watch(validatedPath, (eventType) => {
+    if (eventType === 'change') {
+      // Debounce the callback
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+      timeout = setTimeout(() => {
+        debugLog(debug, 'Config file changed, triggering callback')
+        callback()
+      }, 500)
+    }
+  })
+
+  // Return cleanup function
+  return () => {
+    if (timeout) {
+      clearTimeout(timeout)
+    }
+    watcher.close()
   }
 }
 
@@ -154,37 +203,92 @@ async function loadCollectionsFromConfig(configPath: string, debug: boolean): Pr
  * export default withCollections({
  *   // Next.js config
  * })
+ *
+ * // With auto-schema push
+ * import { withCollections } from '@deessejs/collections/next'
+ *
+ * export default withCollections({
+ *   // Next.js config
+ * }, {
+ *   autoSchemaPush: true  // Automatically push schema in dev
+ * })
  */
-export async function withCollections(nextConfig: NextConfig, options: WithCollectionsOptions = {}): Promise<WithCollectionsConfig> {
-  const { configPath = './collections/config', hotReload = true, outputDir = './drizzle', debug = false } = options
+export async function withCollections(
+  nextConfig: NextConfig,
+  options: WithCollectionsOptions = {}
+): Promise<WithCollectionsConfig> {
+  const {
+    configPath = './collections/config',
+    hotReload = true,
+    outputDir = './drizzle',
+    autoSchemaPush = true,
+    debug = false
+  } = options
+
   const isProduction = !isDevelopment()
   const shouldHotReload = hotReload && isDevelopment() && !isBuildTime()
+  const shouldAutoPush = autoSchemaPush && isDevelopment() && !isBuildTime()
 
   const collections = await loadCollectionsFromConfig(configPath, debug)
+
   let webpackConfig: NextConfig['webpack']
 
   if (shouldHotReload && nextConfig.webpack) {
     webpackConfig = (cfg, ctx) => nextConfig.webpack!(cfg, ctx)
   }
 
-  return { ...nextConfig, collections: { collections, outputDir, isProduction, configPath }, webpack: webpackConfig }
+  // Note: Auto-schema push is handled separately in the dev server
+  // The config just stores the option for the dev runner to use
+
+  return {
+    ...nextConfig,
+    collections: {
+      collections,
+      outputDir,
+      isProduction,
+      configPath,
+      autoSchemaPush: shouldAutoPush
+    },
+    webpack: webpackConfig
+  }
 }
 
 /**
  * Synchronous version of withCollections
  * @deprecated Use withCollections() instead
  */
-export function withCollectionsSync(nextConfig: NextConfig, options: WithCollectionsOptions = {}): WithCollectionsConfig {
-  const { configPath = './collections/config', hotReload = true, outputDir = './drizzle' } = options
+export function withCollectionsSync(
+  nextConfig: NextConfig,
+  options: WithCollectionsOptions = {}
+): WithCollectionsConfig {
+  const {
+    configPath = './collections/config',
+    hotReload = true,
+    outputDir = './drizzle',
+    autoSchemaPush = true
+  } = options
+
   const isProduction = !isDevelopment()
   const shouldHotReload = hotReload && isDevelopment() && !isBuildTime()
+  const shouldAutoPush = autoSchemaPush && isDevelopment() && !isBuildTime()
+
   let webpackConfig: NextConfig['webpack']
 
   if (shouldHotReload && nextConfig.webpack) {
     webpackConfig = (cfg, ctx) => nextConfig.webpack!(cfg, ctx)
   }
 
-  return { ...nextConfig, collections: { collections: {}, outputDir, isProduction, configPath }, webpack: webpackConfig }
+  return {
+    ...nextConfig,
+    collections: {
+      collections: {},
+      outputDir,
+      isProduction,
+      configPath,
+      autoSchemaPush: shouldAutoPush
+    },
+    webpack: webpackConfig
+  }
 }
 
 /**
@@ -206,6 +310,29 @@ export async function loadCollections(configPath: string): Promise<Record<string
  */
 export function getCollectionsFromConfig(nextConfig: WithCollectionsConfig): Record<string, Collection> {
   return nextConfig.collections?.collections ?? {}
+}
+
+/**
+ * Watch config file for changes
+ *
+ * @example
+ * import { watchConfig } from '@deessejs/collections/next'
+ *
+ * // Watch for changes and run callback
+ * const stopWatching = watchConfig('./collections/config', () => {
+ *   console.log('Config changed!')
+ * })
+ *
+ * // Stop watching
+ * stopWatching()
+ */
+export function watchConfig(
+  configPath: string,
+  callback: () => void,
+  options: { debug?: boolean } = {}
+): () => void {
+  const { debug = false } = options
+  return watchConfigFile(configPath, callback, debug)
 }
 
 /**
@@ -235,5 +362,6 @@ export const defaultWithCollectionsOptions: Required<WithCollectionsOptions> = {
   configPath: './collections/config',
   hotReload: true,
   outputDir: './drizzle',
+  autoSchemaPush: true,
   debug: false
 }

@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { eq, and, like, gt, gte, lt, lte, isNull, inArray, not, desc, asc } from 'drizzle-orm'
+/**
+ * Collection Operations - Pure Functions for Database Operations
+ *
+ * This module provides clean, testable functions for CRUD operations.
+ * No classes - just pure functions that transform data.
+ */
 
-import type { Collection, CollectionHooks, CreateHookContext, UpdateHookContext, DeleteHookContext, ReadHookContext, OperationHookContext } from '../collection'
+import { eq, and, like, gt, gte, lt, lte, isNull, inArray, not, desc, asc, count } from 'drizzle-orm'
+
+import type { Collection, CollectionHooks } from '../collection'
 import type {
   FindManyOptions,
   FindUniqueOptions,
@@ -14,8 +21,13 @@ import type {
   DeleteManyOptions,
   CountOptions,
   ExistsOptions,
-  WhereOperator
+  WhereOperator,
+  ValidationOptions
 } from './types'
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Collection operations interface
@@ -35,224 +47,212 @@ export interface CollectionOperations {
 }
 
 /**
- * Build where conditions from options
+ * Drizzle column type - uses any to bypass strict type checking for dynamic column access
  */
-const buildWhereClause = (
-  tableColumns: Record<string, any>,
+type DrizzleColumn = {
+  [key: string]: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} & any
+
+/**
+ * Table schema mapping column names to Drizzle columns
+ */
+type TableSchema = Record<string, DrizzleColumn>
+
+// ============================================================================
+// Operator Lookup Table (Instead of Massive if/else)
+// ============================================================================
+
+/**
+ * Operator builders - single source of truth for all operators
+ * This replaces the massive if/else chain
+ */
+const OPERATORS = {
+  eq: (col: DrizzleColumn, value: unknown) => eq(col as never, value),
+  neq: (col: DrizzleColumn, value: unknown) => not(eq(col as never, value)),
+  gt: (col: DrizzleColumn, value: unknown) => gt(col as never, value as number),
+  gte: (col: DrizzleColumn, value: unknown) => gte(col as never, value as number),
+  lt: (col: DrizzleColumn, value: unknown) => lt(col as never, value as number),
+  lte: (col: DrizzleColumn, value: unknown) => lte(col as never, value as number),
+  in: (col: DrizzleColumn, value: unknown) => inArray(col as never, value as unknown[]),
+  notIn: (col: DrizzleColumn, value: unknown) => not(inArray(col as never, value as unknown[])),
+  contains: (col: DrizzleColumn, value: unknown) => like(col as never, `%${value}%`),
+  startsWith: (col: DrizzleColumn, value: unknown) => like(col as never, `${value}%`),
+  endsWith: (col: DrizzleColumn, value: unknown) => like(col as never, `%${value}`),
+  isNull: (col: DrizzleColumn, _value: unknown) => isNull(col),
+  not: (col: DrizzleColumn, value: unknown) => not(eq(col as never, value))
+} as const
+
+/**
+ * Check if a value is a WhereOperator
+ */
+const isWhereOperator = (value: unknown): value is WhereOperator<unknown> => {
+  if (typeof value !== 'object' || value === null) return false
+  const obj = value as Record<string, unknown>
+  const validKeys = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn', 'contains', 'startsWith', 'endsWith', 'isNull', 'not']
+  return Object.keys(obj).some(key => validKeys.includes(key))
+}
+
+// ============================================================================
+// Pure Functions
+// ============================================================================
+
+/**
+ * Build where conditions from options
+ *
+ * This is a pure function that transforms user input into Drizzle conditions.
+ * Returns undefined if no conditions, or the SQL condition.
+ */
+export const buildWhereClause = (
+  tableColumns: TableSchema,
   where?: Record<string, unknown>
-): any => {
+): unknown => {
   if (!where) return undefined
 
-  const conditions: any[] = []
+  const conditions: unknown[] = []
 
   for (const [key, value] of Object.entries(where)) {
     const column = tableColumns[key]
+
+    // Skip unknown columns (could throw error instead)
     if (!column) continue
 
+    // Simple equality: { status: 'active' }
     if (value === null || typeof value !== 'object') {
-      conditions.push(eq(column, value))
-    } else {
-      const operator = value as WhereOperator<unknown>
-      if ('eq' in operator) {
-        conditions.push(eq(column, operator.eq))
-      } else if ('neq' in operator) {
-        conditions.push(not(eq(column, operator.neq)))
-      } else if ('gt' in operator) {
-        conditions.push(gt(column, operator.gt as number))
-      } else if ('gte' in operator) {
-        conditions.push(gte(column, operator.gte as number))
-      } else if ('lt' in operator) {
-        conditions.push(lt(column, operator.lt as number))
-      } else if ('lte' in operator) {
-        conditions.push(lte(column, operator.lte as number))
-      } else if ('in' in operator) {
-        conditions.push(inArray(column, operator.in))
-      } else if ('notIn' in operator) {
-        conditions.push(not(inArray(column, operator.notIn)))
-      } else if ('contains' in operator) {
-        conditions.push(like(column, `%${operator.contains}%`))
-      } else if ('startsWith' in operator) {
-        conditions.push(like(column, `${operator.startsWith}%`))
-      } else if ('endsWith' in operator) {
-        conditions.push(like(column, `%${operator.endsWith}`))
-      } else if ('isNull' in operator) {
-        if (operator.isNull) {
-          conditions.push(isNull(column))
+      conditions.push(eq(column as never, value))
+      continue
+    }
+
+    // Operator: { status: { eq: 'active' } }
+    if (isWhereOperator(value)) {
+      // Find which operator was provided
+      for (const operatorKey of Object.keys(value) as (keyof typeof OPERATORS)[]) {
+        const operatorValue = (value as Record<string, unknown>)[operatorKey]
+        const builder = OPERATORS[operatorKey]
+
+        if (builder && operatorValue !== undefined) {
+          conditions.push(builder(column, operatorValue))
+          break
         }
-      } else if ('not' in operator) {
-        conditions.push(not(eq(column, operator.not)))
       }
     }
   }
 
   if (conditions.length === 0) return undefined
   if (conditions.length === 1) return conditions[0]
-  return and(...conditions)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return and(...conditions as any[])
 }
 
 /**
  * Build orderBy from options
  */
-const buildOrderBy = (
-  tableColumns: Record<string, any>,
+export const buildOrderBy = (
+  tableColumns: TableSchema,
   orderBy?: Record<string, unknown> | Record<string, unknown>[]
-): any[] => {
+): unknown[] => {
   if (!orderBy) return []
 
   const orders = Array.isArray(orderBy) ? orderBy : [orderBy]
-  return orders.map((order) => {
-    for (const [key, direction] of Object.entries(order)) {
-      const column = tableColumns[key]
-      if (!column) continue
-      return direction === 'desc' ? desc(column) : asc(column)
-    }
-    return undefined
-  }).filter(Boolean)
+  return orders
+    .map((order) => {
+      for (const [key, direction] of Object.entries(order)) {
+        const column = tableColumns[key]
+        if (!column) continue
+        return direction === 'desc' ? desc(column as never) : asc(column as never)
+      }
+      return undefined
+    })
+    .filter(Boolean)
 }
 
 /**
- * Execute before operation hooks
+ * Validate limit value
  */
-const executeBeforeOperationHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: OperationHookContext
+export const validateLimit = (
+  limit: unknown,
+  options: Required<ValidationOptions>
+): { valid: false; error: { type: 'invalid_limit'; message: string } } | { valid: true; value: number } => {
+  if (limit === undefined) return { valid: true, value: undefined as unknown as number }
+
+  const limitNum = Number(limit)
+  if (!Number.isInteger(limitNum) || limitNum < 0) {
+    return { valid: false, error: { type: 'invalid_limit', message: 'limit must be a non-negative integer' } }
+  }
+
+  if (limitNum > options.maxLimit) {
+    return { valid: false, error: { type: 'invalid_limit', message: `limit cannot exceed ${options.maxLimit}` } }
+  }
+
+  return { valid: true, value: limitNum }
+}
+
+/**
+ * Validate offset value
+ */
+export const validateOffset = (
+  offset: unknown,
+  options: Required<ValidationOptions>
+): { valid: false; error: { type: 'invalid_offset'; message: string } } | { valid: true; value: number } => {
+  if (offset === undefined) return { valid: true, value: undefined as unknown as number }
+
+  const offsetNum = Number(offset)
+  if (!Number.isInteger(offsetNum) || offsetNum < 0) {
+    return { valid: false, error: { type: 'invalid_offset', message: 'offset must be a non-negative integer' } }
+  }
+
+  if (offsetNum > options.maxOffset) {
+    return { valid: false, error: { type: 'invalid_offset', message: `offset cannot exceed ${options.maxOffset}` } }
+  }
+
+  return { valid: true, value: offsetNum }
+}
+
+// ============================================================================
+// Hooks Execution (Simplified)
+// ============================================================================
+
+/**
+ * Run multiple hooks
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const runHooks = async (
+  hooks: any[] | undefined,
+  context: unknown
 ): Promise<void> => {
-  if (!hooks?.beforeOperation) return
-  for (const hook of hooks.beforeOperation) {
+  if (!hooks) return
+  for (const hook of hooks) {
     await hook(context)
   }
 }
 
-/**
- * Execute after operation hooks
- */
-const executeAfterOperationHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: OperationHookContext
-): Promise<void> => {
-  if (!hooks?.afterOperation) return
-  for (const hook of hooks.afterOperation) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute before create hooks
- */
-const executeBeforeCreateHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: CreateHookContext
-): Promise<void> => {
-  if (!hooks?.beforeCreate) return
-  for (const hook of hooks.beforeCreate) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute after create hooks
- */
-const executeAfterCreateHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: CreateHookContext
-): Promise<void> => {
-  if (!hooks?.afterCreate) return
-  for (const hook of hooks.afterCreate) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute before update hooks
- */
-const executeBeforeUpdateHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: UpdateHookContext
-): Promise<void> => {
-  if (!hooks?.beforeUpdate) return
-  for (const hook of hooks.beforeUpdate) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute after update hooks
- */
-const executeAfterUpdateHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: UpdateHookContext
-): Promise<void> => {
-  if (!hooks?.afterUpdate) return
-  for (const hook of hooks.afterUpdate) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute before delete hooks
- */
-const executeBeforeDeleteHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: DeleteHookContext
-): Promise<void> => {
-  if (!hooks?.beforeDelete) return
-  for (const hook of hooks.beforeDelete) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute after delete hooks
- */
-const executeAfterDeleteHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: DeleteHookContext
-): Promise<void> => {
-  if (!hooks?.afterDelete) return
-  for (const hook of hooks.afterDelete) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute before read hooks
- */
-const executeBeforeReadHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: ReadHookContext
-): Promise<void> => {
-  if (!hooks?.beforeRead) return
-  for (const hook of hooks.beforeRead) {
-    await hook(context)
-  }
-}
-
-/**
- * Execute after read hooks
- */
-const executeAfterReadHooks = async (
-  hooks: CollectionHooks | undefined,
-  context: ReadHookContext
-): Promise<void> => {
-  if (!hooks?.afterRead) return
-  for (const hook of hooks.afterRead) {
-    await hook(context)
-  }
-}
+// ============================================================================
+// Collection Operations Factory
+// ============================================================================
 
 /**
  * Creates collection operations with Drizzle
+ *
+ * This is the main entry point - it wires together the pure functions.
  */
 export const createCollectionOperations = (
   _collection: Collection,
   _slug: string,
-  _db: any,
-  _table: any,
-  _hooks?: CollectionHooks
+  _db: unknown,
+  _table: unknown,
+  _hooks?: CollectionHooks,
+  _validationOptions?: ValidationOptions
 ): CollectionOperations => {
-  const tableColumns = _table as Record<string, any>
+  const tableColumns = _table as TableSchema
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = _db as any
-  const hooks = _hooks as CollectionHooks | undefined
+  const hooks = _hooks
+
+  // Default validation options
+  const validationOptions: Required<ValidationOptions> = {
+    maxLimit: _validationOptions?.maxLimit ?? 10000,
+    maxOffset: _validationOptions?.maxOffset ?? 100000
+  }
 
   // If no db instance, return placeholder operations
   if (!db) {
@@ -276,20 +276,30 @@ export const createCollectionOperations = (
       const whereClause = buildWhereClause(tableColumns, options?.where)
       const orderByClause = buildOrderBy(tableColumns, options?.orderBy)
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'read',
         where: options?.where
       })
 
-      // Execute before read hooks
-      await executeBeforeReadHooks(hooks, {
+      // Run beforeRead hooks
+      await runHooks(hooks?.beforeRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
         db
       })
+
+      // Validate limit/offset
+      if (options?.limit !== undefined) {
+        const limitResult = validateLimit(options.limit, validationOptions)
+        if (!limitResult.valid) throw new Error(limitResult.error.message)
+      }
+      if (options?.offset !== undefined) {
+        const offsetResult = validateOffset(options.offset, validationOptions)
+        if (!offsetResult.valid) throw new Error(offsetResult.error.message)
+      }
 
       let query = db.select().from(_table)
 
@@ -301,18 +311,18 @@ export const createCollectionOperations = (
         query = query.orderBy(...orderByClause)
       }
 
-      if (options?.offset) {
+      if (options?.offset !== undefined) {
         query = query.offset(options.offset)
       }
 
-      if (options?.limit) {
+      if (options?.limit !== undefined) {
         query = query.limit(options.limit)
       }
 
       const result = await query
 
-      // Execute after read hooks
-      await executeAfterReadHooks(hooks, {
+      // Run afterRead hooks
+      await runHooks(hooks?.afterRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -320,8 +330,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'read',
         where: options?.where,
@@ -335,15 +345,15 @@ export const createCollectionOperations = (
       const whereClause = buildWhereClause(tableColumns, options.where)
       if (!whereClause) return undefined
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where
       })
 
-      // Execute before read hooks
-      await executeBeforeReadHooks(hooks, {
+      // Run beforeRead hooks
+      await runHooks(hooks?.beforeRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -353,8 +363,8 @@ export const createCollectionOperations = (
       const result = await db.select().from(_table).where(whereClause).limit(1)
       const returnValue = result[0] as T | undefined
 
-      // Execute after read hooks
-      await executeAfterReadHooks(hooks, {
+      // Run afterRead hooks
+      await runHooks(hooks?.afterRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -362,8 +372,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where,
@@ -377,15 +387,15 @@ export const createCollectionOperations = (
       const whereClause = buildWhereClause(tableColumns, options.where)
       const orderByClause = buildOrderBy(tableColumns, options.orderBy)
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where
       })
 
-      // Execute before read hooks
-      await executeBeforeReadHooks(hooks, {
+      // Run beforeRead hooks
+      await runHooks(hooks?.beforeRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -405,8 +415,8 @@ export const createCollectionOperations = (
       const result = await query.limit(1)
       const returnValue = result[0] as T | undefined
 
-      // Execute after read hooks
-      await executeAfterReadHooks(hooks, {
+      // Run afterRead hooks
+      await runHooks(hooks?.afterRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -414,8 +424,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where,
@@ -429,16 +439,16 @@ export const createCollectionOperations = (
       const data = Array.isArray(options.data) ? options.data : [options.data]
       const firstData = data[0] as Record<string, unknown>
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'create',
         data: firstData,
         where: undefined
       })
 
-      // Execute before create hooks
-      await executeBeforeCreateHooks(hooks, {
+      // Run beforeCreate hooks
+      await runHooks(hooks?.beforeCreate, {
         collection: _slug,
         operation: 'create',
         data: firstData,
@@ -449,8 +459,8 @@ export const createCollectionOperations = (
 
       const returnValue = options.returning ? result[0] as T : undefined
 
-      // Execute after create hooks
-      await executeAfterCreateHooks(hooks, {
+      // Run afterCreate hooks
+      await runHooks(hooks?.afterCreate, {
         collection: _slug,
         operation: 'create',
         data: firstData,
@@ -458,8 +468,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'create',
         data: firstData,
@@ -472,16 +482,16 @@ export const createCollectionOperations = (
     createMany: async <T>(options: CreateManyOptions<T>): Promise<number> => {
       const dataArray = Array.isArray(options.data) ? options.data : [options.data]
 
-      // Execute before operation hooks for each item
+      // Run beforeOperation hooks for each item
       for (const data of dataArray) {
-        await executeBeforeOperationHooks(hooks, {
+        await runHooks(hooks?.beforeOperation, {
           collection: _slug,
           operation: 'create',
           data: data as Record<string, unknown>,
           where: undefined
         })
 
-        await executeBeforeCreateHooks(hooks, {
+        await runHooks(hooks?.beforeCreate, {
           collection: _slug,
           operation: 'create',
           data: data as Record<string, unknown>,
@@ -489,11 +499,14 @@ export const createCollectionOperations = (
         })
       }
 
-      const result = await db.insert(_table).values(options.data as any)
+      const result = await db.insert(_table).values(options.data as never)
 
-      // Execute after operation hooks for each item
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? dataArray.length
+
+      // Run afterOperation hooks for each item
       for (let i = 0; i < dataArray.length; i++) {
-        await executeAfterCreateHooks(hooks, {
+        await runHooks(hooks?.afterCreate, {
           collection: _slug,
           operation: 'create',
           data: dataArray[i] as Record<string, unknown>,
@@ -501,7 +514,7 @@ export const createCollectionOperations = (
           db
         })
 
-        await executeAfterOperationHooks(hooks, {
+        await runHooks(hooks?.afterOperation, {
           collection: _slug,
           operation: 'create',
           data: dataArray[i] as Record<string, unknown>,
@@ -509,7 +522,7 @@ export const createCollectionOperations = (
         })
       }
 
-      return result.length || 0
+      return affectedCount
     },
 
     update: async <T>(options: UpdateOptions<T>): Promise<T | undefined> => {
@@ -520,16 +533,16 @@ export const createCollectionOperations = (
       const previousResult = await db.select().from(_table).where(whereClause).limit(1)
       const previousData = previousResult[0] as Record<string, unknown> | undefined
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
         where: options.where
       })
 
-      // Execute before update hooks
-      await executeBeforeUpdateHooks(hooks, {
+      // Run beforeUpdate hooks
+      await runHooks(hooks?.beforeUpdate, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
@@ -539,14 +552,14 @@ export const createCollectionOperations = (
       })
 
       const result = await db.update(_table)
-        .set(options.data as any)
+        .set(options.data as never)
         .where(whereClause)
         .returning()
 
       const returnValue = options.returning ? result[0] as T : undefined
 
-      // Execute after update hooks
-      await executeAfterUpdateHooks(hooks, {
+      // Run afterUpdate hooks
+      await runHooks(hooks?.afterUpdate, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
@@ -556,8 +569,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
@@ -575,17 +588,17 @@ export const createCollectionOperations = (
       // Get previous data for hooks
       const previousResults = await db.select().from(_table).where(whereClause)
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
         where: options.where
       })
 
-      // Execute before update hooks (for each previous record)
+      // Run beforeUpdate hooks for each previous record
       for (const previousData of previousResults) {
-        await executeBeforeUpdateHooks(hooks, {
+        await runHooks(hooks?.beforeUpdate, {
           collection: _slug,
           operation: 'update',
           data: options.data as Record<string, unknown>,
@@ -596,12 +609,15 @@ export const createCollectionOperations = (
       }
 
       const result = await db.update(_table)
-        .set(options.data as any)
+        .set(options.data as never)
         .where(whereClause)
 
-      // Execute after update hooks
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? 0
+
+      // Run afterUpdate hooks
       for (const previousData of previousResults) {
-        await executeAfterUpdateHooks(hooks, {
+        await runHooks(hooks?.afterUpdate, {
           collection: _slug,
           operation: 'update',
           data: options.data as Record<string, unknown>,
@@ -611,15 +627,15 @@ export const createCollectionOperations = (
         })
       }
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'update',
         data: options.data as Record<string, unknown>,
         where: options.where
       })
 
-      return result.length || 0
+      return affectedCount
     },
 
     delete: async <T>(options: DeleteOptions): Promise<T | undefined> => {
@@ -630,15 +646,15 @@ export const createCollectionOperations = (
       const previousResult = await db.select().from(_table).where(whereClause).limit(1)
       const previousData = previousResult[0] as Record<string, unknown> | undefined
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'delete',
         where: options.where
       })
 
-      // Execute before delete hooks
-      await executeBeforeDeleteHooks(hooks, {
+      // Run beforeDelete hooks
+      await runHooks(hooks?.beforeDelete, {
         collection: _slug,
         operation: 'delete',
         where: options.where,
@@ -652,8 +668,8 @@ export const createCollectionOperations = (
 
       const returnValue = options.returning ? result[0] as T : undefined
 
-      // Execute after delete hooks
-      await executeAfterDeleteHooks(hooks, {
+      // Run afterDelete hooks
+      await runHooks(hooks?.afterDelete, {
         collection: _slug,
         operation: 'delete',
         where: options.where,
@@ -662,8 +678,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'delete',
         where: options.where,
@@ -680,16 +696,16 @@ export const createCollectionOperations = (
       // Get previous data for hooks
       const previousResults = await db.select().from(_table).where(whereClause)
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'delete',
         where: options.where
       })
 
-      // Execute before delete hooks
+      // Run beforeDelete hooks
       for (const previousData of previousResults) {
-        await executeBeforeDeleteHooks(hooks, {
+        await runHooks(hooks?.beforeDelete, {
           collection: _slug,
           operation: 'delete',
           where: options.where,
@@ -700,9 +716,12 @@ export const createCollectionOperations = (
 
       const result = await db.delete(_table).where(whereClause)
 
-      // Execute after delete hooks
+      // Get the number of affected rows
+      const affectedCount = result.rowCount ?? 0
+
+      // Run afterDelete hooks
       for (const previousData of previousResults) {
-        await executeAfterDeleteHooks(hooks, {
+        await runHooks(hooks?.afterDelete, {
           collection: _slug,
           operation: 'delete',
           where: options.where,
@@ -711,40 +730,43 @@ export const createCollectionOperations = (
         })
       }
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'delete',
         where: options.where
       })
 
-      return result.length || 0
+      return affectedCount
     },
 
     count: async (options?: CountOptions): Promise<number> => {
       const whereClause = buildWhereClause(tableColumns, options?.where)
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'read',
         where: options?.where
       })
 
-      // Execute before read hooks
-      await executeBeforeReadHooks(hooks, {
+      // Run beforeRead hooks
+      await runHooks(hooks?.beforeRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
         db
       })
 
-      const result = whereClause
-        ? await db.select().from(_table).where(whereClause)
-        : await db.select().from(_table)
+      // Use SQL COUNT for efficiency
+      const countResult = whereClause
+        ? await db.select({ count: count() }).from(_table).where(whereClause)
+        : await db.select({ count: count() }).from(_table)
 
-      // Execute after read hooks
-      await executeAfterReadHooks(hooks, {
+      const result = countResult[0]?.count ?? 0
+
+      // Run afterRead hooks
+      await runHooks(hooks?.afterRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -752,30 +774,30 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'read',
         where: options?.where,
         result
       })
 
-      return result.length
+      return result
     },
 
     exists: async (options: ExistsOptions): Promise<boolean> => {
       const whereClause = buildWhereClause(tableColumns, options.where)
       if (!whereClause) return false
 
-      // Execute before operation hooks
-      await executeBeforeOperationHooks(hooks, {
+      // Run beforeOperation hooks
+      await runHooks(hooks?.beforeOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where
       })
 
-      // Execute before read hooks
-      await executeBeforeReadHooks(hooks, {
+      // Run beforeRead hooks
+      await runHooks(hooks?.beforeRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -785,8 +807,8 @@ export const createCollectionOperations = (
       const result = await db.select().from(_table).where(whereClause).limit(1)
       const returnValue = result.length > 0
 
-      // Execute after read hooks
-      await executeAfterReadHooks(hooks, {
+      // Run afterRead hooks
+      await runHooks(hooks?.afterRead, {
         collection: _slug,
         operation: 'read',
         query: options as unknown as Record<string, unknown>,
@@ -794,8 +816,8 @@ export const createCollectionOperations = (
         db
       })
 
-      // Execute after operation hooks
-      await executeAfterOperationHooks(hooks, {
+      // Run afterOperation hooks
+      await runHooks(hooks?.afterOperation, {
         collection: _slug,
         operation: 'read',
         where: options.where,

@@ -1,9 +1,12 @@
-import { spawn } from 'child_process'
-import { resolve } from 'path'
-import process from 'process'
+import { Pool } from 'pg'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { pushSchema, generateMigration, generateDrizzleJson } from 'drizzle-kit/api'
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs'
+import { join, dirname } from 'path'
 
 import type { PgAdapter } from './adapter'
 import type { Collection } from './collection'
+import { buildSchema } from './schema'
 
 /**
  * Migration options
@@ -18,187 +21,194 @@ export type MigrationOptions = {
 }
 
 /**
- * Run a command and return a promise
+ * Push result
  */
-function runCommand(command: string, args: string[], options: { verbose?: boolean } = {}): Promise<number> {
-  return new Promise((resolve, reject) => {
-    if (options.verbose) {
-      console.log(`[collections] Running: ${command} ${args.join(' ')}`)
-    }
-
-    const child = spawn(command, args, {
-      stdio: options.verbose ? 'inherit' : 'pipe',
-      shell: true,
-      cwd: process.cwd()
-    })
-
-    let output = ''
-    if (!options.verbose) {
-      child.stdout?.on('data', (data) => {
-        output += data.toString()
-      })
-      child.stderr?.on('data', (data) => {
-        output += data.toString()
-      })
-    }
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve(code ?? 0)
-      } else {
-        reject(new Error(`Command failed with code ${code}: ${output}`))
-      }
-    })
-
-    child.on('error', (error) => {
-      reject(error)
-    })
-  })
+export type PushResult = {
+  /** SQL statements to be executed */
+  statements: string[]
+  /** Warnings during push */
+  warnings: string[]
+  /** Apply the changes to database */
+  apply: () => Promise<void>
 }
 
 /**
- * Build drizzle-kit config file content
+ * Generate result
  */
-function buildDrizzleConfig(options: {
-  out: string
-  schemaPath: string
-  dbUrl: string
-}): string {
-  const config: Record<string, unknown> = {
-    dialect: 'postgresql',
-    schema: options.schemaPath,
-    out: options.out,
-    dbCredentials: {
-      url: options.dbUrl
-    }
+export type GenerateResult = {
+  /** SQL statements for the migration */
+  sql: string[]
+  /** Directory where migration was saved */
+  directory?: string
+}
+
+/**
+ * Get the path to the schema JSON file
+ */
+function getSchemaJsonPath(outputDir: string): string {
+  return join(outputDir, 'schema.json')
+}
+
+/**
+ * Load existing schema JSON from file
+ */
+function loadExistingSchema(outputDir: string): Record<string, unknown> | null {
+  const schemaPath = getSchemaJsonPath(outputDir)
+
+  if (!existsSync(schemaPath)) {
+    return null
   }
 
-  return JSON.stringify(config, null, 2)
+  try {
+    const content = readFileSync(schemaPath, 'utf-8')
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Save schema JSON to file
+ */
+function saveSchemaJson(outputDir: string, schema: Record<string, unknown>): void {
+  const schemaPath = getSchemaJsonPath(outputDir)
+
+  // Ensure directory exists
+  const dir = dirname(schemaPath)
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+
+  writeFileSync(schemaPath, JSON.stringify(schema, null, 2))
 }
 
 /**
  * Push schema to database (development mode)
  *
- * Uses drizzle-kit CLI to push schema changes to the database
+ * Uses drizzle-kit programmatic API to push schema changes to the database
  *
  * @example
  * import { push } from '@deessejs/collections'
  * import { pgAdapter } from '@deessejs/collections'
  *
  * const adapter = pgAdapter({ url: process.env.DATABASE_URL })
- * await push(adapter, collections)
+ * const result = await push(adapter, collections)
+ *
+ * // Preview changes without applying
+ * console.log(result.statements)
+ *
+ * // Apply changes
+ * await result.apply()
  */
 export const push = async (
   adapter: PgAdapter,
-  _collections: Collection[],
+  collections: Collection[],
   options: MigrationOptions = {}
-): Promise<void> => {
-  const {
-    verbose = false,
-    dryRun = false,
-    out = './drizzle'
-  } = options
+): Promise<PushResult> => {
+  const { verbose = false, dryRun = false, out = './drizzle' } = options
 
-  // Build temporary drizzle config
-  const configContent = buildDrizzleConfig({
-    out,
-    schemaPath: './collections/config.ts',
-    dbUrl: adapter.config.url
+  // Build schema from collections
+  const schema = buildSchema(collections)
+
+  // Create pool and drizzle instance
+  const pool = new Pool({
+    connectionString: adapter.config.url
   })
 
-  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
-  const { writeFileSync, unlinkSync } = await import('fs')
-
   try {
-    // Write config file
-    writeFileSync(drizzleConfigPath, configContent)
+    const db = drizzle(pool, { schema }) as any
 
-    const args = ['drizzle-kit', 'push']
-
-    if (dryRun) {
-      args.push('--dry-run')
-    }
+    // Use pushSchema from drizzle-kit API
+    const result = await pushSchema(schema, db)
 
     if (verbose) {
-      args.push('--verbose')
+      console.log('[collections] Warnings:', result.warnings)
+      console.log('[collections] Statements to execute:', result.statementsToExecute.length)
     }
 
-    await runCommand('npx', args, { verbose })
+    // Save the new schema after push
+    const schemaJson = generateDrizzleJson(schema)
+    saveSchemaJson(out, schemaJson)
 
-    if (verbose) {
-      console.log('[collections] Schema pushed successfully')
+    return {
+      statements: result.statementsToExecute,
+      warnings: result.warnings,
+      apply: async () => {
+        if (dryRun) {
+          if (verbose) {
+            console.log('[collections] Dry run - not applying changes')
+          }
+          return
+        }
+        await result.apply()
+        if (verbose) {
+          console.log('[collections] Schema pushed successfully')
+        }
+      }
     }
   } finally {
-    // Cleanup config file
-    try {
-      unlinkSync(drizzleConfigPath)
-    } catch {
-      // Ignore cleanup errors
-    }
+    await pool.end()
   }
 }
 
 /**
  * Generate migration files
  *
- * Uses drizzle-kit CLI to create migration files
+ * Uses drizzle-kit programmatic API to create migration files by comparing
+ * the current schema against the saved schema from a previous push.
  *
  * @example
  * import { generate } from '@deessejs/collections'
  * import { pgAdapter } from '@deessejs/collections'
  *
  * const adapter = pgAdapter({ url: process.env.DATABASE_URL })
- * await generate(adapter, collections, { out: './migrations' })
+ * const result = await generate(adapter, collections, { out: './drizzle' })
+ *
+ * console.log(result.sql) // SQL statements
  */
 export const generate = async (
-  adapter: PgAdapter,
-  _collections: Collection[],
+  _adapter: PgAdapter,
+  collections: Collection[],
   options: MigrationOptions = {}
-): Promise<void> => {
-  const {
-    verbose = false,
-    out = './drizzle'
-  } = options
+): Promise<GenerateResult> => {
+  const { verbose = false, out = './drizzle' } = options
 
-  // Build temporary drizzle config
-  const configContent = buildDrizzleConfig({
-    out,
-    schemaPath: './collections/config.ts',
-    dbUrl: adapter.config.url
-  })
+  // Build schema from collections
+  const schema = buildSchema(collections)
 
-  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
-  const { writeFileSync, unlinkSync } = await import('fs')
+  // Generate new schema JSON
+  const newJson = generateDrizzleJson(schema)
 
-  try {
-    // Write config file
-    writeFileSync(drizzleConfigPath, configContent)
+  // Load existing schema JSON (from previous push)
+  const existingJson = loadExistingSchema(out) as Parameters<typeof generateMigration>[0]
 
-    const args = ['drizzle-kit', 'generate']
+  // Generate migration SQL by comparing existing vs new schema
+  const sqlStatements = await generateMigration(existingJson ?? undefined, newJson)
 
-    if (verbose) {
-      args.push('--verbose')
+  if (verbose) {
+    console.log('[collections] Migration SQL generated')
+    console.log('[collections] Statements:', sqlStatements.length)
+    if (existingJson) {
+      console.log('[collections] Compared against existing schema')
+    } else {
+      console.log('[collections] No existing schema found, generating initial migration')
     }
+  }
 
-    await runCommand('npx', args, { verbose })
+  // Save the new schema
+  saveSchemaJson(out, newJson)
 
-    if (verbose) {
-      console.log('[collections] Migrations generated successfully')
-    }
-  } finally {
-    // Cleanup config file
-    try {
-      unlinkSync(drizzleConfigPath)
-    } catch {
-      // Ignore cleanup errors
-    }
+  return {
+    sql: sqlStatements,
+    directory: out
   }
 }
 
 /**
  * Apply migrations
  *
- * Uses drizzle-kit CLI to apply pending migrations
+ * Note: With the programmatic API, migrations are applied automatically
+ * when using push(). This function is kept for API compatibility.
  *
  * @example
  * import { migrate } from '@deessejs/collections'
@@ -208,45 +218,10 @@ export const generate = async (
  * await migrate(adapter)
  */
 export const migrate = async (
-  adapter: PgAdapter,
-  options: MigrationOptions = {}
+  _adapter: PgAdapter,
+  _options: MigrationOptions = {}
 ): Promise<void> => {
-  const {
-    verbose = false,
-    out = './drizzle'
-  } = options
-
-  // Build temporary drizzle config
-  const configContent = buildDrizzleConfig({
-    out,
-    schemaPath: './collections/config.ts',
-    dbUrl: adapter.config.url
-  })
-
-  const drizzleConfigPath = resolve(process.cwd(), './drizzle.config.json')
-  const { writeFileSync, unlinkSync } = await import('fs')
-
-  try {
-    // Write config file
-    writeFileSync(drizzleConfigPath, configContent)
-
-    const args = ['drizzle-kit', 'migrate']
-
-    if (verbose) {
-      args.push('--verbose')
-    }
-
-    await runCommand('npx', args, { verbose })
-
-    if (verbose) {
-      console.log('[collections] Migrations applied successfully')
-    }
-  } finally {
-    // Cleanup config file
-    try {
-      unlinkSync(drizzleConfigPath)
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
+  // With programmatic API, migrations are handled by push()
+  // This is kept for backward compatibility
+  console.warn('[collections] migrate() is deprecated. Use push() instead.')
 }

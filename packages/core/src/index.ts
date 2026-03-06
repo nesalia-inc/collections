@@ -13,6 +13,7 @@ export { collection, type CollectionConfig, type Collection, type CollectionHook
 
 // Operations
 export * from './operations'
+export { type OperationResult } from './operations/db-wrapper'
 
 // Adapter
 export { pgAdapter, type PgAdapter, type PgAdapterConfig, type DatabaseAdapter } from './adapter'
@@ -21,7 +22,7 @@ export { pgAdapter, type PgAdapter, type PgAdapterConfig, type DatabaseAdapter }
 export { buildSchema, buildTable } from './schema'
 
 // Migrations
-export { push, generate, migrate, type MigrationOptions } from './migrations'
+export { push, generate, migrate, type MigrationOptions, type PushResult, type GenerateResult } from './migrations'
 
 // Config
 export { defineConfig, type Plugin, type ConfigOptions, type DefineConfigReturn } from './config'

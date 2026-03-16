@@ -30,7 +30,10 @@ const posts = collection({
   fields: {
     title: field({ fieldType: f.text() }),
     content: field({ fieldType: f.text() }),
-    published: field({ fieldType: f.boolean() })
+    published: field({ fieldType: f.boolean() }),
+    author: field({
+      fieldType: f.relation({ to: 'users' })
+    })
   }
 })
 
@@ -63,12 +66,27 @@ const user = await db.users.create({
   }
 })
 
+// Create a post with relation to user
+const post = await db.posts.create({
+  data: {
+    title: 'My First Post',
+    content: 'Content here',
+    published: true,
+    author: user.id
+  }
+})
+
 // Find users
 const allUsers = await db.users.findMany()
 
 // Find with filters
 const publishedPosts = await db.posts.findMany({
   where: { published: true }
+})
+
+// Find posts with author included
+const postsWithAuthors = await db.posts.findMany({
+  include: { author: true }
 })
 
 // Update

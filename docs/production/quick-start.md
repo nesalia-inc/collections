@@ -113,7 +113,9 @@ const postsWithAuthors = await config.db.posts.findMany({
 
 ## Next Steps
 
-- [Authentication](./authentication) - Set up auth with users collection and Hono
+- [Authentication](./authentication) - Set up auth with users collection
+- [Next.js](./nextjs) - App Router integration with route handlers
+- [API](./api) - REST API endpoints
 - [Field Types](./field-types) - Learn about all available field types
 - [Configuration](./configuration) - Advanced configuration options
 - [Hooks](./hooks) - Add lifecycle logic to your collections

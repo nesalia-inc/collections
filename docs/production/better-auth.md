@@ -1,32 +1,38 @@
-# Better-Auth Integration
+# Authentication
 
-Learn how to integrate Better-Auth with @deessejs/collections.
+Learn how authentication works in @deessejs/collections.
 
 ## Overview
 
-Better-Auth is integrated as a plugin. The plugin:
-1. Creates a read-only `user` collection (maps to better-auth's user table)
-2. Allows extending the user collection with additional fields
-3. Enables relations from other collections to users
+Authentication is built into collections. The auth system:
+1. Provides a `users` collection (read-only) for user data
+2. Handles sessions, OAuth, email/password authentication
+3. Enables direct relations from other collections to users
+4. Uses Drizzle internally - no separate schema needed
 
 ## Architecture
-
-```
-config.defineConfig({
-  plugins: [betterAuthPlugin({ ... })],  // Adds user collection
-  collections: [posts, comments]           // Your custom collections
-})
-```
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Your App                             │
 ├─────────────────────────────────────────────────────────┤
 │  config.db.posts.find()     →  CRUD on posts            │
-│  config.db.users.find()    →  Read-only (from plugin) │
-│  config.auth.api.*         →  Better-Auth API           │
+│  config.db.users.find()    →  Read-only (auth native) │
+│  config.auth.api.*         →  Auth API                 │
 └─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  Drizzle (auto)  │
+                    └─────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │    PostgreSQL   │
+                    └─────────────────┘
 ```
+
+All tables (users, sessions, accounts, posts, etc.) are managed by the same Drizzle instance.
 
 ## Setup
 
@@ -36,10 +42,10 @@ config.defineConfig({
 pnpm add better-auth @better-auth/drizzle-adapter
 ```
 
-### 2. Configure with plugin
+### 2. Configure auth
 
 ```typescript
-import { defineConfig, collection, field, f, pgAdapter, betterAuthPlugin } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
 
 // Define your collections
 const posts = collection({
@@ -54,39 +60,37 @@ const posts = collection({
   }
 })
 
-// Create config with better-auth plugin
+// Create config with auth
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  plugins: [
-    betterAuthPlugin({
-      emailAndPassword: { enabled: true },
-      // Extend the user collection with custom fields
-      user: {
-        fields: {
-          role: field({
-            fieldType: f.select(['user', 'admin']),
-            required: false
-          }),
-          bio: field({
-            fieldType: f.text(),
-            required: false
-          })
-        }
+  auth: defineAuth({
+    emailAndPassword: { enabled: true },
+    // Extend user with custom fields
+    user: {
+      fields: {
+        role: field({
+          fieldType: f.select(['user', 'admin']),
+          required: false
+        }),
+        bio: field({
+          fieldType: f.text(),
+          required: false
+        })
       }
-    })
-  ]
+    }
+  })
 })
 ```
 
 ### 3. Usage
 
 ```typescript
-import { config, auth } from './config'
+import { config } from './config'
 import { headers } from 'next/headers'
 
 // Get current session
-const session = await auth.api.getSession({
+const session = await config.auth.api.getSession({
   headers: await headers()
 })
 
@@ -95,7 +99,7 @@ const post = await config.db.posts.create({
   data: {
     title: 'My Post',
     content: 'Content here',
-    author: session.user.id  // Use better-auth user ID
+    author: session.user.id
   }
 })
 
@@ -105,29 +109,28 @@ const postsWithAuthors = await config.db.posts.findMany({
 })
 ```
 
-## User Collection
+## Users Collection
 
-The `betterAuthPlugin` automatically adds a `users` collection:
+The auth system automatically creates a `users` collection:
 
 ```typescript
-// Available automatically after adding plugin
+// Available automatically
 config.db.users.find()
 config.db.users.findById(userId)
 
-// Fields from better-auth (always available):
+// Fields from auth (always available):
 // - id, name, email, emailVerified, image, createdAt, updatedAt
 
 // Extended fields (if configured):
 // - role, bio, etc.
 ```
 
-### Extending User Collection
+### Extending Users
 
 ```typescript
-betterAuthPlugin({
+defineAuth({
   user: {
     fields: {
-      // Add custom fields
       role: field({
         fieldType: f.select(['user', 'admin', 'moderator'])
       }),
@@ -144,7 +147,7 @@ betterAuthPlugin({
 Use `f.relation()` to link collections to users:
 
 ```typescript
-// Post has one author (user)
+// Post has one author
 const posts = collection({
   slug: 'posts',
   fields: {
@@ -155,7 +158,7 @@ const posts = collection({
   }
 })
 
-// Comment has one author (user)
+// Comment has one author
 const comments = collection({
   slug: 'comments',
   fields: {
@@ -165,54 +168,99 @@ const comments = collection({
     })
   }
 })
+```
 
-// User has many posts
-const users = collection({
-  slug: 'users',
-  // This collection is extended from better-auth
-  fields: {
-    // ... extended fields
-    posts: field({
-      fieldType: f.relation({ to: 'posts', many: true })
-    })
+## Auth API
+
+```typescript
+// Sign in
+await config.auth.api.signInEmail({
+  body: { email, password }
+})
+
+// Sign up
+await config.auth.api.signUpEmail({
+  body: { email, password, name }
+})
+
+// Get session
+const { user, session } = await config.auth.api.getSession({ headers })
+
+// Sign out
+await config.auth.api.signOut({ headers })
+```
+
+## OAuth Providers
+
+```typescript
+defineAuth({
+  emailAndPassword: { enabled: true },
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+    }
   }
 })
 ```
 
-## API Access
+## Database Schema
 
-Better-Auth API is available via the `auth` instance:
+The auth system creates these tables automatically:
 
-```typescript
-import { auth } from '@deessejs/collections/auth'
+| Table | Description |
+|-------|-------------|
+| `user` | User accounts (id, name, email, image, createdAt, updatedAt + custom fields) |
+| `session` | Active sessions (id, userId, token, expiresAt) |
+| `account` | OAuth/credential accounts |
+| `verification` | Email verification tokens |
 
-// Server-side API calls
-await auth.api.signInEmail({
-  body: { email, password }
-})
+Your collections create additional tables:
 
-await auth.api.getSession({ headers })
+```sql
+-- Example schema (auto-generated)
+CREATE TABLE user (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT UNIQUE,
+  email_verified BOOLEAN DEFAULT FALSE,
+  image TEXT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP,
+  -- extended fields
+  role TEXT DEFAULT 'user',
+  bio TEXT
+);
 
-await auth.api.signOut({ headers })
+CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  title TEXT,
+  content TEXT,
+  author_id TEXT REFERENCES user(id),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
 ```
 
 ## Migrations
 
 ```bash
-# Generate better-auth schema (includes extended fields)
+# Generate all schema (auth + collections)
 npx auth@latest generate
 
 # Apply migrations
 npx auth@latest migrate
-
-# Collections schema is auto-generated
 ```
 
 ## Full Example
 
 ```typescript
 // config.ts
-import { defineConfig, collection, field, f, pgAdapter, betterAuthPlugin } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -224,9 +272,6 @@ const posts = collection({
     published: field({ fieldType: f.boolean() }),
     author: field({
       fieldType: f.relation({ to: 'users' })
-    }),
-    tags: field({
-      fieldType: f.relation({ to: 'tags', many: true })
     })
   }
 })
@@ -243,47 +288,43 @@ const tags = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts, tags],
-  plugins: [
-    betterAuthPlugin({
-      emailAndPassword: { enabled: true },
-      socialProviders: {
-        github: {
-          clientId: process.env.GITHUB_CLIENT_ID!,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET!
-        }
-      },
-      user: {
-        fields: {
-          role: field({
-            fieldType: f.select(['user', 'admin']),
-            required: false,
-            defaultValue: 'user'
-          })
-        }
+  auth: defineAuth({
+    emailAndPassword: { enabled: true },
+    socialProviders: {
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID!,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET!
       }
-    })
-  ]
+    },
+    user: {
+      fields: {
+        role: field({
+          fieldType: f.select(['user', 'admin']),
+          required: false,
+          defaultValue: 'user'
+        })
+      }
+    }
+  })
 })
-
-export const { auth } = config.auth
 ```
 
 ```typescript
 // actions.ts
-import { config, auth } from './config'
+import { config } from './config'
 import { headers } from 'next/headers'
 
 export async function createPost(formData: FormData) {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const { user } = await config.auth.api.getSession({ headers: await headers() })
 
-  if (!session) throw new Error('Not authenticated')
+  if (!user) throw new Error('Not authenticated')
 
   return config.db.posts.create({
     data: {
       title: formData.get('title') as string,
       content: formData.get('content') as string,
       published: true,
-      author: session.user.id
+      author: user.id
     }
   })
 }
@@ -295,10 +336,10 @@ export async function getPosts() {
 }
 
 export async function getMyPosts() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const { user } = await config.auth.api.getSession({ headers: await headers() })
 
   return config.db.posts.findMany({
-    where: { author: session?.user.id }
+    where: { author: user?.id }
   })
 }
 ```
@@ -307,10 +348,10 @@ export async function getMyPosts() {
 
 | Feature | Implementation |
 |---------|----------------|
-| Authentication | `betterAuthPlugin()` |
-| User collection | Added by plugin (read-only) |
-| Extend user | `user.fields` in plugin config |
+| Auth config | `auth: defineAuth({ ... })` |
+| Users collection | Built-in (read-only) |
+| Extend users | `auth.user.fields` |
 | Relations | `f.relation({ to: 'users' })` |
 | Auth API | `config.auth.api.*` |
 
-The plugin approach keeps concerns separated while making the user collection available for relations.
+Auth is native to collections, providing seamless integration between your data model and authentication.

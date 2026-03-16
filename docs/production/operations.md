@@ -32,6 +32,61 @@ const result = await config.db.posts.find()
 // result.meta = { total: 100, limit: 100, offset: 0 }
 ```
 
+### Pagination
+
+Collections support cursor-based and offset pagination.
+
+#### Offset Pagination
+
+```typescript
+// Simple pagination
+const result = await config.db.posts.find({
+  limit: 10,
+  offset: 0
+})
+
+// result.meta = { total: 100, limit: 10, offset: 0 }
+```
+
+#### Cursor Pagination (Recommended for Large Datasets)
+
+```typescript
+// Get first page
+const firstPage = await config.db.posts.find({
+  cursor: { limit: 10 },
+  orderBy: { id: 'desc' }
+})
+
+// Get next page using last record's id
+const nextPage = await config.db.posts.find({
+  cursor: {
+    limit: 10,
+    after: lastPage.data[lastPage.data.length - 1].id
+  },
+  orderBy: { id: 'desc' }
+})
+```
+
+#### Pagination Response
+
+All find operations return pagination metadata:
+
+```typescript
+const result = await config.db.posts.find({
+  limit: 10,
+  offset: 0
+})
+
+// result.meta:
+{
+  total: 100,      // Total records
+  limit: 10,       // Requested limit
+  offset: 0,        // Current offset
+  hasMore: true,    // Whether more records exist
+  nextOffset: 10    // Next offset for pagination
+}
+```
+
 ### find with filters
 
 Filter results using `where`:
@@ -408,6 +463,88 @@ async function getPage(page: number) {
     orderBy: { createdAt: 'desc' },
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE
+  })
+}
+
+// With metadata
+async function getPaginatedPosts(page: number) {
+  const result = await config.db.posts.find({
+    orderBy: { createdAt: 'desc' },
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE
+  })
+
+  return {
+    data: result.data,
+    page,
+    totalPages: Math.ceil(result.meta.total / PAGE_SIZE),
+    hasNextPage: result.meta.hasMore
+  }
+}
+```
+
+### Cursor-based Pagination (Performance)
+
+For large datasets, use cursor pagination for better performance:
+
+```typescript
+// First page
+async function getFirstPosts(limit: number = 10) {
+  return config.db.posts.find({
+    cursor: { limit },
+    orderBy: { id: 'desc' }
+  })
+}
+
+// Next page
+async function getNextPosts(afterId: number, limit: number = 10) {
+  return config.db.posts.find({
+    cursor: {
+      limit,
+      after: afterId
+    },
+    orderBy: { id: 'desc' }
+  })
+}
+
+// Previous page
+async function getPreviousPosts(beforeId: number, limit: number = 10) {
+  return config.db.posts.find({
+    cursor: {
+      limit,
+      before: beforeId
+    },
+    orderBy: { id: 'desc' }
+  })
+}
+```
+
+### Paginated API Endpoint
+
+```typescript
+// app/api/posts/route.ts
+import { config } from '@/lib/collections'
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100)
+
+  const result = await config.db.posts.find({
+    orderBy: { createdAt: 'desc' },
+    limit,
+    offset: (page - 1) * limit
+  })
+
+  return Response.json({
+    data: result.data,
+    meta: {
+      page,
+      limit,
+      total: result.meta.total,
+      totalPages: Math.ceil(result.meta.total / limit),
+      hasMore: result.meta.hasMore
+    }
   })
 }
 ```

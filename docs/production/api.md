@@ -18,7 +18,7 @@ DELETE /api/collections/:collection/:id    → Delete record
 
 ```typescript
 import { Hono } from 'hono'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono()
 
@@ -152,7 +152,7 @@ Response:
 
 ```typescript
 import { Hono } from 'hono'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono<{
   Variables: {
@@ -186,7 +186,7 @@ You can also create custom endpoints that use collections:
 
 ```typescript
 import { Hono } from 'hono'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono()
 
@@ -274,7 +274,7 @@ app.post('/api/collections/posts', async (c) => {
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
-import { config } from './config'
+import { config } from '@/lib/collections'
 import { z } from 'zod'
 
 const app = new Hono<{

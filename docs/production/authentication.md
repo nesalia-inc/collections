@@ -88,7 +88,7 @@ export const config = defineConfig({
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono()
 
@@ -131,7 +131,7 @@ serve(app)
 
 ```typescript
 import { Hono } from 'hono'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono<{
   Variables: {
@@ -345,7 +345,7 @@ export const config = defineConfig({
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
-import { config } from './config'
+import { config } from '@/lib/collections'
 
 const app = new Hono<{
   Variables: {

@@ -13,12 +13,15 @@ Collections provides a seamless Next.js integration with:
 ## Project Structure
 
 ```
+src/
+└── lib/
+    └── collections.ts    # Collections config
+
 app/
-├── (deesse)/
-│   └── api/
-│       └── [...route]/
-│           └── route.ts    # All API routes handled internally
-└── ...
+└── (deesse)/
+    └── api/
+        └── [...route]/
+            └── route.ts  # API route handler
 ```
 
 ## Setup
@@ -32,7 +35,7 @@ pnpm add @deessejs/collections better-auth @better-auth/drizzle-adapter
 ### 2. Configure
 
 ```typescript
-// lib/config.ts
+// src/lib/collections.ts
 import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
 
 const posts = collection({
@@ -65,7 +68,7 @@ All API routes are handled automatically:
 // app/(deesse)/api/[...route]/route.ts
 /* THIS FILE WAS GENERATED AUTOMATICALLY BY COLLECTIONS. */
 /* DO NOT MODIFY IT BECAUSE IT COULD BE REWRITTEN AT ANY TIME. */
-import { config } from '@deessejs/collections/config'
+import { config } from '@/lib/collections'
 import {
   REST_DELETE,
   REST_GET,
@@ -100,7 +103,7 @@ That's it! All routes are automatically handled:
 // actions/posts.ts
 'use server'
 
-import { config } from '@/lib/config'
+import { config } from '@deessejs/collections/config'
 import { headers } from 'next/headers'
 
 export async function getPosts() {
@@ -239,7 +242,7 @@ Protect routes with middleware:
 // middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { config } from '@/lib/config'
+import { config } from '@deessejs/collections/config'
 
 export async function middleware(request: NextRequest) {
   const session = await config.auth.api.getSession({
@@ -269,7 +272,7 @@ export const config = {
 ## Extended Example
 
 ```typescript
-// lib/config.ts
+// app/(deesse)/lib/collections.ts
 import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
 
 const posts = collection({
@@ -323,7 +326,7 @@ export const config = defineConfig({
 ```typescript
 // app/(deesse)/api/[...route]/route.ts
 import { NextRequest } from 'next/server'
-import { config } from '@/lib/config'
+import { config } from '@deessejs/collections/config'
 
 import { config } from '@deessejs/collections/config'
 import {
@@ -347,7 +350,7 @@ export const OPTIONS = REST_OPTIONS(config)
 // actions/posts.ts
 'use server'
 
-import { config } from '@/lib/config'
+import { config } from '@deessejs/collections/config'
 import { headers } from 'next/headers'
 
 export async function getPosts() {

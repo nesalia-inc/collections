@@ -39,3 +39,4 @@ vitest.config.ts.mjs
 # Changesets
 .changeset/*.md
 !.changeset/README.md
+temp/

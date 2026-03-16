@@ -14,11 +14,10 @@ Authentication is built into collections. The auth system:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Your App                             │
+│                    Your App (Hono)                       │
 ├─────────────────────────────────────────────────────────┤
-│  config.db.posts.find()     →  CRUD on posts            │
-│  config.db.users.find()    →  Read-only (auth native) │
-│  config.auth.api.*         →  Auth API                 │
+│  /api/auth/*          →  Auth endpoints                 │
+│  /api/collections/*   →  Collections CRUD               │
 └─────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -39,7 +38,7 @@ All tables (users, sessions, accounts, posts, etc.) are managed by the same Driz
 ### 1. Install dependencies
 
 ```bash
-pnpm add better-auth @better-auth/drizzle-adapter
+pnpm add better-auth @better-auth/drizzle-adapter hono
 ```
 
 ### 2. Configure auth
@@ -83,29 +82,86 @@ export const config = defineConfig({
 })
 ```
 
-### 3. Usage
+### 3. Setup Hono Server
 
 ```typescript
+import { Hono } from 'hono'
+import { serve } from '@hono/node-server'
+import { cors } from 'hono/cors'
 import { config } from './config'
-import { headers } from 'next/headers'
 
-// Get current session
-const session = await config.auth.api.getSession({
-  headers: await headers()
+const app = new Hono()
+
+// CORS for API
+app.use('/api/*', cors({
+  origin: '*',
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}))
+
+// Auth routes
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+  return config.auth.handler(c.req.raw)
 })
 
-// Create post with user relation
-const post = await config.db.posts.create({
-  data: {
-    title: 'My Post',
-    content: 'Content here',
-    author: session.user.id
+// Collections API
+app.get('/api/collections/posts', async (c) => {
+  const posts = await config.db.posts.findMany({
+    include: { author: true }
+  })
+  return c.json(posts)
+})
+
+app.post('/api/collections/posts', async (c) => {
+  const body = await c.req.json()
+  const post = await config.db.posts.create({
+    data: {
+      title: body.title,
+      content: body.content,
+      author: body.authorId
+    }
+  })
+  return c.json(post)
+})
+
+serve(app)
+```
+
+### 4. Middleware for Protected Routes
+
+```typescript
+import { Hono } from 'hono'
+import { config } from './config'
+
+const app = new Hono<{
+  Variables: {
+    user: typeof config.auth.$Infer.Session.user | null
+    session: typeof config.auth.$Infer.Session.session | null
   }
+}>()
+
+// Auth middleware
+app.use('/api/*', async (c, next) => {
+  const session = await config.auth.api.getSession({
+    headers: c.req.raw.headers
+  })
+
+  c.set('user', session?.user ?? null)
+  c.set('session', session?.session ?? null)
+
+  await next()
 })
 
-// Find posts with author
-const postsWithAuthors = await config.db.posts.findMany({
-  include: { author: true }
+// Protected route example
+app.get('/api/me/posts', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+
+  const posts = await config.db.posts.findMany({
+    where: { author: user.id }
+  })
+
+  return c.json(posts)
 })
 ```
 
@@ -219,32 +275,7 @@ The auth system creates these tables automatically:
 | `account` | OAuth/credential accounts |
 | `verification` | Email verification tokens |
 
-Your collections create additional tables:
-
-```sql
--- Example schema (auto-generated)
-CREATE TABLE user (
-  id TEXT PRIMARY KEY,
-  name TEXT,
-  email TEXT UNIQUE,
-  email_verified BOOLEAN DEFAULT FALSE,
-  image TEXT,
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP,
-  -- extended fields
-  role TEXT DEFAULT 'user',
-  bio TEXT
-);
-
-CREATE TABLE posts (
-  id SERIAL PRIMARY KEY,
-  title TEXT,
-  content TEXT,
-  author_id TEXT REFERENCES user(id),
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-);
-```
+Your collections create additional tables.
 
 ## Migrations
 
@@ -310,38 +341,110 @@ export const config = defineConfig({
 ```
 
 ```typescript
-// actions.ts
+// server.ts
+import { Hono } from 'hono'
+import { serve } from '@hono/node-server'
+import { cors } from 'hono/cors'
 import { config } from './config'
-import { headers } from 'next/headers'
 
-export async function createPost(formData: FormData) {
-  const { user } = await config.auth.api.getSession({ headers: await headers() })
+const app = new Hono<{
+  Variables: {
+    user: typeof config.auth.$Infer.Session.user | null
+    session: typeof config.auth.$Infer.Session.session | null
+  }
+}>()
 
-  if (!user) throw new Error('Not authenticated')
+// CORS
+app.use('/api/*', cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}))
 
-  return config.db.posts.create({
-    data: {
-      title: formData.get('title') as string,
-      content: formData.get('content') as string,
-      published: true,
-      author: user.id
-    }
+// Auth middleware
+app.use('/api/protected/*', async (c, next) => {
+  const session = await config.auth.api.getSession({
+    headers: c.req.raw.headers
   })
-}
 
-export async function getPosts() {
-  return config.db.posts.findMany({
+  if (!session) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  c.set('user', session.user)
+  c.set('session', session.session)
+
+  await next()
+})
+
+// Auth routes
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+  return config.auth.handler(c.req.raw)
+})
+
+// Public routes
+app.get('/api/posts', async (c) => {
+  const posts = await config.db.posts.findMany({
+    where: { published: true },
     include: { author: true }
   })
-}
+  return c.json(posts)
+})
 
-export async function getMyPosts() {
-  const { user } = await config.auth.api.getSession({ headers: await headers() })
-
-  return config.db.posts.findMany({
-    where: { author: user?.id }
+// Protected routes
+app.get('/api/me/posts', async (c) => {
+  const user = c.get('user')
+  const posts = await config.db.posts.findMany({
+    where: { author: user!.id }
   })
-}
+  return c.json(posts)
+})
+
+app.post('/api/posts', async (c) => {
+  const user = c.get('user')
+  const body = await c.req.json()
+
+  const post = await config.db.posts.create({
+    data: {
+      title: body.title,
+      content: body.content,
+      published: body.published ?? false,
+      author: user!.id
+    }
+  })
+
+  return c.json(post, 201)
+})
+
+serve(app)
+```
+
+```typescript
+// client.ts
+import { hc } from 'hono/client'
+import type { AppType } from './server'
+
+const client = hc<AppType>('http://localhost:3000', {
+  init: {
+    credentials: 'include',
+  },
+})
+
+// Sign in
+await client.api.auth.signIn.email.post({
+  email: 'user@example.com',
+  password: 'password'
+})
+
+// Get posts
+const posts = await client.api.posts.$get()
+
+// Create post (authenticated)
+await client.api.posts.post({
+  title: 'My Post',
+  content: 'Content here'
+})
 ```
 
 ## Summary
@@ -352,6 +455,7 @@ export async function getMyPosts() {
 | Users collection | Built-in (read-only) |
 | Extend users | `auth.user.fields` |
 | Relations | `f.relation({ to: 'users' })` |
+| Server | Hono |
 | Auth API | `config.auth.api.*` |
 
 Auth is native to collections, providing seamless integration between your data model and authentication.

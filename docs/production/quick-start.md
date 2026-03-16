@@ -79,9 +79,9 @@ await db.posts.update({
 await db.posts.delete({ where: { id: post.id } })
 ```
 
-## With Authentication
+## With Authentication (Optional)
 
-To use relations with users, add auth:
+Auth is optional. If enabled, it creates users, sessions, accounts, and verification tables automatically.
 
 ```typescript
 import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
@@ -96,6 +96,7 @@ const posts = collection({
   }
 })
 
+// With auth - creates user, session, account, verification tables
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
@@ -104,10 +105,10 @@ export const config = defineConfig({
   }
 })
 
-// Users collection is now available automatically
-const users = await config.db.users.findMany()
-const postsWithAuthors = await config.db.posts.findMany({
-  include: { author: true }
+// Without auth - no auth tables, just your collections
+export const configLocal = defineConfig({
+  database: sqliteAdapter({ url: './data.db' }),
+  collections: [posts]
 })
 ```
 

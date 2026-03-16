@@ -4,11 +4,13 @@ Learn how authentication works in @deessejs/collections.
 
 ## Overview
 
-Authentication is built into collections. The auth system:
+Authentication is **optional** in collections. When enabled:
 1. Provides a `users` collection (read-only) for user data
 2. Handles sessions, OAuth, email/password authentication
 3. Enables direct relations from other collections to users
 4. Uses Drizzle internally - no separate schema needed
+
+When not enabled, no auth tables are created.
 
 ## Architecture
 
@@ -451,11 +453,11 @@ await client.api.posts.post({
 
 | Feature | Implementation |
 |---------|----------------|
-| Auth config | `auth: { ... }` (Better-Auth options) |
-| Users collection | Built-in (read-only) |
+| Auth | Optional - `auth: { ... }` (Better-Auth options) |
+| Users collection | Built-in when auth enabled (read-only) |
 | Extend users | `auth.user.fields` |
 | Relations | `f.relation({ to: 'users' })` |
 | Server | Hono |
 | Auth API | `config.auth.api.*` |
 
-Auth is native to collections, providing seamless integration between your data model and authentication.
+Auth is optional. When disabled, no auth tables are created and you can use collections without authentication.

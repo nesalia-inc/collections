@@ -5,7 +5,7 @@ A high-level data modeling and API layer built on top of Drizzle ORM. Inspired b
 ## Features
 
 - **Collections** - Define data models with fields and types
-- **Auth** - Built-in authentication with Better-Auth
+- **Auth** - Optional built-in authentication with Better-Auth
 - **REST API** - Automatic REST endpoints
 - **Hooks** - Lifecycle hooks for validation and logic
 - **Relations** - Link collections together
@@ -37,17 +37,24 @@ export const config = defineConfig({
 })
 ```
 
-## Authentication
+## Authentication (Optional)
 
-Add built-in auth with users collection:
+Auth is optional. If enabled, it creates users, sessions, accounts, and verification tables.
 
 ```typescript
+// With auth - creates user, session, account, verification tables
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
   auth: {
     emailAndPassword: { enabled: true }
   }
+})
+
+// Without auth - no auth tables created
+export const config = defineConfig({
+  database: sqliteAdapter({ url: './data.db' }),
+  collections: [todos, projects]
 })
 ```
 

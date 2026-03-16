@@ -62,9 +62,12 @@ const config = defineConfig({
 })
 ```
 
-## Auth
+## Auth (Optional)
+
+Auth is optional. When enabled, it creates users, sessions, accounts, and verification tables.
 
 ```typescript
+// With auth - creates user, session, account, verification tables
 const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
@@ -85,7 +88,13 @@ const config = defineConfig({
         })
       }
     }
-  })
+  }
+})
+
+// Without auth - no auth tables created
+const configLocal = defineConfig({
+  database: sqliteAdapter({ url: './data.db' }),
+  collections: [todos, projects]
 })
 ```
 

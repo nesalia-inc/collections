@@ -23,67 +23,100 @@ config.db.posts.delete()
 
 ### find
 
-Get all records from a collection.
+Get all records from a collection (paginated).
 
 ```typescript
 const result = await config.db.posts.find()
 
-// result.data = [{ id: 1, title: 'Post 1', ... }]
-// result.meta = { total: 100, limit: 100, offset: 0 }
+// result.current.data = [{ id: 1, title: 'Post 1', ... }]
+// result.current.total = 100
+// result.current.limit = 100
+// result.current.offset = 0
 ```
 
 ### Pagination
 
-Collections support cursor-based and offset pagination.
+All paginated operations return a `Paginated<T>` object with the current data and navigation methods:
+
+```typescript
+interface Paginated<T> {
+  current: {
+    data: T[]
+    total: number
+    limit: number
+    offset: number
+  }
+  hasNext(): boolean
+  hasPrevious(): boolean
+  next(): Promise<Paginated<T> | null>
+  previous(): Promise<Paginated<T> | null>
+}
+```
 
 #### Offset Pagination
 
+Offset pagination uses `limit` and `offset` to skip a number of records:
+
 ```typescript
-// Simple pagination
 const result = await config.db.posts.find({
   limit: 10,
   offset: 0
 })
 
-// result.meta = { total: 100, limit: 10, offset: 0 }
+// Access data
+result.current.data    // [{ id: 1, title: 'Post 1', ... }]
+result.current.total   // 100
+result.current.limit   // 10
+result.current.offset  // 0
+
+// Navigation
+result.hasNext()      // true
+result.hasPrevious()  // false
+const nextPage = await result.next()
+const prevPage = await result.previous()
+```
+
+**Note:** `offset` is the number of records to skip, not the page number. To convert from page number:
+```typescript
+offset = (page - 1) * limit
 ```
 
 #### Cursor Pagination (Recommended for Large Datasets)
 
 ```typescript
-// Get first page
-const firstPage = await config.db.posts.find({
+const result = await config.db.posts.find({
   cursor: { limit: 10 },
   orderBy: { id: 'desc' }
 })
 
-// Get next page using last record's id
-const nextPage = await config.db.posts.find({
-  cursor: {
-    limit: 10,
-    after: lastPage.data[lastPage.data.length - 1].id
-  },
-  orderBy: { id: 'desc' }
-})
+// Access data
+result.current.data    // [{ id: 10, title: 'Post 10', ... }]
+
+// Navigation using cursors
+const nextPage = await result.next()
+const prevPage = await result.previous()
 ```
 
-#### Pagination Response
+#### Cursor-based Navigation
 
-All find operations return pagination metadata:
+Cursor pagination automatically handles navigation using the last record's values:
 
 ```typescript
-const result = await config.db.posts.find({
-  limit: 10,
-  offset: 0
+// First page
+const page1 = await config.db.posts.find({
+  cursor: { limit: 10 },
+  orderBy: { id: 'desc' }
 })
 
-// result.meta:
-{
-  total: 100,      // Total records
-  limit: 10,       // Requested limit
-  offset: 0,        // Current offset
-  hasMore: true,    // Whether more records exist
-  nextOffset: 10    // Next offset for pagination
+// Get next page - automatically uses last record as cursor
+if (page1.hasNext()) {
+  const page2 = await page1.next()
+  // page2.current.data contains records after page1's last record
+}
+
+// Get previous page
+if (page2.hasPrevious()) {
+  const page1Again = await page2.previous()
 }
 ```
 
@@ -98,6 +131,10 @@ const result = await config.db.posts.find({
   limit: 10,
   offset: 0
 })
+
+// Access paginated data
+result.current.data
+result.current.total
 ```
 
 ### findById
@@ -345,35 +382,47 @@ Select specific fields:
 
 ## Return Values
 
-All operations return an `OperationResult`:
+### Paginated Results (find)
+
+The `find` operation returns a `Paginated<T>` object:
 
 ```typescript
-const result = await config.db.posts.find()
+const result = await config.db.posts.find({
+  limit: 10,
+  offset: 0
+})
 
-// result.data = [...] // The actual data
-// result.meta = { ... } // Metadata
+// Access data
+result.current.data     // T[] - The records
+result.current.total    // number - Total count
+result.current.limit    // number - Limit used
+result.current.offset  // number - Offset used
+
+// Navigation methods
+result.hasNext()        // boolean
+result.hasPrevious()    // boolean
+await result.next()     // Promise<Paginated<T> | null>
+await result.previous() // Promise<Paginated<T> | null>
 ```
 
-### Read Operations (find, findById, findFirst)
+### Single Results (findById, findFirst, create, update)
 
 ```typescript
-{
-  data: T[],
-  meta: {
-    cacheKeys?: string[]  // Cache keys for invalidation
-  }
-}
+const result = await config.db.posts.findById(1)
+
+// result.data = { id: 1, title: 'Post 1', ... }
 ```
 
-### Write Operations (create, update, delete)
+### Count and Write Operations
 
 ```typescript
-{
-  data: T | number,  // Created/updated record or count
-  meta: {
-    invalidateKeys?: string[]  // Keys to invalidate in cache
-  }
-}
+// count
+const count = await config.db.posts.count({ where: { published: true } })
+// count.data = 42
+
+// createMany, updateMany, deleteMany
+const result = await config.db.posts.deleteMany({ where: { published: false } })
+// result.data = 10 (number of affected records)
 ```
 
 ## Type Safety
@@ -415,12 +464,15 @@ const post = await config.db.posts.create({
   }
 })
 
-// Read
+// Read (paginated)
 const allPosts = await config.db.posts.find()
 const publishedPosts = await config.db.posts.find({
   where: { published: true },
   orderBy: { createdAt: 'desc' }
 })
+
+// Access data
+allPosts.current.data
 
 // Update
 await config.db.posts.update({
@@ -450,7 +502,7 @@ const posts = await config.db.posts.find({
   include: { author: true }
 })
 
-// posts.data[0].author = { id: 'user-123', name: 'John' }
+// posts.current.data[0].author = { id: 'user-123', name: 'John' }
 ```
 
 ### Pagination
@@ -458,6 +510,7 @@ const posts = await config.db.posts.find({
 ```typescript
 const PAGE_SIZE = 10
 
+// Simple pagination
 async function getPage(page: number) {
   return config.db.posts.find({
     orderBy: { createdAt: 'desc' },
@@ -475,47 +528,41 @@ async function getPaginatedPosts(page: number) {
   })
 
   return {
-    data: result.data,
+    data: result.current.data,
     page,
-    totalPages: Math.ceil(result.meta.total / PAGE_SIZE),
-    hasNextPage: result.meta.hasMore
+    totalPages: Math.ceil(result.current.total / PAGE_SIZE),
+    hasNextPage: result.hasNext()
   }
 }
 ```
 
 ### Cursor-based Pagination (Performance)
 
-For large datasets, use cursor pagination for better performance:
+For large datasets, use cursor pagination with navigation methods:
 
 ```typescript
-// First page
-async function getFirstPosts(limit: number = 10) {
+// First page - use navigation methods for best performance
+async function getPosts(limit: number = 10) {
   return config.db.posts.find({
     cursor: { limit },
     orderBy: { id: 'desc' }
   })
 }
 
-// Next page
-async function getNextPosts(afterId: number, limit: number = 10) {
-  return config.db.posts.find({
-    cursor: {
-      limit,
-      after: afterId
-    },
-    orderBy: { id: 'desc' }
-  })
-}
+// Navigate using methods (recommended)
+async function navigatePages() {
+  const page1 = await getPosts(10)
 
-// Previous page
-async function getPreviousPosts(beforeId: number, limit: number = 10) {
-  return config.db.posts.find({
-    cursor: {
-      limit,
-      before: beforeId
-    },
-    orderBy: { id: 'desc' }
-  })
+  // Go to next page
+  if (page1.hasNext()) {
+    const page2 = await page1.next()
+    // page2.current.data contains next set of records
+  }
+
+  // Go back to previous
+  if (page2.hasPrevious()) {
+    const page1Again = await page2.previous()
+  }
 }
 ```
 
@@ -537,13 +584,13 @@ export async function GET(request: Request) {
   })
 
   return Response.json({
-    data: result.data,
+    data: result.current.data,
     meta: {
       page,
       limit,
-      total: result.meta.total,
-      totalPages: Math.ceil(result.meta.total / limit),
-      hasMore: result.meta.hasMore
+      total: result.current.total,
+      totalPages: Math.ceil(result.current.total / limit),
+      hasMore: result.hasNext()
     }
   })
 }

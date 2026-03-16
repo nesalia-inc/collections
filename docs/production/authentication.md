@@ -200,6 +200,49 @@ config.db.users.findById(userId)
 }
 ```
 
+## Better-Auth Plugins
+
+Use Better-Auth plugins directly in your auth config. Collections provides a custom database adapter internally.
+
+```typescript
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: {
+    plugins: [
+      admin(),
+      organization(),
+      apiKey()
+    ]
+  }
+})
+```
+
+### Available Plugins
+
+| Plugin | Description |
+|--------|-------------|
+| `admin()` | Admin functions (create user, ban, impersonate) |
+| `organization()` | Organization management |
+| `apiKey()` | API key authentication |
+
+### Example with Organization
+
+```typescript
+import { organization } from 'better-auth/plugins'
+
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts, organizations, members],
+  auth: {
+    emailAndPassword: { enabled: true },
+    plugins: [
+      organization()
+    ]
+  }
+})
+```
+
 ## Relations
 
 Use `f.relation()` to link collections to users:
@@ -456,6 +499,7 @@ await client.api.posts.post({
 | Auth | Optional - `auth: { ... }` (Better-Auth options) |
 | Users collection | Built-in when auth enabled (read-only) |
 | Extend users | `auth.user.fields` |
+| Plugins | `auth.plugins: [admin(), organization(), apiKey()]` |
 | Relations | `f.relation({ to: 'users' })` |
 | Server | Hono |
 | Auth API | `config.auth.api.*` |

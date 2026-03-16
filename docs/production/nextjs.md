@@ -1,38 +1,16 @@
 # Next.js Integration
 
-Learn how to integrate @deessejs/collections with Next.js App Router.
+Learn how to integrate @deessejs/collections with Next.js.
 
-## Overview
-
-Collections provides a seamless Next.js integration with:
-- Built-in route handlers for auth and collections
-- Type-safe API routes
-- Server Actions support
-- Middleware for protected routes
-
-## Project Structure
-
-```
-src/
-└── lib/
-    └── collections.ts    # Collections config
-
-app/
-└── (deesse)/
-    └── api/
-        └── [...route]/
-            └── route.ts  # API route handler
-```
-
-## Setup
-
-### 1. Install dependencies
+## Installation
 
 ```bash
-pnpm add @deessejs/collections better-auth @better-auth/drizzle-adapter
+pnpm add @deessejs/collections @deessejs/collections-next
 ```
 
-### 2. Configure
+## Quick Setup
+
+### 1. Configure Collections
 
 ```typescript
 // src/lib/collections.ts
@@ -40,35 +18,37 @@ import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collect
 
 const posts = collection({
   slug: 'posts',
-  name: 'Posts',
   fields: {
     title: field({ fieldType: f.text() }),
     content: field({ fieldType: f.text() }),
-    published: field({ fieldType: f.boolean() }),
-    author: field({
-      fieldType: f.relation({ to: 'users' })
-    })
+    published: field({ fieldType: f.boolean() })
   }
 })
 
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
-  collections: [posts],
-  auth: {
-    emailAndPassword: { enabled: true }
-  })
+  collections: [posts]
 })
 ```
 
-### 3. Create API Route Handler
+### 2. Add to Next.js Config
 
-All API routes are handled automatically:
+```typescript
+// next.config.mjs
+import { withCollections } from '@deessejs/collections-next'
+
+export default withCollections({
+  // Your Next.js config
+})
+```
+
+### 3. Create API Route
 
 ```typescript
 // app/(deesse)/api/[...route]/route.ts
 /* THIS FILE WAS GENERATED AUTOMATICALLY BY COLLECTIONS. */
 /* DO NOT MODIFY IT BECAUSE IT COULD BE REWRITTEN AT ANY TIME. */
-import { config } from '@/lib/collections'
+import { config } from '@deessejs/collections/config'
 import {
   REST_DELETE,
   REST_GET,
@@ -76,7 +56,7 @@ import {
   REST_PATCH,
   REST_POST,
   REST_PUT,
-} from '@deessejs/collections/next'
+} from '@deessejs/collections-next'
 
 export const GET = REST_GET(config)
 export const POST = REST_POST(config)
@@ -86,297 +66,87 @@ export const PUT = REST_PUT(config)
 export const OPTIONS = REST_OPTIONS(config)
 ```
 
-That's it! All routes are automatically handled:
+## Automatic Schema Sync
 
-| Method | Route | Handler |
-|--------|-------|---------|
-| GET/POST | `/api/auth/*` | Better-Auth |
-| GET | `/api/collections/:collection` | List records |
-| GET | `/api/collections/:collection/:id` | Get record |
-| POST | `/api/collections/:collection` | Create record |
-| PUT/PATCH | `/api/collections/:collection/:id` | Update record |
-| DELETE | `/api/collections/:collection/:id` | Delete record |
-
-### 4. Use in Server Actions
+In development, the plugin automatically syncs your schema when you modify `src/lib/collections.ts`:
 
 ```typescript
-// actions/posts.ts
-'use server'
-
-import { config } from '@deessejs/collections/config'
-import { headers } from 'next/headers'
-
-export async function getPosts() {
-  return config.db.posts.findMany({
-    where: { published: true },
-    include: { author: true }
-  })
-}
-
-export async function getPost(id: number) {
-  return config.db.posts.findById({ id })
-}
-
-export async function createPost(formData: FormData) {
-  const session = await config.auth.api.getSession({
-    headers: await headers()
-  })
-
-  if (!session) {
-    throw new Error('Not authenticated')
-  }
-
-  return config.db.posts.create({
-    data: {
-      title: formData.get('title') as string,
-      content: formData.get('content') as string,
-      published: false,
-      author: session.user.id
-    }
-  })
-}
-
-export async function updatePost(id: number, data: Partial<{ title: string; content: string; published: boolean }>) {
-  return config.db.posts.update({
-    where: { id },
-    data
-  })
-}
-
-export async function deletePost(id: number) {
-  return config.db.posts.delete({ where: { id } })
-}
-```
-
-### 5. Use in Components
-
-```typescript
-// app/(deesse)/posts/page.tsx
-import { getPosts } from '@/actions/posts'
-
-export default async function PostsPage() {
-  const posts = await getPosts()
-
-  return (
-    <ul>
-      {posts.data.map((post) => (
-        <li key={post.id}>{post.title}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-## Client-Side Usage
-
-### Auth Client
-
-```typescript
-// lib/auth-client.ts
-'use client'
-
-import { createAuthClient } from 'better-auth/react'
-
-export const authClient = createAuthClient()
-```
-
-```typescript
-// components/sign-in-button.tsx
-'use client'
-
-import { authClient } from '@/lib/auth-client'
-
-export function SignInButton() {
-  return (
-    <button
-      onClick={() =>
-        authClient.signIn.email({
-          email: 'user@example.com',
-          password: 'password'
-        })
-      }
-    >
-      Sign In
-    </button>
-  )
-}
-```
-
-### API Client
-
-```typescript
-// lib/api.ts
-import { createClient, type AutoRetryOptions } from 'better-fetch'
-
-export function apiClient(baseUrl: string = '') {
-  return createClient({
-    baseUrl,
-    options: {
-      onError: (error) => {
-        console.error('API Error:', error)
-      }
-    } as AutoRetryOptions
-  })
-}
-```
-
-```typescript
-// components/post-list.tsx
-'use client'
-
-import { apiClient } from '@/lib/api'
-
-async function fetchPosts() {
-  const response = await apiClient().fetch('/api/collections/posts', {
-    method: 'GET'
-  })
-  return response.json()
-}
-```
-
-## Middleware
-
-Protect routes with middleware:
-
-```typescript
-// middleware.ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { config } from '@deessejs/collections/config'
-
-export async function middleware(request: NextRequest) {
-  const session = await config.auth.api.getSession({
-    headers: request.headers
-  })
-
-  // Protected paths
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/sign-in', request.url))
-    }
-
-    // Check role
-    if (session.user.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  return NextResponse.next()
-}
-
-export const config = {
-  matcher: ['/admin/:path*']
-}
-```
-
-## Extended Example
-
-```typescript
-// app/(deesse)/lib/collections.ts
-import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
-
+// src/lib/collections.ts
 const posts = collection({
   slug: 'posts',
   fields: {
     title: field({ fieldType: f.text() }),
-    slug: field({ fieldType: f.text(), unique: true }),
-    content: field({ fieldType: f.text() }),
-    published: field({ fieldType: f.boolean() }),
-    author: field({
-      fieldType: f.relation({ to: 'users' })
-    })
+    content: field({ fieldType: f.text() }),  // ADD THIS
   }
-})
-
-const comments = collection({
-  slug: 'comments',
-  fields: {
-    content: field({ fieldType: f.text() }),
-    postId: field({ fieldType: f.relation({ to: 'posts' }) }),
-    author: field({
-      fieldType: f.relation({ to: 'users' })
-    })
-  }
-})
-
-export const config = defineConfig({
-  database: pgAdapter({ url: process.env.DATABASE_URL! }),
-  collections: [posts, comments],
-  auth: {
-    emailAndPassword: { enabled: true },
-    socialProviders: {
-      github: {
-        clientId: process.env.GITHUB_CLIENT_ID!,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET!
-      }
-    },
-    user: {
-      fields: {
-        role: field({
-          fieldType: f.select(['user', 'admin']),
-          required: false,
-          defaultValue: 'user'
-        })
-      }
-    }
-  })
 })
 ```
+
+When you save, the plugin automatically:
+1. Detects the change
+2. Generates updated schema
+3. Pushes to database
+4. Shows notification in console
+
+## Configuration
 
 ```typescript
-// app/(deesse)/api/[...route]/route.ts
-import { NextRequest } from 'next/server'
-import { config } from '@deessejs/collections/config'
+// next.config.mjs
+import { withCollections } from '@deessejs/collections-next'
 
-import { config } from '@deessejs/collections/config'
-import {
-  REST_DELETE,
-  REST_GET,
-  REST_OPTIONS,
-  REST_PATCH,
-  REST_POST,
-  REST_PUT,
-} from '@deessejs/collections/next'
-
-export const GET = REST_GET(config)
-export const POST = REST_POST(config)
-export const DELETE = REST_DELETE(config)
-export const PATCH = REST_PATCH(config)
-export const PUT = REST_PUT(config)
-export const OPTIONS = REST_OPTIONS(config)
+export default withCollections({
+  // Your Next.js config
+}, {
+  // Collections options
+  autoPush: true,        // Auto-push on changes (default: true in dev)
+  verbose: true,         // Show detailed output
+  watchPath: './src/lib/collections.ts'  // Config path
+})
 ```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `autoPush` | boolean | `true` (dev) | Auto-push schema on changes |
+| `verbose` | boolean | `false` | Show detailed output |
+| `watchPath` | string | `./src/lib/collections.ts` | Path to collections config |
+
+## API Routes
+
+### Collections CRUD
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/collections/:collection` | List records |
+| GET | `/api/collections/:collection/:id` | Get record |
+| POST | `/api/collections/:collection` | Create record |
+| PUT | `/api/collections/:collection/:id` | Update record |
+| DELETE | `/api/collections/:collection/:id` | Delete record |
+
+### Auth
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/auth/*` | Auth endpoints |
+
+## Server Actions
 
 ```typescript
 // actions/posts.ts
 'use server'
 
-import { config } from '@deessejs/collections/config'
+import { config } from '@/lib/collections'
 import { headers } from 'next/headers'
 
 export async function getPosts() {
   return config.db.posts.findMany({
-    where: { published: true },
-    include: { author: true }
-  })
-}
-
-export async function getMyPosts() {
-  const session = await config.auth.api.getSession({
-    headers: await headers()
-  })
-
-  if (!session) return { data: [], meta: { total: 0 } }
-
-  return config.db.posts.findMany({
-    where: { author: session.user.id },
-    include: { author: true }
+    where: { published: true }
   })
 }
 
 export async function createPost(data: {
   title: string
   content: string
-  published: boolean
 }) {
   const session = await config.auth.api.getSession({
     headers: await headers()
@@ -393,35 +163,69 @@ export async function createPost(data: {
 }
 ```
 
+## Middleware
+
 ```typescript
-// app/(deesse)/posts/page.tsx
-import { getPosts } from '@/actions/posts'
+// middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { config } from '@/lib/collections'
 
-export default async function PostsPage() {
-  const { data: posts } = await getPosts()
+export async function middleware(request: NextRequest) {
+  const session = await config.auth.api.getSession({
+    headers: request.headers
+  })
 
-  return (
-    <div>
-      {posts.map((post) => (
-        <article key={post.id}>
-          <h2>{post.title}</h2>
-          <p>{post.content}</p>
-          <span>By {post.author?.name}</span>
-        </article>
-      ))}
-    </div>
-  )
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    if (!session) {
+      return NextResponse.redirect(new URL('/sign-in', request.url))
+    }
+  }
+
+  return NextResponse.next()
 }
+
+export const config = {
+  matcher: ['/admin/:path*']
+}
+```
+
+## Production Build
+
+For production, use the CLI:
+
+```bash
+# Build your app
+npm run build
+
+# Push schema to database
+npx @deessejs/collections-cli push
+```
+
+The `withCollections` plugin is automatically disabled in production.
+
+## Project Structure
+
+```
+my-app/
+├── src/
+│   └── lib/
+│       └── collections.ts    # Collections config
+├── app/
+│   └── (deesse)/
+│       └── api/
+│           └── [...route]/
+│               └── route.ts  # API handler
+├── next.config.mjs          # withCollections config
+└── package.json
 ```
 
 ## Summary
 
 | Feature | Implementation |
 |---------|----------------|
-| API Handler | `REST_GET`, `REST_POST`, etc. from `@deessejs/collections/next` |
-| Route File | `app/(deesse)/api/[...route]/route.ts` |
-| Server Actions | Use `config.db` + `config.auth.api` |
-| Client Auth | `createAuthClient()` from better-auth |
-| Middleware | Check `config.auth.api.getSession()` |
-
-All exports are handled internally - just export `GET`, `POST`, etc. from the route file.
+| Config | `src/lib/collections.ts` |
+| Next.js plugin | `withCollections()` in next.config.mjs |
+| API Handler | REST_* from `@deessejs/collections-next` |
+| Auto-push | In development only |
+| Production | Use CLI: `npx @deessejs/collections-cli push` |

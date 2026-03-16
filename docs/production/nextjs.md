@@ -59,14 +59,28 @@ export const config = defineConfig({
 
 ### 3. Create API Route Handler
 
-All API routes are handled internally:
+All API routes are handled automatically:
 
 ```typescript
 // app/(deesse)/api/[...route]/route.ts
-import { NextRequest } from 'next/server'
-import { config } from '@/lib/config'
+/* THIS FILE WAS GENERATED AUTOMATICALLY BY COLLECTIONS. */
+/* DO NOT MODIFY IT BECAUSE IT COULD BE REWRITTEN AT ANY TIME. */
+import { config } from '@deessejs/collections/config'
+import {
+  REST_DELETE,
+  REST_GET,
+  REST_OPTIONS,
+  REST_PATCH,
+  REST_POST,
+  REST_PUT,
+} from '@deessejs/collections/next'
 
-export const { GET, POST, PUT, PATCH, DELETE } = config.handlers
+export const GET = REST_GET(config)
+export const POST = REST_POST(config)
+export const DELETE = REST_DELETE(config)
+export const PATCH = REST_PATCH(config)
+export const PUT = REST_PUT(config)
+export const OPTIONS = REST_OPTIONS(config)
 ```
 
 That's it! All routes are automatically handled:
@@ -311,7 +325,22 @@ export const config = defineConfig({
 import { NextRequest } from 'next/server'
 import { config } from '@/lib/config'
 
-export const { GET, POST, PUT, PATCH, DELETE } = config.handlers
+import { config } from '@deessejs/collections/config'
+import {
+  REST_DELETE,
+  REST_GET,
+  REST_OPTIONS,
+  REST_PATCH,
+  REST_POST,
+  REST_PUT,
+} from '@deessejs/collections/next'
+
+export const GET = REST_GET(config)
+export const POST = REST_POST(config)
+export const DELETE = REST_DELETE(config)
+export const PATCH = REST_PATCH(config)
+export const PUT = REST_PUT(config)
+export const OPTIONS = REST_OPTIONS(config)
 ```
 
 ```typescript
@@ -386,7 +415,7 @@ export default async function PostsPage() {
 
 | Feature | Implementation |
 |---------|----------------|
-| API Handler | `config.handlers` |
+| API Handler | `REST_GET`, `REST_POST`, etc. from `@deessejs/collections/next` |
 | Route File | `app/(deesse)/api/[...route]/route.ts` |
 | Server Actions | Use `config.db` + `config.auth.api` |
 | Client Auth | `createAuthClient()` from better-auth |

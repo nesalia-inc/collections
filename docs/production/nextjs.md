@@ -36,7 +36,7 @@ pnpm add @deessejs/collections better-auth @better-auth/drizzle-adapter
 
 ```typescript
 // src/lib/collections.ts
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -54,7 +54,7 @@ const posts = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true }
   })
 })
@@ -273,7 +273,7 @@ export const config = {
 
 ```typescript
 // app/(deesse)/lib/collections.ts
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -302,7 +302,7 @@ const comments = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts, comments],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true },
     socialProviders: {
       github: {

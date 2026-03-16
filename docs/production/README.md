@@ -42,14 +42,12 @@ export const config = defineConfig({
 Add built-in auth with users collection:
 
 ```typescript
-import { defineAuth } from '@deessejs/collections'
-
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true }
-  })
+  }
 })
 ```
 

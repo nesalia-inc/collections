@@ -68,7 +68,7 @@ const config = defineConfig({
 const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true },
     socialProviders: {
       github: {
@@ -143,7 +143,7 @@ const config = defineConfig({
 
 ```typescript
 // lib/config.ts
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -169,7 +169,7 @@ export const config = defineConfig({
     url: process.env.DATABASE_URL!
   }),
   collections: [posts, comments],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true },
     socialProviders: {
       github: {

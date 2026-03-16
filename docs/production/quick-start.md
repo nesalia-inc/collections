@@ -84,7 +84,7 @@ await db.posts.delete({ where: { id: post.id } })
 To use relations with users, add auth:
 
 ```typescript
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -99,9 +99,9 @@ const posts = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true }
-  })
+  }
 })
 
 // Users collection is now available automatically

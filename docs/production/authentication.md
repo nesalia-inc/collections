@@ -44,7 +44,7 @@ pnpm add better-auth @better-auth/drizzle-adapter hono
 ### 2. Configure auth
 
 ```typescript
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 // Define your collections
 const posts = collection({
@@ -63,7 +63,7 @@ const posts = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true },
     // Extend user with custom fields
     user: {
@@ -184,7 +184,7 @@ config.db.users.findById(userId)
 ### Extending Users
 
 ```typescript
-defineAuth({
+{
   user: {
     fields: {
       role: field({
@@ -195,7 +195,7 @@ defineAuth({
       settings: field({ fieldType: f.json() })
     }
   }
-})
+}
 ```
 
 ## Relations
@@ -249,7 +249,7 @@ await config.auth.api.signOut({ headers })
 ## OAuth Providers
 
 ```typescript
-defineAuth({
+{
   emailAndPassword: { enabled: true },
   socialProviders: {
     github: {
@@ -261,7 +261,7 @@ defineAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!
     }
   }
-})
+}
 ```
 
 ## Database Schema
@@ -291,7 +291,7 @@ npx auth@latest migrate
 
 ```typescript
 // config.ts
-import { defineConfig, collection, field, f, pgAdapter, defineAuth } from '@deessejs/collections'
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -319,7 +319,7 @@ const tags = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts, tags],
-  auth: defineAuth({
+  auth: {
     emailAndPassword: { enabled: true },
     socialProviders: {
       github: {
@@ -451,7 +451,7 @@ await client.api.posts.post({
 
 | Feature | Implementation |
 |---------|----------------|
-| Auth config | `auth: defineAuth({ ... })` |
+| Auth config | `auth: { ... }` (Better-Auth options) |
 | Users collection | Built-in (read-only) |
 | Extend users | `auth.user.fields` |
 | Relations | `f.relation({ to: 'users' })` |

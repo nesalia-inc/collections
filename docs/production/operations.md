@@ -36,10 +36,10 @@ const result = await config.db.posts.find()
 
 ### Pagination
 
-All paginated operations return a `Paginated<T>` object with the current data and navigation methods:
+All paginated operations return a `Paginated<T>` type with the current data and navigation methods:
 
 ```typescript
-interface Paginated<T> {
+type Paginated<T> = {
   current: {
     data: T[]
     total: number
@@ -384,7 +384,7 @@ Select specific fields:
 
 ### Paginated Results (find)
 
-The `find` operation returns a `Paginated<T>` object:
+The `find` operation returns a `Paginated<T>` type:
 
 ```typescript
 const result = await config.db.posts.find({

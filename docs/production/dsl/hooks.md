@@ -17,14 +17,12 @@ export const posts = defineCollection({
   },
 
   hooks: {
-    beforeCreate: {
-      handler: async ({ data }) => {
-        // Transform data before saving
-        return {
-          ...data,
-          title: data.title.trim(),
-          createdAt: new Date()
-        }
+    beforeCreate: async ({ data }) => {
+      // Transform data before saving
+      return {
+        ...data,
+        title: data.title.trim(),
+        createdAt: new Date()
       }
     }
   }
@@ -38,8 +36,7 @@ export const posts = defineCollection({
 Runs before a new record is created.
 
 ```typescript
-beforeCreate: {
-  handler: async ({ data }) => {
+beforeCreate: async ({ data }) => {
     // Transform or validate input
     return {
       ...data,
@@ -60,8 +57,7 @@ beforeCreate: {
 Runs after a record is successfully created.
 
 ```typescript
-afterCreate: {
-  handler: async ({ result, data }) => {
+afterCreate: async ({ result, data }) => {
     // Side effects
     await sendNotification(result.id)
     await analytics.track('post_created', { id: result.id })
@@ -80,8 +76,7 @@ afterCreate: {
 Runs before a record is updated.
 
 ```typescript
-beforeUpdate: {
-  handler: async ({ data, current }) => {
+beforeUpdate: async ({ data, current }) => {
     // Compare with current data
     if (data.status === 'published' && current.status !== 'published') {
       data.publishedAt = new Date()
@@ -101,8 +96,7 @@ beforeUpdate: {
 Runs after a record is successfully updated.
 
 ```typescript
-afterUpdate: {
-  handler: async ({ result, previous }) => {
+afterUpdate: async ({ result, previous }) => {
     // Notify about changes
     await notifyUser(result.id, 'updated')
   }
@@ -119,8 +113,7 @@ afterUpdate: {
 Runs before a record is deleted.
 
 ```typescript
-beforeDelete: {
-  handler: async ({ current }) => {
+beforeDelete: async ({ current }) => {
     // Prevent deletion under certain conditions
     if (current.status === 'protected') {
       throw new Error('Cannot delete protected record')
@@ -139,8 +132,7 @@ beforeDelete: {
 Runs after a record is successfully deleted.
 
 ```typescript
-afterDelete: {
-  handler: async ({ id }) => {
+afterDelete: async ({ id }) => {
     // Clean up related data
     await deleteRelatedComments(id)
   }
@@ -157,8 +149,7 @@ afterDelete: {
 Runs before data is returned from queries.
 
 ```typescript
-beforeRead: {
-  handler: async ({ result }) => {
+beforeRead: async ({ result }) => {
     // Transform output
     return {
       ...result,
@@ -178,8 +169,7 @@ beforeRead: {
 Runs after data is read from the database (before transformation).
 
 ```typescript
-afterRead: {
-  handler: async ({ result, query }) => {
+afterRead: async ({ result, query }) => {
     // Enrich with additional data
     const author = await getAuthor(result.authorId)
     return {
@@ -202,16 +192,14 @@ Each hook receives a context object with relevant data:
 ### Create Hooks
 
 ```typescript
-beforeCreate: {
-  handler: async ({ data }) => {
+beforeCreate: async ({ data }) => {
     // data: The input data being created
     // context: Additional context (provider, locale, etc.)
     return data
   }
 }
 
-afterCreate: {
-  handler: async ({ result, data }) => {
+afterCreate: async ({ result, data }) => {
     // result: The created record
     // data: The original input data
   }
@@ -221,53 +209,43 @@ afterCreate: {
 ### Update Hooks
 
 ```typescript
-beforeUpdate: {
-  handler: async ({ data, current, changes }) => {
-    // data: The input data for update
-    // current: The current record
-    // changes: Only the fields being changed
-    return data
-  }
+beforeUpdate: async ({ data, current, changes }) => {
+  // data: The input data for update
+  // current: The current record
+  // changes: Only the fields being changed
+  return data
 }
 
-afterUpdate: {
-  handler: async ({ result, previous, changes }) => {
-    // result: The updated record
-    // previous: The record before update
-    // changes: What was changed
-  }
+afterUpdate: async ({ result, previous, changes }) => {
+  // result: The updated record
+  // previous: The record before update
+  // changes: What was changed
 }
 ```
 
 ### Delete Hooks
 
 ```typescript
-beforeDelete: {
-  handler: async ({ current }) => {
-    // current: The record being deleted
-  }
+beforeDelete: async ({ current }) => {
+  // current: The record being deleted
 }
 
-afterDelete: {
-  handler: async ({ id, previous }) => {
-    // id: The ID of deleted record
-    // previous: The record before deletion
-  }
+afterDelete: async ({ id, previous }) => {
+  // id: The ID of deleted record
+  // previous: The record before deletion
 }
 ```
 
 ### Read Hooks
 
 ```typescript
-beforeRead: {
-  handler: async ({ result }) => {
+beforeRead: async ({ result }) => {
     // result: The record from database
     return result
   }
 }
 
-afterRead: {
-  handler: async ({ result, query }) => {
+afterRead: async ({ result, query }) => {
     // result: The record
     // query: The original query params
     return result
@@ -280,8 +258,7 @@ afterRead: {
 All hooks can be async:
 
 ```typescript
-beforeCreate: {
-  handler: async ({ data }) => {
+beforeCreate: async ({ data }) => {
     // Await external calls
     const verified = await verifyEmail(data.email)
     if (!verified) {
@@ -297,8 +274,7 @@ beforeCreate: {
 Hooks can transform data by returning a new object:
 
 ```typescript
-beforeCreate: {
-  handler: async ({ data }) => {
+beforeCreate: async ({ data }) => {
     return {
       ...data,
       slug: slugify(data.title),
@@ -311,8 +287,7 @@ beforeCreate: {
 To abort an operation, throw an error:
 
 ```typescript
-beforeDelete: {
-  handler: async ({ current }) => {
+beforeDelete: async ({ current }) => {
     if (current.protected) {
       throw new Error('Cannot delete protected record')
     }
@@ -327,17 +302,13 @@ You can define multiple hooks of the same type:
 ```typescript
 hooks: {
   beforeCreate: [
-    {
-      handler: async ({ data }) => {
-        // First hook
-        return { ...data, step: 1 }
-      }
+    async ({ data }) => {
+      // First hook
+      return { ...data, step: 1 }
     },
-    {
-      handler: async ({ data }) => {
-        // Second hook
-        return { ...data, step: 2 }
-      }
+    async ({ data }) => {
+      // Second hook
+      return { ...data, step: 2 }
     }
   ]
 }
@@ -351,10 +322,7 @@ Each hook can have additional options:
 
 ```typescript
 beforeCreate: {
-  // Only run for certain conditions
   condition: ({ data }) => data.status === 'published',
-
-  // Handler
   handler: async ({ data }) => {
     return data
   }
@@ -366,8 +334,7 @@ beforeCreate: {
 Throw errors to abort operations:
 
 ```typescript
-beforeCreate: {
-  handler: async ({ data }) => {
+beforeCreate: async ({ data }) => {
     if (!data.title) {
       throw new ValidationError('Title is required')
     }
@@ -382,20 +349,18 @@ The error will be caught and returned to the caller.
 
 ```typescript
 hooks: {
-  beforeCreate: {
-    handler: async ({ data, context }) => {
-      // context contains:
-      // - context.provider: 'pg' | 'mysql' | 'sqlite'
-      // - context.locale: Current locale
-      // - context.user: Current user (if authenticated)
-      // - context.transaction: Active transaction
+  beforeCreate: async ({ data, context }) => {
+    // context contains:
+    // - context.provider: 'pg' | 'mysql' | 'sqlite'
+    // - context.locale: Current locale
+    // - context.user: Current user (if authenticated)
+    // - context.transaction: Active transaction
 
-      if (context.user) {
-        data.createdBy = context.user.id
-      }
-
-      return data
+    if (context.user) {
+      data.createdBy = context.user.id
     }
+
+    return data
   }
 }
 ```

@@ -196,7 +196,7 @@ export const posts = collection({
 
 ## Creating Custom Field Types
 
-Fields in Collections are **agnostic by design**. A field simply declares its type using DSL primitives—it has no knowledge of providers. The translation to database-specific columns happens entirely within the provider.
+Fields in Collections are **agnostic by design**. A field simply declares its type using DSL primitives—it has no knowledge of providers or Drizzle. The translation to database-specific columns happens entirely within the provider.
 
 ### Field Type Definition
 
@@ -206,19 +206,17 @@ When creating a custom field type, you only specify the DSL-level type:
 // fields/custom.ts
 import { fieldType } from '@deessejs/collections'
 import { z } from 'zod'
-import { text } from 'drizzle-orm/sqlite-core'
 
 // Just define the field using DSL primitives
 // The provider handles the translation to pgText / mysqlText / text
 export const slug = fieldType({
+  // Pure DSL type - no Drizzle knowledge
+  kind: 'text',
+
   schema: z.string()
     .regex(/^[a-z0-9-]+$/, 'Must contain only lowercase letters, numbers, and hyphens')
     .min(3)
-    .max(100),
-
-  // The database property is provider-agnostic
-  // Providers know how to translate 'text' to the appropriate column type
-  database: text()
+    .max(100)
 })
 
 // Usage - the field just declares its type

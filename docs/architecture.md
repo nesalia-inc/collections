@@ -1,189 +1,522 @@
-# Architecture
+# Provider Architecture
 
-## System Architecture
+This document describes the functional, provider-based architecture that removes all coupling between Collections core and specific database implementations.
 
-## Core Components
+## Core Principle
 
-### Configuration Layer
+Collections is **purely a DSL (Domain-Specific Language)** for defining data models. All database-specific logic lives in **providers** that implement a defined interface. The core knows nothing about databases—it only knows about collections, fields, and operations.
 
-The entry point for the system is the `defineConfig` function which accepts:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Code                               │
+├─────────────────────────────────────────────────────────────┤
+│  defineCollection({                                         │
+│    slug: 'posts',                                           │
+│    fields: {                                                │
+│      title: { kind: 'text' },                               │
+│      published: { kind: 'boolean' }                         │
+│    }                                                        │
+│  })                                                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Collections Core                          │
+├─────────────────────────────────────────────────────────────┤
+│  - Collection type definitions                              │
+│  - Field type definitions                                   │
+│  - Hooks definitions                                        │
+│  - Operation type inference                                  │
+│  - NO database logic                                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Provider Interface                         │
+├─────────────────────────────────────────────────────────────┤
+│  createTable(collection) → Query                            │
+│  buildFind(collection, query) → QueryBuilder                │
+│  buildCreate(collection, data) → QueryBuilder                │
+│  execute(query) → Result                                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Provider Implementation                    │
+├─────────────────────────────────────────────────────────────┤
+│  pgProvider(config)    → DatabaseProvider<'pg'>             │
+│  mysqlProvider(config) → DatabaseProvider<'mysql'>          │
+│  sqliteProvider(config) → DatabaseProvider<'sqlite'>       │
+│                                                              │
+│  [Each uses its own Drizzle instance internally]            │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- **Database Configuration**: Drizzle connection details and schema information
-- **Collection Definitions**: Array of collection configurations
-- **Global Plugins**: Plugins that apply to all collections
-- **Global Settings**: Cross-cutting configuration options
+## Type Definitions
 
-This configuration is processed and validated, then returns a runtime object containing:
+### Provider Types
 
-- **Collections API**: Typed object with methods for each collection
-- **Database Client**: Configured Drizzle instance
-- **Metadata**: Collection and field information for tooling
+```typescript
+// Supported database providers
+type Provider = 'pg' | 'mysql' | 'sqlite'
+
+// Provider configuration
+type ProviderConfig =
+  | { provider: 'pg'; url: string }
+  | { provider: 'mysql'; url: string }
+  | { provider: 'sqlite'; url: string }
+```
+
+### Field Types
+
+```typescript
+// Core field type definitions (database-agnostic)
+type FieldKind =
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'uuid'
+  | 'timestamp'
+  | 'date'
+  | 'json'
+  | 'enum'
+  | 'array'
+  | 'relation'
+  | 'custom'
+
+// Field definition
+type FieldDefinition<TKind extends FieldKind = FieldKind> = {
+  kind: TKind
+  required?: boolean
+  default?: unknown
+  unique?: boolean
+  indexed?: boolean
+} & (
+  TKind extends 'text' ? { maxLength?: number } :
+  TKind extends 'number' ? { integer?: boolean; precision?: number; scale?: number } :
+  TKind extends 'uuid' ? { autoGenerate?: boolean } :
+  TKind extends 'timestamp' | 'date' ? { precision?: number; timezone?: boolean } :
+  TKind extends 'enum' ? { values: readonly [string, ...string[]] } :
+  TKind extends 'array' ? { items: FieldDefinition } :
+  TKind extends 'relation' ? { target: string; type: 'one-to-one' | 'one-to-many' | 'many-to-many'; through?: string } :
+  TKind extends 'custom' ? { validate: unknown; serialize: (value: unknown) => unknown } :
+  {}
+)
+
+// Field options (common to all types)
+type FieldOptions = {
+  required?: boolean
+  default?: unknown
+  unique?: boolean
+  indexed?: boolean
+  label?: string
+  description?: string
+}
+```
 
 ### Collection Definition
 
-Collections are the primary organizational unit in the system. Each collection encapsulates:
+```typescript
+// Collection definition (user-facing DSL)
+type CollectionConfig<
+  TSlug extends string,
+  TFields extends Record<string, FieldDefinition>
+> = {
+  slug: TSlug
+  fields: TFields
+  hooks?: HooksConfig<TFields>
+  indexes?: IndexConfig[]
+  relations?: RelationConfig[]
+}
 
-- **Fields Definition**: The structure and types of data
-- **Hooks**: Lifecycle callbacks for operations
-- **Plugins**: Collection-specific extensions
-- **Validation Rules**: Data integrity constraints
-- **Access Control**: Permissions for operations
-- **Indexes and Constraints**: Database-level optimizations
+// Hooks configuration
+type HooksConfig<TFields extends Record<string, FieldDefinition>> = {
+  beforeCreate?: (data: TransformInput<TFields>) => Promise<TransformInput<TFields>> | TransformInput<TFields>
+  afterCreate?: (result: TransformOutput<TFields>) => Promise<void> | void
+  beforeUpdate?: (data: TransformInput<TFields>, current: TransformOutput<TFields>) => Promise<TransformInput<TFields>> | TransformInput<TFields>
+  afterUpdate?: (result: TransformOutput<TFields>) => Promise<void> | void
+  beforeDelete?: (current: TransformOutput<TFields>) => Promise<void> | void
+  afterDelete?: () => Promise<void> | void
+  beforeRead?: (result: TransformOutput<TFields>) => Promise<TransformOutput<TFields>> | TransformOutput<TFields>
+  afterRead?: (result: TransformOutput<TFields>) => Promise<TransformOutput<TFields>> | TransformOutput<TFields>
+}
+```
 
-Collections are composable and can reference each other through relationship fields.
+### Operation Types
 
-### Field System
+```typescript
+// Query parameters
+type QueryParams = {
+  where?: WhereCondition[]
+  orderBy?: OrderBy[]
+  limit?: number
+  offset?: number
+  include?: IncludeRelation[]
+}
 
-Fields are the building blocks of collections. Each field defines:
+type WhereCondition = {
+  field: string
+  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'in' | 'notIn' | 'isNull' | 'isNotNull'
+  value: unknown
+}
 
-- **Type**: The underlying data type and database column type
-- **Validation**: Constraints and validation rules
-- **Behavior**: How the field behaves in queries and mutations
-- **Metadata**: Display names, descriptions, help text
-- **Hooks**: Field-specific lifecycle hooks
+type OrderBy = {
+  field: string
+  direction: 'asc' | 'desc'
+}
 
-Fields can be primitive (text, number), structural (array, object), relational (references to other collections), or virtual (computed values).
+type IncludeRelation = {
+  field: string
+  query?: QueryParams
+}
 
-### Query Engine
+// Operation result types
+type OperationResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: Error }
+```
 
-The query engine translates collection operations into Drizzle queries. It handles:
+## Provider Interface
 
-- **Query Building**: Constructing Drizzle queries from collection operations
-- **Hook Execution**: Running hooks at appropriate lifecycle points
-- **Relationship Loading**: Eager loading strategies and join handling
-- **Transaction Management**: Wrapping operations in transactions when needed
-- **Error Handling**: Converting database errors into application errors
+The provider interface is a **function** that returns an object with all database operations. No classes—only functions.
 
-### Plugin System
+```typescript
+// The complete provider interface
+type DatabaseProvider<TProvider extends Provider = Provider> = {
+  // === Connection ===
 
-The plugin system provides extensibility through:
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  isConnected: () => boolean
 
-- **Field Extensions**: New field types that compose existing ones
-- **Collection Extensions**: Modifications to collection definitions
-- **Operation Extensions**: New query methods or behavior modifications
-- **Global Extensions**: Cross-cutting concerns applied to all collections
+  // === Schema ===
 
-Plugins are executed in a specific order during configuration, with clear rules for composition and conflict resolution.
+  createTable: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>
+  ) => Promise<TableCreationResult>
 
-## Data Flow
+  dropTable: (tableName: string) => Promise<void>
 
-### Read Operations
+  migrate: (collections: CollectionConfig<string, Record<string, FieldDefinition>>[]) => Promise<MigrationResult>
 
-When performing a find operation:
+  // === Query Building ===
 
-1. **Query Parsing**: The query parameters are parsed and validated
-2. **Authorization**: Access control hooks check permissions
-3. **Before Read Hooks**: Transform the query or add constraints
-4. **Query Execution**: The Drizzle query is built and executed
-5. **Result Processing**: Results are mapped and transformed
-6. **After Read Hooks**: Modify or augment results
-7. **Type Coercion**: Ensure results match expected types
-8. **Return**: Typed results are returned to the caller
+  buildFind: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    params: QueryParams
+  ) => QueryBuilder
 
-### Write Operations
+  buildFindOne: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    id: string
+  ) => QueryBuilder
 
-When performing a create, update, or delete operation:
+  buildCreate: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    data: Record<string, unknown>
+  ) => QueryBuilder
 
-1. **Input Validation**: Data is validated against field constraints
-2. **Before Operation Hooks**: Transform input or add metadata
-3. **Validation Hooks**: Custom validation logic runs
-4. **Before Database Hooks**: Last chance to modify data
-5. **Query Execution**: The Drizzle mutation is executed
-6. **Transaction Management**: Handle rollbacks on errors
-7. **After Operation Hooks**: Side effects and notifications
-8. **Result Processing**: Map database results to application types
-9. **Return**: Typed results are returned to the caller
+  buildUpdate: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    id: string,
+    data: Record<string, unknown>
+  ) => QueryBuilder
 
-## Type System Architecture
+  buildDelete: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    id: string
+  ) => QueryBuilder
 
-### Type Inference Pipeline
+  buildCount: (
+    collection: CollectionConfig<string, Record<string, FieldDefinition>>,
+    params?: Pick<QueryParams, 'where'>
+  ) => QueryBuilder
 
-The type system works through multiple stages:
+  // === Execution ===
 
-1. **Field Type Extraction**: Each field definition contributes to the collection type
-2. **Optional Handling**: Optional fields are correctly typed as optional
-3. **Relation Type Resolution**: Relationship fields reference other collection types
-4. **Virtual Field Exclusion**: Computed fields don't appear in database types
-5. **Operation Type Derivation**: CRUD operations derive their types from the collection type
-6. **Query Builder Types**: Filter, select, and include types are inferred
+  execute: <T>(queryBuilder: QueryBuilder) => Promise<T>
 
-### Type Safety Layers
+  // === Provider Info ===
 
-Type safety is enforced at multiple levels:
+  provider: TProvider
+  dialect: string
+  supports: ProviderCapabilities
+}
 
-- **Configuration Time**: Invalid configurations produce type errors
-- **Operation Time**: Query parameters are typed based on collection definitions
-- **Result Time**: Return types accurately reflect the data structure
-- **Hook Types**: Hook parameters and return values are fully typed
+// Query builder returned by build* functions
+type QueryBuilder = {
+  toSQL: () => string
+  // Provider-specific query object (e.g., Drizzle's SelectQueryBuilder)
+}
 
-## Plugin Architecture
+// Provider capabilities
+type ProviderCapabilities = {
+  uuid: 'native' | 'varchar' | 'text'
+  json: 'native' | 'text'
+  array: boolean
+  transaction: boolean
+  fullTextSearch: boolean
+  joins: boolean
+}
+```
 
-### Plugin Types
+## Provider Factory Functions
 
-Plugins operate at different scopes:
+Each provider is a **factory function** that accepts configuration and returns a provider instance.
 
-- **Global Plugins**: Applied to all collections during configuration
-- **Collection Plugins**: Applied to specific collections
-- **Field Plugins**: Extend the field type system
-- **Operation Plugins**: Add or modify query operations
+```typescript
+// === PostgreSQL Provider ===
 
-### Plugin Composition
+type PostgresConfig = {
+  url: string
+  ssl?: boolean
+  maxConnections?: number
+}
 
-Multiple plugins compose in predictable ways:
+const postgresProvider: (config: PostgresConfig) => DatabaseProvider<'pg'> = (config) => {
+  // Internal Drizzle instance (private to provider)
+  const db = drizzle(createPgClient(config))
 
-- **Order of Application**: Plugins are applied in a defined order
-- **Conflict Resolution**: Clear rules for when plugins modify the same thing
-- **Dependency Management**: Plugins can declare dependencies on other plugins
-- **Isolation**: Plugins cannot break other plugins accidentally
+  return {
+    provider: 'pg',
+    dialect: 'postgresql',
+    supports: {
+      uuid: 'native',
+      json: 'native',
+      array: true,
+      transaction: true,
+      fullTextSearch: true,
+      joins: true
+    },
 
-### Plugin Hooks
+    connect: async () => { /* ... */ },
+    disconnect: async () => { /* ... */ },
+    isConnected: () => { /* ... */ },
 
-Plugins can hook into:
+    createTable: (collection) => pgCreateTable(db, collection),
+    dropTable: (name) => db.execute(sql`drop table if exists ${name}`),
+    migrate: (collections) => pgMigrate(db, collections),
 
-- **Configuration Phase**: Modify collection or field definitions
-- **Query Phase**: Intercept or transform queries
-- **Result Phase**: Modify query results
-- **Validation Phase**: Add custom validation logic
+    buildFind: (collection, params) => pgBuildFind(db, collection, params),
+    buildFindOne: (collection, id) => pgBuildFindOne(db, collection, id),
+    buildCreate: (collection, data) => pgBuildCreate(db, collection, data),
+    buildUpdate: (collection, id, data) => pgBuildUpdate(db, collection, id, data),
+    buildDelete: (collection, id) => pgBuildDelete(db, collection, id),
+    buildCount: (collection, params) => pgBuildCount(db, collection, params),
 
-## Integration Architecture
+    execute: async (builder) => { /* execute and return */ }
+  }
+}
 
-### Drizzle Integration
+// === MySQL Provider ===
 
-The integration with Drizzle maintains:
+type MysqlConfig = {
+  url: string
+}
 
-- **Schema Compatibility**: Collection definitions map to Drizzle schemas
-- **Query Compatibility**: Can execute raw Drizzle queries when needed
-- **Type Compatibility**: Drizzle types work seamlessly with collection types
-- **Migration Compatibility**: Use DrizzleKit for schema migrations
+const mysqlProvider: (config: MysqlConfig) => DatabaseProvider<'mysql'> = (config) => {
+  const db = drizzle(createMysqlClient(config))
 
-### Framework Integration
+  return {
+    provider: 'mysql',
+    dialect: 'mysql',
+    supports: {
+      uuid: 'varchar',
+      json: 'native',
+      array: false,
+      transaction: true,
+      fullTextSearch: true,
+      joins: true
+    },
 
-While framework-agnostic, the system provides integration patterns for:
+    connect: async () => { /* ... */ },
+    disconnect: async () => { /* ... */ },
+    isConnected: () => { /* ... */ },
 
-- **HTTP Frameworks**: Route generation for Hono, Express, Fastify
-- **Validation Libraries**: Integration with Zod, Yup, or custom validators
-- **Logging**: Structured logging integration
-- **Monitoring**: Performance monitoring and metrics collection
+    createTable: (collection) => mysqlCreateTable(db, collection),
+    dropTable: (name) => db.execute(sql`drop table if exists ${name}`),
+    migrate: (collections) => mysqlMigrate(db, collections),
 
-## Performance Architecture
+    buildFind: (collection, params) => mysqlBuildFind(db, collection, params),
+    buildFindOne: (collection, id) => mysqlBuildFindOne(db, collection, id),
+    buildCreate: (collection, data) => mysqlBuildCreate(db, collection, data),
+    buildUpdate: (collection, id, data) => mysqlBuildUpdate(db, collection, id, data),
+    buildDelete: (collection, id) => mysqlBuildDelete(db, collection, id),
+    buildCount: (collection, params) => mysqlBuildCount(db, collection, params),
 
-### Lazy Initialization
+    execute: async (builder) => { /* execute and return */ }
+  }
+}
 
-Collections and their metadata are initialized lazily to minimize startup cost.
+// === SQLite Provider ===
 
-### Query Optimization
+type SqliteConfig = {
+  url: string | ':memory:'
+}
 
-The query engine provides:
+const sqliteProvider: (config: SqliteConfig) => DatabaseProvider<'sqlite'> = (config) => {
+  const db = drizzle(createSqliteClient(config))
 
-- **Select Optimization**: Only query requested fields
-- **Join Optimization**: Use efficient join strategies
-- **N+1 Prevention**: Batch relationship loading when possible
-- **Query Caching**: Cache frequently executed queries (opt-in)
+  return {
+    provider: 'sqlite',
+    dialect: 'sqlite',
+    supports: {
+      uuid: 'text',
+      json: 'text',
+      array: false,
+      transaction: true,
+      fullTextSearch: 'limited',
+      joins: true
+    },
 
-### Memory Management
+    connect: async () => { /* ... */ },
+    disconnect: async () => { /* ... */ },
+    isConnected: () => { /* ... */ },
 
-The system avoids memory leaks through:
+    createTable: (collection) => sqliteCreateTable(db, collection),
+    dropTable: (name) => db.execute(sql`drop table if exists ${name}`),
+    migrate: (collections) => sqliteMigrate(db, collections),
 
-- **No Global State**: Configuration is passed explicitly
-- **Disposable Connections**: Database connections are properly managed
-- **Weak References**: Caches use weak references when appropriate
+    buildFind: (collection, params) => sqliteBuildFind(db, collection, params),
+    buildFindOne: (collection, id) => sqliteBuildFindOne(db, collection, id),
+    buildCreate: (collection, data) => sqliteBuildCreate(db, collection, data),
+    buildUpdate: (collection, id, data) => sqliteBuildUpdate(db, collection, id, data),
+    buildDelete: (collection, id) => sqliteBuildDelete(db, collection, id),
+    buildCount: (collection, params) => sqliteBuildCount(db, collection, params),
+
+    execute: async (builder) => { /* execute and return */ }
+  }
+}
+```
+
+## User Code Example
+
+```typescript
+// === Define Collections (Pure DSL) ===
+
+const users = defineCollection({
+  slug: 'users',
+  fields: {
+    id: { kind: 'uuid', autoGenerate: true },
+    email: { kind: 'text', maxLength: 255 },
+    name: { kind: 'text', maxLength: 100 },
+    role: { kind: 'enum', values: ['user', 'admin'] as const },
+    createdAt: { kind: 'timestamp', timezone: true, default: 'now' }
+  },
+  hooks: {
+    beforeCreate: async (data) => {
+      // Normalize email
+      return { ...data, email: data.email.toLowerCase() }
+    }
+  }
+})
+
+const posts = defineCollection({
+  slug: 'posts',
+  fields: {
+    id: { kind: 'uuid', autoGenerate: true },
+    title: { kind: 'text', maxLength: 255 },
+    content: { kind: 'text' },
+    published: { kind: 'boolean', default: false },
+    authorId: { kind: 'relation', target: 'users', type: 'one-to-many' },
+    createdAt: { kind: 'timestamp', timezone: true, default: 'now' }
+  },
+  indexes: [
+    { fields: ['published', 'createdAt'] }
+  ]
+})
+
+// === Choose Provider ===
+
+const db = postgresProvider({
+  url: process.env.DATABASE_URL!
+})
+
+// === Initialize Database ===
+
+await db.connect()
+await db.migrate([users, posts])
+
+// === Use Collections ===
+
+// Create
+const newPost = await db.execute(
+  db.buildCreate(posts, {
+    title: 'Hello World',
+    content: 'This is my first post',
+    authorId: userId
+  })
+)
+
+// Query
+const posts = await db.execute(
+  db.buildFind(posts, {
+    where: [{ field: 'published', operator: 'eq', value: true }],
+    orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    limit: 10
+  })
+)
+
+// Update
+const updated = await db.execute(
+  db.buildUpdate(posts, postId, {
+    published: true
+  })
+)
+
+// Delete
+await db.execute(db.buildDelete(posts, postId))
+```
+
+## Benefits of This Architecture
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero Drizzle coupling** | Core has no Drizzle imports. Providers use Drizzle internally |
+| **Swappable providers** | Switch databases by changing one function call |
+| **Testable** | Mock providers are simple—just return expected values |
+| **Extensible** | Add new providers by implementing the interface |
+| **Pure functions** | No classes, no state, easier to reason about |
+| **Type-safe** | Full TypeScript inference throughout |
+| **Future-proof** | Could swap Drizzle for another ORM without breaking user code |
+
+## Adding a New Provider
+
+To add support for a new database:
+
+```typescript
+// Example: Adding Turso (libSQL) support
+const tursoProvider: (config: TursoConfig) => DatabaseProvider<'turso'> = (config) => {
+  const db = drizzle(createLibSQLClient(config))
+
+  return {
+    provider: 'turso',
+    dialect: 'sqlite', // libSQL is SQLite-compatible
+    supports: {
+      uuid: 'text',
+      json: 'text',
+      array: false,
+      transaction: true,
+      fullTextSearch: 'limited',
+      joins: true
+    },
+
+    connect: async () => { /* ... */ },
+    disconnect: async () => { /* ... */ },
+    isConnected: () => { /* ... */ },
+
+    // ... implement all interface methods
+    // Can reuse sqlite implementations since libSQL is compatible
+    createTable: (collection) => sqliteCreateTable(db, collection),
+    // ...
+  }
+}
+```
+
+## Summary
+
+- **Collections** = Pure DSL for data modeling
+- **Providers** = Function that returns database operations
+- **No classes** = Only functions and types
+- **No coupling** = Core is database-agnostic
+- **Swappable** = Change provider without changing collection definitions

@@ -1,0 +1,62 @@
+# DSL Documentation
+
+This section describes the Domain-Specific Language (DSL) for defining data models in Collections.
+
+## Overview
+
+Collections provides a declarative DSL for defining:
+- **Collections**: Groups of related data
+- **Fields**: Individual data points within collections
+- **Field Types**: The data types available
+
+## Documents
+
+- [Collections](./collections.md) - Defining data collections
+- [Fields](./fields.md) - Field structure and options
+- [Field Types](./field-types.md) - Available data types
+
+## Quick Example
+
+```typescript
+import { defineCollection, text, uuid, boolean } from '@deessejs/collections'
+
+export const posts = defineCollection({
+  slug: 'posts',
+
+  fields: {
+    // Text field
+    title: text(),
+
+    // UUID field with auto-generation
+    id: uuid({ autoGenerate: true }),
+
+    // Boolean field
+    published: boolean({ default: false })
+  },
+
+  hooks: {
+    beforeCreate: {
+      handler: async ({ data }) => {
+        return { ...data, createdAt: new Date() }
+      }
+    }
+  }
+})
+```
+
+## Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Collection** | A group of related data with fields |
+| **Field** | A single data point with a type |
+| **Field Type** | The kind of data (text, number, etc.) |
+| **Hook** | Lifecycle callbacks for CRUD operations |
+| **Index** | Database index for query performance |
+| **Relation** | Links between collections |
+
+## Next Steps
+
+- Read [Collections](./collections.md) to get started
+- Explore [Field Types](./field-types.md) for all available types
+- Learn about [Hooks](../production/hooks.md) for business logic

@@ -65,6 +65,7 @@ Collections introduces a **provider abstraction layer** that allows you to defin
 
 ```typescript
 import { defineConfig } from '@deessejs/collections'
+import { pgAdapter, mysqlAdapter, sqliteAdapter } from '@deessejs/collections-drizzle'
 
 // PostgreSQL (default)
 export const config = defineConfig({
@@ -87,14 +88,14 @@ export const config = defineConfig({
 
 ### Database Adapters
 
-Collections provides adapters for each supported database:
+Collections provides adapters for each supported database via the `collections-drizzle` package:
 
 ```typescript
 import {
   pgAdapter,
   mysqlAdapter,
   sqliteAdapter
-} from '@deessejs/collections'
+} from '@deessejs/collections-drizzle'
 
 // PostgreSQL
 const db = pgAdapter({
@@ -193,170 +194,82 @@ export const posts = collection({
 })
 ```
 
-## Creating Provider-Aware Field Types
+## Creating Custom Field Types
 
-### Using Provider Context
+Fields in Collections are **agnostic by design**. A field simply declares its type using DSL primitives—it has no knowledge of providers. The translation to database-specific columns happens entirely within the provider.
 
-When creating custom field types, you can access the current provider to make decisions:
+### Field Type Definition
+
+When creating a custom field type, you only specify the DSL-level type:
 
 ```typescript
-import { fieldType, type Provider } from '@deessejs/collections'
+// fields/custom.ts
+import { fieldType } from '@deessejs/collections'
+import { z } from 'zod'
+import { text } from 'drizzle-orm/sqlite-core'
 
-// Access provider in field definition
-const customField = fieldType({
-  schema: z.string(),
+// Just define the field using DSL primitives
+// The provider handles the translation to pgText / mysqlText / text
+export const slug = fieldType({
+  schema: z.string()
+    .regex(/^[a-z0-9-]+$/, 'Must contain only lowercase letters, numbers, and hyphens')
+    .min(3)
+    .max(100),
 
-  // The database function receives the provider context
-  database: (provider: Provider) => {
-    switch (provider) {
-      case 'pg':
-        return pgText()
-      case 'mysql':
-        return mysqlText()
-      case 'sqlite':
-        return text()
-    }
+  // The database property is provider-agnostic
+  // Providers know how to translate 'text' to the appropriate column type
+  database: text()
+})
+
+// Usage - the field just declares its type
+const posts = defineCollection({
+  slug: 'posts',
+  fields: {
+    slug: slug()
   }
 })
 ```
 
-### Complete Example: UUID Field Type
+### How Provider Translation Works
 
-Here's how to create a UUID field that works across all providers:
-
-```typescript
-// fields/uuid.ts
-import { fieldType, type Provider } from '@deessejs/collections'
-import { z } from 'zod'
-import { pgUuid, pgText } from 'drizzle-orm/pg-core'
-import { mysqlText } from 'drizzle-orm/mysql-core'
-import { text } from 'drizzle-orm/sqlite-core'
-import { sql } from 'drizzle-orm'
-
-export const uuid = fieldType({
-  schema: z.string().uuid(),
-
-  // Database column depends on provider
-  database: (provider: Provider) => {
-    switch (provider) {
-      case 'pg':
-        // PostgreSQL has native UUID with auto-generation
-        return pgUuid().defaultRandom()
-
-      case 'mysql':
-        // MySQL uses VARCHAR(36) for UUID
-        return mysqlText(36)
-
-      case 'sqlite':
-        // SQLite uses TEXT
-        return text()
-    }
-  },
-
-  // Some options are provider-specific
-  config: {
-    // Auto-generate default - only works on PostgreSQL
-    autoGenerate: () => ({
-      database: (provider: Provider) => {
-        if (provider === 'pg') {
-          return pgUuid().defaultRandom()
-        }
-        // For other providers, use application-level generation
-        return text() // You'll need to generate UUID in hooks
-      }
-    })
-  }
-})
-```
-
-### Complete Example: JSON Field Type
+The provider internally maps DSL types to database-specific columns:
 
 ```typescript
-// fields/json.ts
-import { fieldType, type Provider } from '@deessejs/collections'
-import { z } from 'zod'
-import { pgJsonb } from 'drizzle-orm/pg-core'
-import { mysqlJson } from 'drizzle-orm/mysql-core'
-import { text } from 'drizzle-orm/sqlite-core'
-
-export const json = <T extends z.ZodType = z.ZodAny>(
-  schema?: T
-) => fieldType({
-  schema: schema || z.any(),
-
-  database: (provider: Provider) => {
-    switch (provider) {
-      case 'pg':
-        return pgJsonb()
-
-      case 'mysql':
-        // MySQL JSON handles objects natively
-        return mysqlJson()
-
-      case 'sqlite':
-        // SQLite stores JSON as text with automatic parsing
-        return text()
-    }
+// Inside pgAdapter - PostgreSQL implementation
+const fieldToColumn = (field: FieldDefinition) => {
+  switch (field.kind) {
+    case 'text':
+      return pgText()
+    case 'uuid':
+      return pgUuid().defaultRandom()
+    case 'json':
+      return pgJsonb()
+    case 'timestamp':
+      return pgTimestamp()
+    // ... etc
   }
-})
-```
+}
 
-### Complete Example: Timestamp Field Type
-
-```typescript
-// fields/timestamp.ts
-import { fieldType, type Provider } from '@deessejs/collections'
-import { z } from 'zod'
-import { pgTimestamp, pgTimestampString } from 'drizzle-orm/pg-core'
-import { mysqlDatetime, mysqlDatetimeString } from 'drizzle-orm/mysql-core'
-import { text } from 'drizzle-orm/sqlite-core'
-
-export const timestamp = fieldType({
-  schema: z.date(),
-
-  database: (provider: Provider, options: TimestampOptions = {}) => {
-    const { precision = 6, timezone = false, mode = 'date' } = options
-
-    switch (provider) {
-      case 'pg':
-        if (mode === 'string') {
-          return pgTimestampString(precision, timezone)
-        }
-        return pgTimestamp(precision, timezone)
-
-      case 'mysql':
-        if (mode === 'string') {
-          return mysqlDatetimeString(precision)
-        }
-        return mysqlDatetime(precision)
-
-      case 'sqlite':
-        // SQLite has no native timestamp - use text
-        return text()
-    }
-  },
-
-  config: {
-    defaultNow: () => ({
-      database: (provider: Provider, options: TimestampOptions = {}) => {
-        // Return column with defaultNow() where supported
-        const base = timestamp.database(provider, options)
-        if (provider === 'pg') {
-          return base.defaultNow()
-        }
-        // For MySQL/SQLite, handle in hooks
-        return base
-      }
-    })
+// Inside mysqlAdapter - MySQL implementation
+const fieldToColumn = (field: FieldDefinition) => {
+  switch (field.kind) {
+    case 'text':
+      return mysqlText()
+    case 'uuid':
+      return mysqlText(36) // VARCHAR(36) for UUID
+    case 'json':
+      return mysqlJson()
+    case 'timestamp':
+      return mysqlDatetime()
+    // ... etc
   }
-})
-
-interface TimestampOptions {
-  precision?: number
-  timezone?: boolean
-  mode?: 'date' | 'string'
 }
 ```
+
+This separation ensures:
+- **Fields are pure DSL** - no provider logic in field definitions
+- **Providers handle translation** - each provider knows how to map DSL types
+- **Easy to add new providers** - just implement the mapping
 
 ## Provider Detection
 

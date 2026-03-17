@@ -44,9 +44,9 @@ Collections is **purely a DSL (Domain-Specific Language)** for defining data mod
 ┌─────────────────────────────────────────────────────────────┐
 │                   Provider Implementation                    │
 ├─────────────────────────────────────────────────────────────┤
-│  pgProvider(config)    → DatabaseProvider<'pg'>             │
-│  mysqlProvider(config) → DatabaseProvider<'mysql'>          │
-│  sqliteProvider(config) → DatabaseProvider<'sqlite'>       │
+│  pgAdapter(config)      → DatabaseProvider<'pg'>             │
+│  mysqlAdapter(config)  → DatabaseProvider<'mysql'>         │
+│  sqliteAdapter(config) → DatabaseProvider<'sqlite'>        │
 │                                                              │
 │  [Each uses its own Drizzle instance internally]            │
 └─────────────────────────────────────────────────────────────┘
@@ -265,7 +265,7 @@ type ProviderCapabilities = {
 Each provider is a **factory function** that accepts configuration and returns a provider instance.
 
 ```typescript
-// === PostgreSQL Provider ===
+// === PostgreSQL Adapter ===
 
 type PostgresConfig = {
   url: string
@@ -273,7 +273,7 @@ type PostgresConfig = {
   maxConnections?: number
 }
 
-const postgresProvider: (config: PostgresConfig) => DatabaseProvider<'pg'> = (config) => {
+const pgAdapter: (config: PostgresConfig) => DatabaseProvider<'pg'> = (config) => {
   // Internal Drizzle instance (private to provider)
   const db = drizzle(createPgClient(config))
 
@@ -308,13 +308,13 @@ const postgresProvider: (config: PostgresConfig) => DatabaseProvider<'pg'> = (co
   }
 }
 
-// === MySQL Provider ===
+// === MySQL Adapter ===
 
 type MysqlConfig = {
   url: string
 }
 
-const mysqlProvider: (config: MysqlConfig) => DatabaseProvider<'mysql'> = (config) => {
+const mysqlAdapter: (config: MysqlConfig) => DatabaseProvider<'mysql'> = (config) => {
   const db = drizzle(createMysqlClient(config))
 
   return {
@@ -348,13 +348,13 @@ const mysqlProvider: (config: MysqlConfig) => DatabaseProvider<'mysql'> = (confi
   }
 }
 
-// === SQLite Provider ===
+// === SQLite Adapter ===
 
 type SqliteConfig = {
   url: string | ':memory:'
 }
 
-const sqliteProvider: (config: SqliteConfig) => DatabaseProvider<'sqlite'> = (config) => {
+const sqliteAdapter: (config: SqliteConfig) => DatabaseProvider<'sqlite'> = (config) => {
   const db = drizzle(createSqliteClient(config))
 
   return {
@@ -428,7 +428,9 @@ const posts = defineCollection({
 
 // === Choose Provider ===
 
-const db = postgresProvider({
+import { pgAdapter, mysqlAdapter, sqliteAdapter } from '@deessejs/collections-drizzle'
+
+const db = pgAdapter({
   url: process.env.DATABASE_URL!
 })
 
@@ -486,7 +488,7 @@ To add support for a new database:
 
 ```typescript
 // Example: Adding Turso (libSQL) support
-const tursoProvider: (config: TursoConfig) => DatabaseProvider<'turso'> = (config) => {
+const tursoAdapter: (config: TursoConfig) => DatabaseProvider<'turso'> = (config) => {
   const db = drizzle(createLibSQLClient(config))
 
   return {

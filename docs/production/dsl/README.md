@@ -59,4 +59,4 @@ export const posts = defineCollection({
 
 - Read [Collections](./collections.md) to get started
 - Explore [Field Types](./field-types.md) for all available types
-- Learn about [Hooks](../production/hooks.md) for business logic
+- Learn about [Hooks](../hooks.md) for business logic

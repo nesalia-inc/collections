@@ -141,4 +141,79 @@ Field types are translated to database-specific columns:
 | `f.json()` | jsonb | text |
 | `f.boolean()` | boolean | integer |
 
+## Custom Field Types
+
+You can create your own custom field types for specialized data needs like color pickers, phone numbers, etc.
+
+### Using `fieldType()`
+
+```typescript
+import { fieldType, collection, field } from '@deessejs/collections'
+
+// Create a custom field type with validation
+const colorPicker = fieldType({
+  // The Zod schema for validation
+  schema: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a hex color'),
+
+  // How to store in the database
+  columnType: 'text'
+})
+
+// Or with options for flexibility
+const phoneNumber = (countryCode: string = 'US') => fieldType({
+  schema: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
+  columnType: 'text'
+})
+```
+
+### Using in Collections
+
+```typescript
+import { z } from 'zod'
+
+const products = collection({
+  slug: 'products',
+  fields: {
+    name: field({ fieldType: f.text() }),
+    // Use your custom field type
+    hexColor: field({ fieldType: colorPicker() }),
+    // Use parameterized custom field
+    phone: field({ fieldType: phoneNumber('FR') })
+  }
+})
+```
+
+### Example: ColorPicker
+
+Here's a complete example of creating and using a custom ColorPicker field:
+
+```typescript
+import { fieldType, collection, field, f } from '@deessejs/collections'
+import { z } from 'zod'
+
+// Define the custom field type
+const ColorPicker = fieldType({
+  schema: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
+  columnType: 'text'
+})
+
+// Use it in a collection
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    // Custom accent color field
+    accentColor: field({
+      fieldType: ColorPicker(),
+      defaultValue: '#000000'
+    })
+  }
+})
+
+// The field now has:
+// - Validation (must be hex color)
+// - Database column (text)
+// - TypeScript type (string)
+```
+
 See [Providers](../production/providers.md) for more details.

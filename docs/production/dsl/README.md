@@ -18,28 +18,25 @@ Collections provides a declarative DSL for defining:
 ## Quick Example
 
 ```typescript
-import { defineCollection, text, uuid, boolean } from '@deessejs/collections'
+import { collection, field, f } from '@deessejs/collections'
 
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
 
   fields: {
     // Text field
-    title: text(),
-
-    // UUID field with auto-generation
-    id: uuid({ autoGenerate: true }),
+    title: field({ fieldType: f.text() }),
 
     // Boolean field
-    published: boolean({ default: false })
+    published: field({ fieldType: f.boolean(), defaultValue: false })
   },
 
   hooks: {
-    beforeCreate: {
-      handler: async ({ data }) => {
+    beforeCreate: [
+      async ({ data }) => {
         return { ...data, createdAt: new Date() }
       }
-    }
+    ]
   }
 })
 ```

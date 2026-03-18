@@ -5,26 +5,28 @@ Hooks allow you to run code at different points in the data lifecycle. They let 
 ## Overview
 
 ```typescript
-import { defineCollection } from '@deessejs/collections'
+import { collection, field, f } from '@deessejs/collections'
 
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
 
   fields: {
-    title: { kind: 'text' },
-    content: { kind: 'text' },
-    published: { kind: 'boolean' }
+    title: field({ fieldType: f.text() }),
+    content: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() })
   },
 
   hooks: {
-    beforeCreate: async ({ data }) => {
-      // Transform data before saving
-      return {
-        ...data,
-        title: data.title.trim(),
-        createdAt: new Date()
+    beforeCreate: [
+      async ({ data }) => {
+        // Transform data before saving
+        return {
+          ...data,
+          title: data.title.trim(),
+          createdAt: new Date()
+        }
       }
-    }
+    ]
   }
 })
 ```
@@ -36,14 +38,15 @@ export const posts = defineCollection({
 Runs before a new record is created.
 
 ```typescript
-beforeCreate: async ({ data }) => {
+beforeCreate: [
+  async ({ data }) => {
     // Transform or validate input
     return {
       ...data,
       title: data.title.trim()
     }
   }
-}
+]
 ```
 
 **Use cases:**
@@ -57,12 +60,13 @@ beforeCreate: async ({ data }) => {
 Runs after a record is successfully created.
 
 ```typescript
-afterCreate: async ({ result, data }) => {
+afterCreate: [
+  async ({ result }) => {
     // Side effects
     await sendNotification(result.id)
     await analytics.track('post_created', { id: result.id })
   }
-}
+]
 ```
 
 **Use cases:**
@@ -76,14 +80,15 @@ afterCreate: async ({ result, data }) => {
 Runs before a record is updated.
 
 ```typescript
-beforeUpdate: async ({ data, current }) => {
+beforeUpdate: [
+  async ({ data, previousData }) => {
     // Compare with current data
-    if (data.status === 'published' && current.status !== 'published') {
+    if (data.status === 'published' && previousData.status !== 'published') {
       data.publishedAt = new Date()
     }
     return data
   }
-}
+]
 ```
 
 **Use cases:**
@@ -96,11 +101,12 @@ beforeUpdate: async ({ data, current }) => {
 Runs after a record is successfully updated.
 
 ```typescript
-afterUpdate: async ({ result, previous }) => {
+afterUpdate: [
+  async ({ result }) => {
     // Notify about changes
     await notifyUser(result.id, 'updated')
   }
-}
+]
 ```
 
 **Use cases:**
@@ -113,13 +119,14 @@ afterUpdate: async ({ result, previous }) => {
 Runs before a record is deleted.
 
 ```typescript
-beforeDelete: async ({ current }) => {
+beforeDelete: [
+  async ({ previousData }) => {
     // Prevent deletion under certain conditions
-    if (current.status === 'protected') {
+    if (previousData.status === 'protected') {
       throw new Error('Cannot delete protected record')
     }
   }
-}
+]
 ```
 
 **Use cases:**
@@ -132,11 +139,12 @@ beforeDelete: async ({ current }) => {
 Runs after a record is successfully deleted.
 
 ```typescript
-afterDelete: async ({ id }) => {
+afterDelete: [
+  async ({ previousData }) => {
     // Clean up related data
-    await deleteRelatedComments(id)
+    await deleteRelatedComments(previousData.id)
   }
-}
+]
 ```
 
 **Use cases:**
@@ -149,14 +157,15 @@ afterDelete: async ({ id }) => {
 Runs before data is returned from queries.
 
 ```typescript
-beforeRead: async ({ result }) => {
+beforeRead: [
+  async ({ result }) => {
     // Transform output
-    return {
-      ...result,
-      title: result.title.toUpperCase()
-    }
+    return result.map(item => ({
+      ...item,
+      title: item.title.toUpperCase()
+    }))
   }
-}
+]
 ```
 
 **Use cases:**
@@ -169,7 +178,8 @@ beforeRead: async ({ result }) => {
 Runs after data is read from the database (before transformation).
 
 ```typescript
-afterRead: async ({ result, query }) => {
+afterRead: [
+  async ({ result }) => {
     // Enrich with additional data
     const author = await getAuthor(result.authorId)
     return {
@@ -177,7 +187,7 @@ afterRead: async ({ result, query }) => {
       author
     }
   }
-}
+]
 ```
 
 **Use cases:**
@@ -192,65 +202,73 @@ Each hook receives a context object with relevant data:
 ### Create Hooks
 
 ```typescript
-beforeCreate: async ({ data }) => {
+beforeCreate: [
+  async ({ data }) => {
     // data: The input data being created
     // context: Additional context (provider, locale, etc.)
     return data
   }
-}
+]
 
-afterCreate: async ({ result, data }) => {
+afterCreate: [
+  async ({ result, data }) => {
     // result: The created record
     // data: The original input data
   }
-}
+]
 ```
 
 ### Update Hooks
 
 ```typescript
-beforeUpdate: async ({ data, current, changes }) => {
-  // data: The input data for update
-  // current: The current record
-  // changes: Only the fields being changed
-  return data
-}
+beforeUpdate: [
+  async ({ data, previousData }) => {
+    // data: The input data for update
+    // previousData: The current record
+    return data
+  }
+]
 
-afterUpdate: async ({ result, previous, changes }) => {
-  // result: The updated record
-  // previous: The record before update
-  // changes: What was changed
-}
+afterUpdate: [
+  async ({ result, previousData }) => {
+    // result: The updated record
+    // previousData: The record before update
+  }
+]
 ```
 
 ### Delete Hooks
 
 ```typescript
-beforeDelete: async ({ current }) => {
-  // current: The record being deleted
-}
+beforeDelete: [
+  async ({ previousData }) => {
+    // previousData: The record being deleted
+  }
+]
 
-afterDelete: async ({ id, previous }) => {
-  // id: The ID of deleted record
-  // previous: The record before deletion
-}
+afterDelete: [
+  async ({ previousData }) => {
+    // previousData: The record before deletion
+  }
+]
 ```
 
 ### Read Hooks
 
 ```typescript
-beforeRead: async ({ result }) => {
+beforeRead: [
+  async ({ result }) => {
     // result: The record from database
     return result
   }
-}
+]
 
-afterRead: async ({ result, query }) => {
+afterRead: [
+  async ({ result }) => {
     // result: The record
-    // query: The original query params
     return result
   }
-}
+]
 ```
 
 ## Async Hooks
@@ -258,7 +276,8 @@ afterRead: async ({ result, query }) => {
 All hooks can be async:
 
 ```typescript
-beforeCreate: async ({ data }) => {
+beforeCreate: [
+  async ({ data }) => {
     // Await external calls
     const verified = await verifyEmail(data.email)
     if (!verified) {
@@ -266,7 +285,7 @@ beforeCreate: async ({ data }) => {
     }
     return data
   }
-}
+]
 ```
 
 ## Returning Data
@@ -274,25 +293,27 @@ beforeCreate: async ({ data }) => {
 Hooks can transform data by returning a new object:
 
 ```typescript
-beforeCreate: async ({ data }) => {
+beforeCreate: [
+  async ({ data }) => {
     return {
       ...data,
       slug: slugify(data.title),
       createdAt: new Date()
     }
   }
-}
+]
 ```
 
 To abort an operation, throw an error:
 
 ```typescript
-beforeDelete: async ({ current }) => {
-    if (current.protected) {
+beforeDelete: [
+  async ({ previousData }) => {
+    if (previousData.protected) {
       throw new Error('Cannot delete protected record')
     }
   }
-}
+]
 ```
 
 ## Multiple Hooks
@@ -316,31 +337,19 @@ hooks: {
 
 Hooks run in order and each receives the output of the previous.
 
-## Hook Options
-
-Each hook can have additional options:
-
-```typescript
-beforeCreate: {
-  condition: ({ data }) => data.status === 'published',
-  handler: async ({ data }) => {
-    return data
-  }
-}
-```
-
 ## Error Handling
 
 Throw errors to abort operations:
 
 ```typescript
-beforeCreate: async ({ data }) => {
+beforeCreate: [
+  async ({ data }) => {
     if (!data.title) {
       throw new ValidationError('Title is required')
     }
     return data
   }
-}
+]
 ```
 
 The error will be caught and returned to the caller.
@@ -349,19 +358,17 @@ The error will be caught and returned to the caller.
 
 ```typescript
 hooks: {
-  beforeCreate: async ({ data, context }) => {
-    // context contains:
-    // - context.provider: 'pg' | 'mysql' | 'sqlite'
-    // - context.locale: Current locale
-    // - context.user: Current user (if authenticated)
-    // - context.transaction: Active transaction
+  beforeCreate: [
+    async ({ data, db }) => {
+      // db contains the Drizzle instance
 
-    if (context.user) {
-      data.createdBy = context.user.id
+      if (context.user) {
+        data.createdBy = context.user.id
+      }
+
+      return data
     }
-
-    return data
-  }
+  ]
 }
 ```
 

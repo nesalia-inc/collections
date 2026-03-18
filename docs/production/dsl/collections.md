@@ -5,17 +5,17 @@ Collections are the main organizational unit in Collections. They define a group
 ## Defining a Collection
 
 ```typescript
-import { defineCollection } from '@deessejs/collections'
+import { collection, field, f } from '@deessejs/collections'
 
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
 
   // Collection fields
   fields: {
-    title: { kind: 'text' },
-    content: { kind: 'text' },
-    published: { kind: 'boolean' },
-    authorId: { kind: 'uuid', relation: 'users' }
+    title: field({ fieldType: f.text() }),
+    content: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() }),
+    author: field({ fieldType: f.relation({ to: 'users' }) })
   }
 })
 ```
@@ -49,20 +49,20 @@ type CollectionConfig<
 Fields define the structure of your data. See [Fields](./fields.md) for details.
 
 ```typescript
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
   fields: {
     // Simple field
-    title: { kind: 'text' },
+    title: field({ fieldType: f.text() }),
 
     // Field with options
-    slug: { kind: 'text', maxLength: 255, unique: true },
+    slug: field({ fieldType: f.text(), maxLength: 255, unique: true }),
 
     // Field with default
-    status: { kind: 'text', default: 'draft' },
+    status: field({ fieldType: f.text(), defaultValue: 'draft' }),
 
     // Relation field
-    authorId: { kind: 'uuid', relation: 'users' }
+    author: field({ fieldType: f.relation({ to: 'users' }) })
   }
 })
 ```
@@ -72,17 +72,17 @@ export const posts = defineCollection({
 Hooks allow you to run code at different points in the data lifecycle. See [Hooks](../production/hooks.md) for details.
 
 ```typescript
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
   fields: {
-    title: { kind: 'text' },
-    published: { kind: 'boolean' }
+    title: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() })
   },
 
   hooks: {
     // Before creating a record
-    beforeCreate: {
-      handler: async ({ data }) => {
+    beforeCreate: [
+      async ({ data }) => {
         // Transform data
         return {
           ...data,
@@ -90,34 +90,34 @@ export const posts = defineCollection({
           createdAt: new Date()
         }
       }
-    },
+    ],
 
     // After creating a record
-    afterCreate: {
-      handler: async ({ result }) => {
+    afterCreate: [
+      async ({ result }) => {
         // Send notifications, etc.
         await sendNotification(result.id)
       }
-    },
+    ],
 
     // Before updating
-    beforeUpdate: {
-      handler: async ({ data, current }) => {
+    beforeUpdate: [
+      async ({ data, previousData }) => {
         // Validate or transform
         return data
       }
-    },
+    ],
 
     // After reading
-    afterRead: {
-      handler: async ({ result }) => {
+    afterRead: [
+      async ({ result }) => {
         // Transform output
-        return {
-          ...result,
-          title: result.title.toUpperCase()
-        }
+        return result.map(post => ({
+          ...post,
+          title: post.title.toUpperCase()
+        }))
       }
-    }
+    ]
   }
 })
 ```
@@ -127,12 +127,12 @@ export const posts = defineCollection({
 Define database indexes for performance:
 
 ```typescript
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
   fields: {
-    title: { kind: 'text' },
-    published: { kind: 'boolean' },
-    createdAt: { kind: 'timestamp' }
+    title: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() }),
+    createdAt: field({ fieldType: f.timestamp() })
   },
 
   indexes: [
@@ -153,38 +153,18 @@ export const posts = defineCollection({
 Define relationships to other collections:
 
 ```typescript
-export const posts = defineCollection({
+export const posts = collection({
   slug: 'posts',
   fields: {
-    title: { kind: 'text' },
-    authorId: { kind: 'uuid' }
-  },
-
-  relations: {
-    // One-to-many: a user can have many posts
-    author: {
-      collection: 'users',
-      type: 'many',
-      from: 'authorId',
-      to: 'id'
-    }
+    title: field({ fieldType: f.text() }),
+    author: field({ fieldType: f.relation({ to: 'users' }) })
   }
 })
 
-export const users = defineCollection({
+export const users = collection({
   slug: 'users',
   fields: {
-    name: { kind: 'text' }
-  },
-
-  relations: {
-    // Reverse relation (one-to-many)
-    posts: {
-      collection: 'posts',
-      type: 'many',
-      from: 'id',
-      to: 'authorId'
-    }
+    name: field({ fieldType: f.text() })
   }
 })
 ```
@@ -194,11 +174,10 @@ export const users = defineCollection({
 Once defined, collections are used in `defineConfig`:
 
 ```typescript
-import { defineConfig } from '@deessejs/collections'
-import { pgAdapter } from '@deessejs/collections-drizzle'
+import { defineConfig, pgAdapter } from '@deessejs/collections'
 
-const posts = defineCollection({ /* ... */ })
-const users = defineCollection({ /* ... */ })
+const posts = collection({ /* ... */ })
+const users = collection({ /* ... */ })
 
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL }),
@@ -212,13 +191,13 @@ The config provides a typed API for each collection:
 
 ```typescript
 // The config provides typed CRUD operations
-const { posts, users } = config
+const { posts, users } = config.collections
 
 // Create
 const post = await posts.create({
   title: 'Hello World',
   content: 'My first post',
-  authorId: user.id
+  author: user.id
 })
 
 // Find one
@@ -226,8 +205,8 @@ const found = await posts.find(post.id)
 
 // Find many
 const all = await posts.findMany({
-  where: [{ field: 'published', operator: 'eq', value: true }],
-  orderBy: [{ field: 'createdAt', direction: 'desc' }],
+  where: { published: true },
+  orderBy: { createdAt: 'desc' },
   limit: 10
 })
 
@@ -245,12 +224,12 @@ await posts.delete(post.id)
 Collections automatically infer TypeScript types:
 
 ```typescript
-const posts = defineCollection({
+const posts = collection({
   slug: 'posts',
   fields: {
-    title: { kind: 'text' },
-    published: { kind: 'boolean' },
-    count: { kind: 'number' }
+    title: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() }),
+    count: field({ fieldType: f.number() })
   }
 })
 

@@ -4,20 +4,22 @@ Fields are the fundamental building blocks of collections. Each field defines a 
 
 ## Field Structure
 
-A field is defined using the DSL type system:
+A field is defined using the `field()` function:
 
 ```typescript
-const posts = defineCollection({
+import { collection, field, f } from '@deessejs/collections'
+
+const posts = collection({
   slug: 'posts',
   fields: {
-    // Simple field - uses default options
-    title: { kind: 'text' },
+    // Simple field
+    title: field({ fieldType: f.text() }),
 
     // Field with options
-    slug: { kind: 'text', maxLength: 255 },
+    slug: field({ fieldType: f.text(), maxLength: 255 }),
 
     // Field with validation
-    email: { kind: 'text', format: 'email' }
+    email: field({ fieldType: f.email() })
   }
 })
 ```
@@ -27,96 +29,82 @@ const posts = defineCollection({
 Each field has:
 
 ```typescript
-type FieldDefinition<TKind extends FieldKind = FieldKind> = {
-  // Required: the DSL type
-  kind: TKind
+field({
+  // Required: the field type
+  fieldType: FieldType,
 
-  // Optional modifiers
-  required?: boolean      // Default: false
-  default?: unknown       // Default value
-  unique?: boolean        // Create unique index
-  indexed?: boolean       // Create index
+  // Optional: field is required (default: false)
+  required?: boolean,
 
-  // Optional metadata
-  label?: string          // Display name
-  description?: string    // Help text
-  placeholder?: string   // Input placeholder
-}
+  // Optional: default value
+  defaultValue?: unknown,
+
+  // Optional: unique constraint
+  unique?: boolean,
+
+  // Optional: indexed
+  indexed?: boolean
+})
 ```
 
-## Field Kinds
+## Field Types
 
-The available DSL field kinds are:
+The available field types are accessed via `f`:
 
-| Kind | Description |
+| Type | Description |
 |------|-------------|
-| `'text'` | String values |
-| `'number'` | Numeric values (integers or decimals) |
-| `'boolean'` | True/false values |
-| `'uuid'` | Universally unique identifiers |
-| `'timestamp'` | Date and time values |
-| `'date'` | Date-only values |
-| `'json'` | JSON objects |
-| `'enum'` | Predefined set of values |
-| `'array'` | Lists of values |
-| `'relation'` | References to other collections |
-| `'custom'` | Custom field with own validation |
+| `f.text()` | String values |
+| `f.number()` | Numeric values |
+| `f.boolean()` | True/false values |
+| `f.email()` | Email with validation |
+| `f.date()` | Date-only values |
+| `f.timestamp()` | Date and time values |
+| `f.json()` | JSON objects |
+| `f.select(['a', 'b'])` | Enum values |
+| `f.relation({ to: 'collection' })` | References to other collections |
 
 ## Required vs Optional
 
 ```typescript
 // Required field (default)
-name: { kind: 'text' }
+name: field({ fieldType: f.text() })
 
 // Optional field
-nickname: { kind: 'text', required: false }
+nickname: field({ fieldType: f.text(), required: false })
 
 // With default value
-status: { kind: 'text', default: 'draft' }
+status: field({ fieldType: f.text(), defaultValue: 'draft' })
 ```
 
 ## Default Values
 
 ```typescript
 // Static default
-published: { kind: 'boolean', default: false }
+published: field({ fieldType: f.boolean(), defaultValue: false })
 
 // Dynamic default (handled in hooks)
-// For timestamps, use 'now'
-createdAt: { kind: 'timestamp', default: 'now' }
+createdAt: field({ fieldType: f.timestamp(), defaultValue: 'now' })
 ```
 
 ## Indexes
 
 ```typescript
 // Simple index
-title: { kind: 'text', indexed: true }
+title: field({ fieldType: f.text(), indexed: true })
 
 // Unique index
-email: { kind: 'text', unique: true }
+email: field({ fieldType: f.text(), unique: true })
 
 // Composite indexes are defined at collection level
-const posts = defineCollection({
+const posts = collection({
   slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() })
+  },
   indexes: [
     { fields: ['published', 'createdAt'] }
   ]
-})
-```
-
-## Field Metadata
-
-```typescript
-const posts = defineCollection({
-  slug: 'posts',
-  fields: {
-    title: {
-      kind: 'text',
-      label: 'Post Title',
-      description: 'The main title of your post',
-      placeholder: 'Enter a title...'
-    }
-  }
 })
 ```
 
@@ -130,29 +118,25 @@ const title = data.title
 
 // TypeScript infers the type
 type PostTitle = typeof posts.fields.title
-// { kind: 'text', required: boolean, ... }
 ```
 
 ## Field Validation
 
-Validation is handled through the Zod schema, which is automatically derived from the field kind:
+Validation is handled through the field type's built-in validation:
 
 ```typescript
-// The system automatically creates:
-// text() → z.string()
-// number() → z.number()
-// boolean() → z.boolean()
-// etc.
+// email() validates the format automatically
+email: field({ fieldType: f.email() })
 
 // Custom validation can be added via hooks
 hooks: {
-  beforeCreate: {
-    handler: async ({ data }) => {
+  beforeCreate: [
+    async ({ data }) => {
       if (data.title.length < 5) {
         throw new Error('Title must be at least 5 characters')
       }
       return data
     }
-  }
+  ]
 }
 ```

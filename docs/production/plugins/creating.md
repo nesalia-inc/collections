@@ -160,6 +160,160 @@ const trackingPlugin = (options: { trackChanges?: boolean } = {}) => {
 trackingPlugin({ trackChanges: true })
 ```
 
+## Hook Execution Order
+
+Hooks execute in a predictable order:
+
+1. **Plugin global hooks** - Plugins' `beforeOperation` run first
+2. **Plugin collection hooks** - Plugin hooks on specific collections
+3. **User collection hooks** - Hooks defined in the collection
+
+```typescript
+// Example execution order for beforeCreate
+const plugins = [loggingPlugin, seoPlugin]
+const collection = { hooks: { beforeCreate: [...] } }
+
+// Order:
+// 1. loggingPlugin.hooks?.beforeOperation
+// 2. loggingPlugin.hooks?.beforeCreate (if on collection)
+// 3. seoPlugin.hooks?.beforeOperation
+// 4. seoPlugin.hooks?.beforeCreate
+// 5. collection.hooks.beforeCreate
+```
+
+### Priority
+
+Use `priority` to control execution order:
+
+```typescript
+const plugin = plugin({
+  name: 'audit',
+  hooks: {
+    beforeCreate: [
+      {
+        priority: 100,  // Higher runs first
+        handler: async ({ data }) => {
+          // Audit before anything else
+          return data
+        }
+      }
+    ]
+  }
+})
+```
+
+## Name Conflicts
+
+The framework detects naming conflicts and throws errors:
+
+```typescript
+// Two plugins adding the same collection
+const pluginA = plugin({
+  name: 'plugin-a',
+  collections: [collection({ slug: 'logs', ... })]
+})
+
+const pluginB = plugin({
+  name: 'plugin-b',
+  collections: [collection({ slug: 'logs', ... })]
+})
+
+// Error: Collection 'logs' is already defined by plugin-a
+```
+
+### Resolving Conflicts
+
+Use unique prefixes or namespaces:
+
+```typescript
+const pluginA = plugin({
+  name: 'audit',
+  collections: [
+    collection({ slug: 'audit_logs', ... })  // Namespaced
+  ]
+})
+```
+
+## Field Type Injection
+
+Field types are added to the `f` object dynamically:
+
+```typescript
+const richTextPlugin = plugin({
+  name: 'rich-text',
+
+  fieldTypes: {
+    richtext: () => fieldType({
+      kind: 'text',
+      schema: z.string()
+    })
+  }
+})
+
+// Available as f.richtext()
+const posts = collection({
+  fields: {
+    content: field({ fieldType: f.richtext() })
+  }
+})
+```
+
+The plugin system uses a Proxy for `f` that checks registered field types from all plugins.
+
+## TypeScript Considerations
+
+When plugins add fields dynamically, TypeScript may not infer them automatically:
+
+```typescript
+// Plugin adds metaTitle field
+const seoPlugin = plugin({
+  name: 'seo',
+  onInit: (config) => {
+    config.collections.forEach(col => {
+      col.fields.metaTitle = field({ fieldType: f.text() })
+    })
+  }
+})
+
+// TypeScript doesn't know about metaTitle in the original definition
+type Post = GetCollectionType<typeof posts>
+// Post may not include metaTitle
+
+// Workaround: Use type assertion or module augmentation
+type PostWithSEO = Post & { metaTitle?: string }
+```
+
+For full type support, consider:
+1. Using module augmentation
+2. Defining extended types explicitly
+3. Using `withPlugins()` helper that preserves types
+
+## Global Hooks
+
+The `beforeOperation` hook runs for all operations:
+
+```typescript
+const loggingPlugin = plugin({
+  name: 'logging',
+
+  hooks: {
+    beforeOperation: [
+      async (context) => {
+        // context.operation: 'create' | 'read' | 'update' | 'delete'
+        // context.collection: collection name
+        // context.user: current user (if authenticated)
+        // context.data: input data
+        // context.db: database instance
+
+        console.log(`${context.operation} on ${context.collection} by ${context.user?.id}`)
+
+        return context
+      }
+    ]
+  }
+})
+```
+
 ## Best Practices
 
 1. **Name your plugins** - Use descriptive names for debugging

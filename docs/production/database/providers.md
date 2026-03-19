@@ -366,6 +366,79 @@ Some features are provider-specific:
 
 For provider-specific features, use conditional logic in hooks or field options.
 
+## Escape Hatch: Custom Provider Types
+
+For advanced use cases requiring provider-specific features, use custom field types:
+
+```typescript
+import { fieldType } from '@deessejs/collections'
+
+// Custom type with provider-specific options
+const citext = fieldType({
+  kind: 'text',
+  schema: z.string().email(),
+  // Provider-specific: use native PG citext extension
+  pg: { type: 'citext' },
+  mysql: { type: 'longtext' }
+})
+
+// Usage
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    email: field({ fieldType: citext() })
+  }
+})
+```
+
+The `pg`, `mysql` options allow passing provider-specific configurations while keeping the DSL portable.
+
+## Migrations
+
+Collections uses **dynamic schema** - no static `drizzle.config.ts`. Migrations are handled differently:
+
+```typescript
+// Schema is built at runtime from collections
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts, users]
+})
+
+// Generate migrations from collections
+// npx collections migrate
+```
+
+The CLI reads your collection definitions and generates appropriate SQL migrations for the configured provider.
+
+### Migration Flow
+
+1. **Development**: Schema is built dynamically, auto-creates tables
+2. **Staging/Prod**: Use CLI to generate and apply migrations
+3. **Changes**: Modify collections → run `migrate` → SQL diff generated
+
+This approach gives you:
+- Fast prototyping with auto-migration
+- Production control with explicit migrations
+- Provider-specific SQL output
+
+## Performance
+
+The provider translation happens **once at startup**, not per-request:
+
+```typescript
+// defineConfig compiles schema once
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts, users]
+})
+
+// All subsequent operations use cached schema
+config.db.posts.find()  // No translation overhead
+config.db.users.create() // Fast
+```
+
+The field-to-column mapping is resolved during `defineConfig`, ensuring zero runtime overhead.
+
 ## Summary
 
 | Concept | Description |

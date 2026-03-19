@@ -118,6 +118,7 @@ export const OPTIONS = REST_OPTIONS(config)
 - [Configuration](./config/README.md)
 - [Database](./database/README.md)
 - [Hooks](./hooks.md)
+- [Plugins](./plugins/README.md)
 
 ## Architecture
 

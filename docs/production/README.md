@@ -116,6 +116,7 @@ export const OPTIONS = REST_OPTIONS(config)
 - [REST API](./api.md)
 - [Field Types](./field-types.md)
 - [Configuration](./config/README.md)
+- [Database](./database/README.md)
 - [Hooks](./hooks.md)
 
 ## Architecture

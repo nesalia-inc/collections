@@ -15,6 +15,7 @@ Collections provides a declarative DSL for defining:
 - [Fields](./fields.md) - Field structure and options
 - [Field Types](./field-types.md) - Available data types
 - [Operations](./operations.md) - CRUD operations on collections
+- [Virtual Collections](./virtual-collections.md) - Auto-generated collections (auth tables)
 
 ## Quick Example
 

@@ -36,11 +36,16 @@ count: field({ fieldType: f.number() })
 
 // With range
 rating: field({ fieldType: f.number({ min: 1, max: 5 }) })
+
+// Decimal for financial data
+price: field({ fieldType: f.number({ precision: 10, scale: 2 }) })
 ```
 
 Options:
 - `min` - Minimum value
 - `max` - Maximum value
+- `precision` - Total digits
+- `scale` - Digits after decimal
 
 ### Boolean
 
@@ -115,6 +120,25 @@ posts: field({ fieldType: f.relation({ to: 'posts', many: true }) })
 Options:
 - `to` - Target collection slug
 - `many` - Whether it's a one-to-many relation
+- `through` - Junction table for many-to-many
+
+### Rich Text
+
+For HTML or Markdown content:
+
+```typescript
+content: field({ fieldType: f.richtext() })
+```
+
+### File
+
+For file uploads (stores file reference/path):
+
+```typescript
+avatar: field({ fieldType: f.file() })
+
+attachments: field({ fieldType: f.file({ multiple: true }) })
+```
 
 ## Field Type Composition
 

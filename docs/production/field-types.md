@@ -38,7 +38,17 @@ const age = field({
 const rating = field({
   fieldType: f.number({ min: 1, max: 5 })
 })
+
+// Decimal for financial data (precision, scale)
+const price = field({
+  fieldType: f.number({ precision: 10, scale: 2 })
+})
 ```
+
+Options:
+- `min` / `max` - Value constraints
+- `precision` - Total number of digits
+- `scale` - Digits after decimal point (for decimal types)
 
 ### Boolean
 
@@ -103,7 +113,7 @@ const metadata = field({
   fieldType: f.json()
 })
 
-// With custom schema
+// With Zod schema for type safety
 const settings = field({
   fieldType: f.json(z.object({
     theme: z.enum(['light', 'dark']),
@@ -111,6 +121,8 @@ const settings = field({
   }))
 })
 ```
+
+When using a Zod schema, TypeScript infers the type automatically for type-safe access.
 
 ### Array
 
@@ -123,6 +135,33 @@ const scores = field({
   fieldType: f.array(z.number())
 })
 ```
+
+### Rich Text
+
+For HTML or Markdown content:
+
+```typescript
+const content = field({
+  fieldType: f.richtext()
+})
+```
+
+### File
+
+For file uploads (stores file reference/path):
+
+```typescript
+const avatar = field({
+  fieldType: f.file()
+})
+
+const attachments = field({
+  fieldType: f.file({ multiple: true })
+})
+```
+
+Options:
+- `multiple` - Allow multiple files
 
 ## Relations
 
@@ -178,6 +217,8 @@ const tags = collection({
   }
 })
 ```
+
+**Note on `many: true`:** When `many: true` is set without a `through` table, it creates a reverse relation (e.g., "user has many posts"). For true many-to-many relations, use the `through` option to specify a junction table.
 
 ## Field Options
 
@@ -413,6 +454,24 @@ type Post = GetCollectionType<typeof posts>
 ```
 
 These fields cannot be overridden or removed.
+
+## Validation vs Database Constraints
+
+Field options like `minLength`, `maxLength`, `min`, `max` serve double duty:
+
+1. **Application-level validation** - Enforced by Zod when data is submitted
+2. **Database constraints** - Applied to the column schema (e.g., VARCHAR(100))
+
+This ensures data integrity both in your application and directly in the database.
+
+```typescript
+// This field will:
+// - Validate max 100 chars in JS
+// - Create VARCHAR(100) column in SQL
+const title = field({
+  fieldType: f.text({ maxLength: 100 })
+})
+```
 
 ## Summary
 

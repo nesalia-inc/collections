@@ -140,3 +140,32 @@ hooks: {
   ]
 }
 ```
+
+## Declarative Validation (Advanced)
+
+For common validation rules, you can use the field options:
+
+```typescript
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    // Min/max length (text)
+    title: field({ fieldType: f.text({ minLength: 3, maxLength: 100 }) }),
+
+    // Min/max value (number)
+    rating: field({ fieldType: f.number({ min: 1, max: 5 }) }),
+
+    // Unique constraint
+    slug: field({ fieldType: f.text(), unique: true }),
+
+    // Required field
+    content: field({ fieldType: f.text(), required: true }),
+
+    // Default value
+    status: field({ fieldType: f.text(), defaultValue: 'draft' }),
+
+    // Indexed for query performance
+    category: field({ fieldType: f.text(), indexed: true })
+  }
+})
+```

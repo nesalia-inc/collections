@@ -33,6 +33,11 @@ Options:
 const age = field({
   fieldType: f.number()
 })
+
+// With min/max validation
+const rating = field({
+  fieldType: f.number({ min: 1, max: 5 })
+})
 ```
 
 ### Boolean
@@ -388,6 +393,26 @@ const strongPassword = fieldType({
   columnType: 'text'
 })
 ```
+
+## Auto-Generated Fields
+
+Every collection automatically includes these fields:
+
+- `id` - Unique identifier (auto-generated UUID)
+- `createdAt` - Timestamp when record was created
+- `updatedAt` - Timestamp when record was last updated
+
+```typescript
+type Post = GetCollectionType<typeof posts>
+// {
+//   id: string
+//   createdAt: Date
+//   updatedAt: Date
+//   ... your custom fields
+// }
+```
+
+These fields cannot be overridden or removed.
 
 ## Summary
 

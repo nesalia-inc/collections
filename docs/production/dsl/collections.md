@@ -167,7 +167,7 @@ export const posts = collection({
 
 ## Relations
 
-Define relationships to other collections:
+Define relationships to other collections using `f.relation()`:
 
 ```typescript
 export const posts = collection({
@@ -185,6 +185,28 @@ export const users = collection({
   }
 })
 ```
+
+**Note:** The relation defined in `fields` creates the foreign key column. For complex relations (many-to-many with junction table), additional configuration may be needed via the `relations` property.
+
+## Auto-Generated Fields
+
+Every collection automatically gets these fields:
+
+```typescript
+type Post = GetCollectionType<typeof posts>
+// {
+//   id: string          // Auto-generated UUID
+//   createdAt: Date     // Auto-set on create
+//   updatedAt: Date     // Auto-set on update
+//   title: string       // Your custom fields
+//   ...
+// }
+```
+
+These fields are added automatically and cannot be overridden. They provide:
+- `id` - Unique identifier (UUID)
+- `createdAt` - Creation timestamp
+- `updatedAt` - Last update timestamp
 
 ## Using Collections
 

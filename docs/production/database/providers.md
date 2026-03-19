@@ -118,56 +118,60 @@ const db = sqliteAdapter({
 })
 ```
 
-## Field Type Translation
+## Field Types and Providers
+
+### How It Works
+
+Field types in Collections are **provider-agnostic**. They define a **column type** (abstract), and providers translate that to the actual database column.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Field Type                                │
+│  title: field({ fieldType: f.text() })                     │
+│         └─> provides columnType: 'text'                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Provider                                │
+│  Reads columnType 'text'                                    │
+│  PostgreSQL  → text                                         │
+│  MySQL       → text                                         │
+│  SQLite     → text                                         │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### Built-in Field Types
 
-Each built-in field type automatically translates based on the provider:
+Field types simply declare their column type:
 
 ```typescript
-// This definition works across all providers
 export const posts = collection({
   slug: 'posts',
 
   fields: {
-    // Text - translates to:
-    //   PostgreSQL: text
-    //   MySQL: text
-    //   SQLite: text
-    title: text(),
+    // Provides columnType: 'text'
+    title: field({ fieldType: f.text() }),
 
-    // Text with length - translates to:
-    //   PostgreSQL: varchar(255)
-    //   MySQL: varchar(255)
-    //   SQLite: text (length ignored)
-    slug: text({ max: 255 }),
+    // Provides columnType: 'text' (maxLength is validation)
+    slug: field({ fieldType: f.text({ maxLength: 255 }) }),
 
-    // UUID - translates to:
-    //   PostgreSQL: uuid with gen_random_uuid() default
-    //   MySQL: varchar(36)
-    //   SQLite: text (UUID as string)
-    id: uuid(),
+    // Provides columnType: 'uuid'
+    id: field({ fieldType: f.uuid({ autoGenerate: true }) }),
 
-    // Timestamp - translates to:
-    //   PostgreSQL: timestamp with time zone
-    //   MySQL: datetime
-    //   SQLite: text (ISO string)
-    createdAt: timestamp(),
+    // Provides columnType: 'timestamp'
+    createdAt: field({ fieldType: f.timestamp() }),
 
-    // JSON - translates to:
-    //   PostgreSQL: jsonb
-    //   MySQL: json
-    //   SQLite: text (JSON stored as string)
-    metadata: json(),
+    // Provides columnType: 'json'
+    metadata: field({ fieldType: f.json() }),
 
-    // Number - translates to:
-    //   PostgreSQL: integer
-    //   MySQL: int
-    //   SQLite: integer
-    count: number()
+    // Provides columnType: 'number'
+    count: field({ fieldType: f.number() })
   }
 })
 ```
+
+The provider is responsible for translating the column type to the appropriate database column.
 
 ### Provider-Specific Options
 
@@ -230,43 +234,40 @@ const posts = defineCollection({
 
 ### How Provider Translation Works
 
-The provider internally maps DSL types to database-specific columns:
+Field types provide a `columnType` property. Providers read this and translate to database-specific columns:
 
 ```typescript
-// Inside pgAdapter - PostgreSQL implementation
-const fieldToColumn = (field: FieldDefinition) => {
-  switch (field.kind) {
-    case 'text':
-      return pgText()
-    case 'uuid':
-      return pgUuid().defaultRandom()
-    case 'json':
-      return pgJsonb()
-    case 'timestamp':
-      return pgTimestamp()
-    // ... etc
-  }
-}
+// Field type provides columnType (no provider knowledge)
+const textField = field({
+  fieldType: f.text()
+})
+// textField.columnType = 'text'
 
-// Inside mysqlAdapter - MySQL implementation
-const fieldToColumn = (field: FieldDefinition) => {
-  switch (field.kind) {
-    case 'text':
-      return mysqlText()
-    case 'uuid':
-      return mysqlText(36) // VARCHAR(36) for UUID
-    case 'json':
-      return mysqlJson()
-    case 'timestamp':
-      return mysqlDatetime()
-    // ... etc
+// Provider reads columnType and maps to database
+const pgAdapter = databaseProvider({
+  name: 'pg',
+
+  // Provider reads columnType from field definition
+  createTable: (name, columns) => {
+    const colDefs = columns.map(col => {
+      const type = this.types[col.columnType] // 'text' → 'text'
+      return `${col.name} ${type}`
+    })
+    return `CREATE TABLE ${name} (${colDefs.join(', ')})`
+  },
+
+  types: {
+    text: 'text',
+    uuid: 'uuid',
+    json: 'jsonb',
+    timestamp: 'timestamptz'
   }
-}
+})
 ```
 
 This separation ensures:
 - **Fields are pure DSL** - no provider logic in field definitions
-- **Providers handle translation** - each provider knows how to map DSL types
+- **Providers handle translation** - each provider maps columnType to database types
 - **Easy to add new providers** - just implement the mapping
 
 ## Provider Detection

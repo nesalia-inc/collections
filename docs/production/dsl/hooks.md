@@ -154,10 +154,29 @@ afterDelete: [
 
 ### beforeRead
 
-Runs before data is returned from queries.
+Runs before the query executes. Use to modify query parameters:
 
 ```typescript
 beforeRead: [
+  async ({ query }) => {
+    // Add global filter
+    query.where = { ...query.where, deleted: false }
+    return query
+  }
+]
+```
+
+**Use cases:**
+- Add global filters
+- Modify query parameters
+- Enforce permissions at query level
+
+### afterRead
+
+Runs after data is fetched. Use to transform output:
+
+```typescript
+afterRead: [
   async ({ result }) => {
     // Transform output
     return result.map(item => ({
@@ -173,7 +192,7 @@ beforeRead: [
 - Hide sensitive fields
 - Add computed fields
 
-### afterRead
+### Transactionality
 
 Runs after data is read from the database (before transformation).
 
@@ -369,6 +388,60 @@ hooks: {
       return data
     }
   ]
+}
+```
+
+## Transactionality
+
+All hooks run within the same database transaction as the main operation. If a hook fails, the entire operation is rolled back.
+
+```typescript
+hooks: {
+  beforeCreate: [
+    async ({ data, db }) => {
+      // This runs in the same transaction as the insert
+      // If this throws, the create is rolled back
+      const count = await db.count({ where: { type: data.type } })
+      if (count > 100) {
+        throw new Error('Too many records of this type')
+      }
+      return data
+    }
+  ]
+}
+```
+
+## Bypassing Hooks
+
+For migrations, data seeding, or maintenance scripts, you can skip hooks:
+
+```typescript
+// Normal update (with hooks)
+await posts.update({ where: { id: 1 }, data: { title: 'New' } })
+
+// Skip hooks
+await posts.update({ where: { id: 1 }, data: { title: 'New' }, hooks: false })
+```
+
+## Input vs Persisted Types
+
+Hooks that add fields (like `createdAt`) change the data that gets stored. The type system distinguishes:
+
+```typescript
+// What you pass to create()
+type PostInput = {
+  title: string
+  content: string
+  // createdAt is added by beforeCreate hook
+}
+
+// What's stored in the database
+type PostPersisted = {
+  id: string
+  title: string
+  content: string
+  createdAt: Date
+  updatedAt: Date
 }
 ```
 

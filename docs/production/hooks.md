@@ -92,6 +92,87 @@ const posts = collection({
 }
 ```
 
+**beforeRead vs afterRead:**
+- `beforeRead` - Runs before the query executes. Use to modify query parameters (add filters, change orderBy, etc.)
+- `afterRead` - Runs after data is fetched. Use to transform output (add computed fields, hide sensitive data, etc.)
+
+```typescript
+hooks: {
+  // Modify query before execution
+  beforeRead: [
+    async ({ query }) => {
+      // Add global filter
+      query.where = { ...query.where, deleted: false }
+      return query
+    }
+  ],
+
+  // Transform results after fetch
+  afterRead: [
+    async ({ result }) => {
+      return result.map(post => ({
+        ...post,
+        excerpt: post.content.substring(0, 100)
+      }))
+    }
+  ]
+}
+```
+
+## Transactionality
+
+All hooks run within the same database transaction as the main operation. If a hook fails, the entire operation is rolled back.
+
+```typescript
+hooks: {
+  beforeCreate: [
+    async ({ data, db }) => {
+      // This runs in the same transaction as the insert
+      // If this throws, the create is rolled back
+      const count = await db.count({ where: { type: data.type } })
+      if (count > 100) {
+        throw new Error('Too many records of this type')
+      }
+      return data
+    }
+  ]
+}
+```
+
+## Bypassing Hooks
+
+For migrations, data seeding, or maintenance scripts, you can skip hooks:
+
+```typescript
+// Normal update (with hooks)
+await posts.update({ where: { id: 1 }, data: { title: 'New' } })
+
+// Skip hooks
+await posts.update({ where: { id: 1 }, data: { title: 'New' }, hooks: false })
+```
+
+## Input vs Persisted Types
+
+Hooks that add fields (like `createdAt`) change the data that gets stored. The type system distinguishes:
+
+```typescript
+// What you pass to create()
+type PostInput = {
+  title: string
+  content: string
+  // createdAt is added by beforeCreate hook
+}
+
+// What's stored in the database
+type PostPersisted = {
+  id: string
+  title: string
+  content: string
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
 ## Examples
 
 ### Validate Data

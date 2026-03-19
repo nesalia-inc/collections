@@ -423,6 +423,106 @@ const loggingPlugin = plugin({
 })
 ```
 
+## Plugin Dependencies
+
+Declare dependencies to ensure correct execution order:
+
+```typescript
+const seoPlugin = plugin({
+  name: 'seo',
+  dependencies: ['logging-plugin'],  // logging runs first
+
+  onInit: (config) => {
+    // SEO depends on logging being initialized
+  }
+})
+```
+
+The framework automatically sorts plugins using topological order:
+
+```typescript
+// Input order doesn't matter
+defineConfig({
+  plugins: [seoPlugin, loggingPlugin, auditPlugin]
+})
+
+// Execution order (determined by dependencies):
+// 1. auditPlugin
+// 2. loggingPlugin (required by seoPlugin)
+// 3. seoPlugin
+```
+
+## Scoping: Include/Exclude Collections
+
+Target specific collections with `include` and `exclude`:
+
+```typescript
+const seoPlugin = plugin({
+  name: 'seo',
+
+  // Only apply to posts and products
+  include: ['posts', 'products'],
+
+  // Exclude internal collections
+  exclude: ['audit_logs', 'system_config'],
+
+  onInit: (config) => {
+    // Only runs for posts and products
+    config.collections.forEach(col => {
+      if (col.fields.title) {
+        col.fields.metaTitle = field({ fieldType: f.text() })
+      }
+    })
+  }
+})
+```
+
+## Option Validation
+
+Validate plugin options at startup:
+
+```typescript
+import { z } from 'zod'
+
+const apiPlugin = (options: { apiKey: string; region?: string }) => {
+  if (!options.apiKey) {
+    throw new Error('apiPlugin requires apiKey option')
+  }
+
+  return plugin({
+    name: 'api',
+    onInit: () => { /* use options */ }
+  })
+}
+```
+
+## CLI Inspect
+
+Use the CLI to inspect active plugins:
+
+```bash
+npx collections inspect plugins
+```
+
+## Auth Events Bridge
+
+Listen to auth events from global plugins:
+
+```typescript
+const auditPlugin = plugin({
+  name: 'audit',
+
+  onAuthEvent: (event) => {
+    // Events: signIn, signOut, userCreated, userUpdated
+    switch (event.type) {
+      case 'signIn':
+        await createLog('user_signed_in', event.userId)
+        break
+    }
+  }
+})
+```
+
 ## Best Practices
 
 1. **Name your plugins** - Use descriptive names for debugging

@@ -201,14 +201,11 @@ This ensures:
 
 ## Migrations
 
-When running migrations:
+Use the Collections CLI, which wraps Better-Auth's CLI:
 
 ```bash
-# Generates schema for auth + collections
-npx auth@latest generate
-
-# Applies migrations
-npx auth@latest migrate
+# Single command - generates schema for auth + collections
+npx collections migrate
 ```
 
 The CLI detects:
@@ -216,7 +213,82 @@ The CLI detects:
 - Auth options
 - Enabled plugins
 
-And generates the complete schema.
+And generates the complete schema for both auth tables and collections.
+
+## Auth Tables as Virtual Collections
+
+Auth tables (`users`, `sessions`, `accounts`, etc.) are automatically available as Collections:
+
+```typescript
+// Access auth tables like regular collections
+const users = await config.db.users.find({ limit: 10 })
+const sessions = await config.db.sessions.find({
+  where: { userId: user.data.id }
+})
+```
+
+### Apply Hooks to Auth Tables
+
+You can add hooks to auth collections:
+
+```typescript
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+
+  // Add hooks to auth tables
+  auth: {
+    emailAndPassword: { enabled: true },
+    hooks: {
+      users: {
+        afterRead: [
+          async ({ result }) => {
+            // Mask sensitive fields
+            return result.map(user => ({
+              ...user,
+              password: undefined
+            }))
+          }
+        ]
+      }
+    }
+  }
+})
+```
+
+### Permissions on Auth Tables
+
+Apply permissions to auth collections:
+
+```typescript
+auth: {
+  emailAndPassword: { enabled: true },
+  permissions: {
+    users: {
+      read: async ({ user }) => user?.role === 'admin',
+      update: async ({ user, current }) => user?.role === 'admin',
+      delete: async ({ user }) => user?.role === 'admin'
+    }
+  }
+}
+```
+
+## Naming Convention
+
+The adapter handles singular/plural mapping automatically:
+
+- Collections use plural: `posts`, `users`
+- Auth tables use singular: `user`, `session`
+
+The adapter's `getModelName` function maps between them:
+
+```typescript
+// In adapter
+getModelName('user')    // → users (collection table)
+getModelName('posts')   // → posts
+```
+
+This ensures relations work correctly regardless of naming convention.
 
 ## Summary
 
@@ -224,8 +296,8 @@ And generates the complete schema.
 |---------|----------------|
 | Bridge | Custom adapter using `createAdapterFactory` |
 | Schema | Merged auth + collections tables |
-| Drizzle | Single instance for both |
-| Plugins | Auto-supported via adapter |
-| Configuration | Via auth config |
+| CLI | Unified via `collections migrate` |
+| Auth Tables | Available as virtual collections with hooks/permissions |
+| Naming | Automatic singular ↔ plural mapping |
 
 The adapter is internal - users don't need to configure it manually. It's created automatically when auth is enabled.

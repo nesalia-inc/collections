@@ -115,7 +115,7 @@ export const OPTIONS = REST_OPTIONS(config)
 - [Next.js](./nextjs.md)
 - [REST API](./api.md)
 - [Field Types](./field-types.md)
-- [Configuration](./configuration.md)
+- [Configuration](./config/README.md)
 - [Hooks](./hooks.md)
 
 ## Architecture

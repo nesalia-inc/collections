@@ -1,15 +1,128 @@
-# Better-Auth as a Plugin
+# Auth as a Plugin
 
-Learn how Collections integrates Better-Auth as a first-class plugin, creating virtual collections from auth tables.
+Learn how Collections integrates authentication as a plugin system, allowing any auth provider (Better-Auth, Clerk, Supabase, Auth0, etc.) to be plugged in.
 
 ## Overview
 
-Collections treats Better-Auth as a **plugin** that provides virtual collections for authentication tables. This architecture:
+Collections treats authentication as a **plugin** - not hardcoded. This means you can choose:
 
-1. **Plugin-based** - Better-Auth is loaded as a plugin, not hardcoded
-2. **Provider-agnostic** - Works with any database provider (PostgreSQL, MySQL, SQLite)
+- **Better-Auth** - Full-featured auth with plugins (admin, organization, etc.)
+- **Clerk** - Commercial auth with user management
+- **Supabase** - Open-source auth + database
+- **Auth0** - Enterprise auth solution
+- **Custom** - Your own auth implementation
+
+The architecture is the same regardless of provider:
+
+1. **Plugin-based** - Any auth solution as a plugin
+2. **Provider-agnostic** - Works with any database (PostgreSQL, MySQL, SQLite)
 3. **Virtual Collections** - Auth tables become queryable collections
 4. **Same API** - Access auth data using the same CRUD operations
+
+## Why Plugin-Based Auth?
+
+Traditional frameworks couple auth deeply:
+
+```
+┌─────────────────────────────────────┐
+│         Traditional Approach          │
+├─────────────────────────────────────┤
+│  app → built-in auth → database    │
+│  (auth is tightly coupled)         │
+└─────────────────────────────────────┘
+```
+
+Collections decouples it:
+
+```
+┌─────────────────────────────────────┐
+│        Collections Approach          │
+├─────────────────────────────────────┤
+│  app → auth plugin → virtual cols  │
+│        → database provider → db     │
+│  (auth is swappable)               │
+└─────────────────────────────────────┘
+```
+
+This means:
+- Switch auth providers without rewriting your app
+- Use different auth for different deployments
+- Easy testing with mock auth plugins
+
+## Available Auth Plugins
+
+### Better-Auth Plugin
+
+```typescript
+import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  plugins: [
+    betterAuthPlugin({
+      emailAndPassword: { enabled: true },
+      socialProviders: { github: { ... } },
+      plugins: [admin(), organization()]
+    })
+  ]
+})
+```
+
+### Future: Other Auth Providers
+
+The plugin system supports any auth provider:
+
+```typescript
+// Hypothetical future plugins
+import { clerkPlugin } from '@deessejs/collections-plugin-clerk'
+import { supabasePlugin } from '@deessejs/collections-plugin-supabase'
+import { auth0Plugin } from '@deessejs/collections-plugin-auth0'
+
+// Use Clerk
+const config1 = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  plugins: [clerkPlugin({ ... })]
+})
+
+// Use Supabase
+const config2 = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  plugins: [supabasePlugin({ ... })]
+})
+```
+
+### Creating a Custom Auth Plugin
+
+Any plugin can provide auth functionality by implementing the auth interface:
+
+```typescript
+interface AuthPlugin {
+  readonly name: string
+  readonly virtualCollections: Collection[]
+  readonly authApi: AuthApi
+  readonly hooks?: HooksConfig
+  readonly permissions?: PermissionsConfig
+}
+
+// Example: Custom auth plugin
+const myAuthPlugin = {
+  name: 'my-auth',
+  virtualCollections: [
+    users,      // Virtual collection for users
+    sessions   // Virtual collection for sessions
+  ],
+  authApi: {
+    signIn: async (credentials) => { /* ... */ },
+    signOut: async (sessionId) => { /* ... */ },
+    getSession: async (token) => { /* ... */ }
+  },
+  hooks: {
+    users: {
+      afterCreate: [async ({ result }) => { /* ... */ }]
+    }
+  }
+}
+```
 
 ## Architecture
 
@@ -23,16 +136,19 @@ Collections treats Better-Auth as a **plugin** that provides virtual collections
 │      plugins: [admin(), organization()]                    │
 │    })                                                      │
 │  ]                                                         │
+│                                                             │
+│  // Or: plugins: [clerkPlugin(...)]                       │
+│  // Or: plugins: [supabasePlugin(...)]                     │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   BetterAuthPlugin                           │
+│                   Auth Plugin (any)                          │
 ├─────────────────────────────────────────────────────────────┤
+│  - BetterAuthPlugin / ClerkPlugin / SupabasePlugin / ...│
 │  - Creates virtual collections from auth tables             │
 │  - Provides hooks for auth events                           │
-│  - Exposes auth API endpoints                               │
-│  - Maps auth models to collections                          │
+│  - Exposes auth API endpoints                              │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -41,6 +157,8 @@ Collections treats Better-Auth as a **plugin** that provides virtual collections
 ├─────────────────────────────────────────────────────────────┤
 │  users, sessions, accounts, verifications, apiKeys,          │
 │  organizations, members, ...                                │
+│                                                             │
+│  (Same interface regardless of auth provider)              │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -60,7 +178,7 @@ Collections treats Better-Auth as a **plugin** that provides virtual collections
 
 ## Configuration
 
-### As a Plugin
+### Better-Auth Plugin
 
 ```typescript
 import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'

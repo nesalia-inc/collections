@@ -1,121 +1,206 @@
-# Auth as a Plugin
+# Authentication
 
-Learn how Collections integrates authentication as a plugin system, allowing any auth provider (Better-Auth, Clerk, Supabase, Auth0, etc.) to be plugged in.
+Learn how Collections handles authentication as a native feature, with support for multiple providers (Better-Auth, Clerk, Supabase, Auth0).
 
 ## Overview
 
-Collections treats authentication as a **plugin** - not hardcoded. This means you can choose:
+Authentication in Collections is a **native conditional feature** - not a plugin. This means:
 
-- **Better-Auth** - Full-featured auth with plugins (admin, organization, etc.)
-- **Clerk** - Commercial auth with user management
-- **Supabase** - Open-source auth + database
-- **Auth0** - Enterprise auth solution
-- **Custom** - Your own auth implementation
+- Auth is enabled or disabled via the `auth` config field
+- Multiple providers are supported through swappable implementations
+- TypeScript naturally infers if `auth` is present or not
+- No complex type inference (HKT) needed
 
-The architecture is the same regardless of provider:
+```typescript
+// With auth - Better-Auth included in core
+import { defineConfig, betterAuth } from '@deessejs/collections'
 
-1. **Plugin-based** - Any auth solution as a plugin
-2. **Provider-agnostic** - Works with any database (PostgreSQL, MySQL, SQLite)
-3. **Virtual Collections** - Auth tables become queryable collections
-4. **Same API** - Access auth data using the same CRUD operations
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: betterAuth({
+    emailAndPassword: { enabled: true }
+  })
+})
 
-## Why Plugin-Based Auth?
-
-Traditional frameworks couple auth deeply:
-
-```
-┌─────────────────────────────────────┐
-│         Traditional Approach          │
-├─────────────────────────────────────┤
-│  app → built-in auth → database    │
-│  (auth is tightly coupled)         │
-└─────────────────────────────────────┘
+config.auth.api.signIn() // ✓ Typed - auth exists
 ```
 
-Collections decouples it:
+```typescript
+// Without auth - lightweight
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts]
+  // No auth field
+})
+
+config.auth // ✗ TypeScript knows auth doesn't exist
+```
+
+## Why Native Conditional Feature?
+
+### Plugin vs Feature Comparison
+
+| Aspect | Plugin | Native Conditional Feature |
+|--------|--------|---------------------------|
+| TypeScript inference | Complex (HKT simulation) | Natural |
+| config.auth exists | Always (with augmentation) | Only when configured |
+| DX for no-auth | Requires type exclusion | Works out of the box |
+| Provider packages | Single plugin package | Separate packages per provider |
+
+### The Collections Approach
 
 ```
-┌─────────────────────────────────────┐
-│        Collections Approach          │
-├─────────────────────────────────────┤
-│  app → auth plugin → virtual cols  │
-│        → database provider → db     │
-│  (auth is swappable)               │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   defineConfig()                              │
+├─────────────────────────────────────────────────────────────┤
+│  database: pgAdapter(...)                                   │
+│  collections: [posts]                                        │
+│  auth: betterAuth({ ... })  ← Optional field              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   Better-Auth    │  │      Clerk      │  │    Supabase     │
+│ (in collections) │  │(collections-auth │  │(collections-auth│
+│                 │  │    -clerk)      │  │  -supabase)     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+         │                    │                    │
+         └────────────────────┼────────────────────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │    Virtual Collections        │
+              │  (users, sessions, etc.)     │
+              └───────────────────────────────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │      Database Provider        │
+              └───────────────────────────────┘
 ```
 
-This means:
-- Switch auth providers without rewriting your app
-- Use different auth for different deployments
-- Easy testing with mock auth plugins
+## Supported Providers
+
+### Built-in: Better-Auth
+
+Included directly in `@deessejs/collections`:
+
+```typescript
+import { defineConfig, betterAuth } from '@deessejs/collections'
+
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: betterAuth({
+    emailAndPassword: { enabled: true },
+    socialProviders: {
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID!,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET!
+      }
+    },
+    plugins: [admin(), organization()]
+  })
+})
+```
+
+### External Providers
+
+Other providers are available as separate packages:
+
+```typescript
+// Clerk
+import { defineConfig, clerk } from '@deessejs/collections-auth-clerk'
+
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  collections: [posts],
+  auth: clerk({
+    instanceId: process.env.CLERK_INSTANCE_ID!,
+    secretKey: process.env.CLERK_SECRET_KEY!
+  })
+})
+
+// Supabase
+import { defineConfig, supabaseAuth } from '@deessejs/collections-auth-supabase'
+
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  collections: [posts],
+  auth: supabaseAuth({
+    url: process.env.SUPABASE_URL!,
+    anonKey: process.env.SUPABASE_ANON_KEY!
+  })
+})
+```
+
+### Provider Interface
+
+All auth providers implement the same interface:
+
+```typescript
+interface AuthProvider {
+  readonly name: string
+  readonly virtualCollections: Collection[]
+  readonly api: AuthApi
+  readonly hooks?: HooksConfig
+  readonly permissions?: PermissionsConfig
+}
+```
+
+This ensures:
+- Same API regardless of provider
+- Virtual collections work the same way
+- Hooks and permissions are portable
 
 ## Available Auth Plugins
 
 ### Better-Auth Plugin
 
 ```typescript
-import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+import { betterAuth } from '@deessejs/collections'
 
 const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
-  plugins: [
-    betterAuthPlugin({
-      emailAndPassword: { enabled: true },
-      socialProviders: { github: { ... } },
-      plugins: [admin(), organization()]
-    })
-  ]
+  auth: betterAuth({
+    emailAndPassword: { enabled: true },
+    socialProviders: { github: { ... } },
+    plugins: [admin(), organization()]
+  })
 })
 ```
 
-### Future: Other Auth Providers
+### Custom Providers
 
-The plugin system supports any auth provider:
-
-```typescript
-// Hypothetical future plugins
-import { clerkPlugin } from '@deessejs/collections-plugin-clerk'
-import { supabasePlugin } from '@deessejs/collections-plugin-supabase'
-import { auth0Plugin } from '@deessejs/collections-plugin-auth0'
-
-// Use Clerk
-const config1 = defineConfig({
-  database: pgAdapter({ url: '...' }),
-  plugins: [clerkPlugin({ ... })]
-})
-
-// Use Supabase
-const config2 = defineConfig({
-  database: pgAdapter({ url: '...' }),
-  plugins: [supabasePlugin({ ... })]
-})
-```
-
-### Creating a Custom Auth Plugin
-
-Any plugin can provide auth functionality by implementing the auth interface:
+You can create custom auth providers by implementing the AuthProvider interface:
 
 ```typescript
-interface AuthPlugin {
-  readonly name: string
-  readonly virtualCollections: Collection[]
-  readonly authApi: AuthApi
-  readonly hooks?: HooksConfig
-  readonly permissions?: PermissionsConfig
+// In your custom provider package
+import { defineAuthProvider, type AuthProvider } from '@deessejs/collections'
+
+export const myAuth = (options: MyAuthOptions): AuthProvider => {
+  return {
+    name: 'my-auth',
+    virtualCollections: [/* ... */],
+    api: {
+      signIn: async (credentials) => { /* ... */ },
+      signOut: async (sessionId) => { /* ... */ },
+      getSession: async (token) => { /* ... */ }
+    }
+  }
 }
 
-// Example: Custom auth plugin
-const myAuthPlugin = {
-  name: 'my-auth',
-  virtualCollections: [
-    users,      // Virtual collection for users
-    sessions   // Virtual collection for sessions
-  ],
-  authApi: {
-    signIn: async (credentials) => { /* ... */ },
-    signOut: async (sessionId) => { /* ... */ },
-    getSession: async (token) => { /* ... */ }
-  },
+// Usage
+import { defineConfig, myAuth } from './my-auth-provider'
+
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  auth: myAuth({ apiKey: '...' })
+})
+```
   hooks: {
     users: {
       afterCreate: [async ({ result }) => { /* ... */ }]
@@ -130,15 +215,10 @@ const myAuthPlugin = {
 ┌─────────────────────────────────────────────────────────────┐
 │                    defineConfig()                            │
 ├─────────────────────────────────────────────────────────────┤
-│  plugins: [                                                 │
-│    betterAuthPlugin({                                       │
+│  auth: betterAuth({                                        │
 │      emailAndPassword: { enabled: true },                 │
 │      plugins: [admin(), organization()]                    │
-│    })                                                      │
-│  ]                                                         │
-│                                                             │
-│  // Or: plugins: [clerkPlugin(...)]                       │
-│  // Or: plugins: [supabasePlugin(...)]                     │
+│  })                                                        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -182,7 +262,7 @@ const myAuthPlugin = {
 
 ```typescript
 import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
-import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+import { betterAuth } from '@deessejs/collections'
 
 const posts = collection({
   slug: 'posts',
@@ -195,21 +275,19 @@ const posts = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  plugins: [
-    betterAuthPlugin({
-      emailAndPassword: { enabled: true },
-      socialProviders: {
-        github: {
-          clientId: process.env.GITHUB_CLIENT_ID!,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET!
-        }
-      },
-      plugins: [
-        admin(),
-        organization()
-      ]
-    })
-  ]
+  auth: betterAuth({
+    emailAndPassword: { enabled: true },
+    socialProviders: {
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID!,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET!
+      }
+    },
+    plugins: [
+      admin(),
+      organization()
+    ]
+  })
 })
 ```
 
@@ -306,7 +384,7 @@ type SessionsCollection = {
 You can add hooks to virtual auth collections:
 
 ```typescript
-betterAuthPlugin({
+betterAuth({
   emailAndPassword: { enabled: true },
   hooks: {
     users: {
@@ -350,7 +428,7 @@ betterAuthPlugin({
 Apply permissions to auth collections:
 
 ```typescript
-betterAuthPlugin({
+betterAuth({
   emailAndPassword: { enabled: true },
   permissions: {
     users: {
@@ -432,7 +510,7 @@ Collections like `sessions` are accessed on **every authenticated request**. Add
 
 ```typescript
 // ⚠️ Warning: Hooks on sessions run on EVERY request
-betterAuthPlugin({
+betterAuth({
   hooks: {
     sessions: {
       afterRead: [
@@ -461,7 +539,7 @@ app.use('/api/*', async (c, next) => {
 })
 
 // ✅ If you must use hooks, keep them minimal
-betterAuthPlugin({
+betterAuth({
   hooks: {
     users: {
       // Only hook on write operations for users
@@ -524,7 +602,7 @@ For complex relations involving virtual collections, prefer explicit junction ta
 Listen to auth events from the plugin:
 
 ```typescript
-betterAuthPlugin({
+betterAuth({
   emailAndPassword: { enabled: true },
   onAuthEvent: (event) => {
     switch (event.type) {
@@ -550,7 +628,7 @@ betterAuthPlugin({
 Extend the users collection with custom fields:
 
 ```typescript
-betterAuthPlugin({
+betterAuth({
   emailAndPassword: { enabled: true },
   userFields: {
     role: field({
@@ -580,7 +658,7 @@ These fields are added to the `users` virtual collection and stored in the same 
 Better-Auth plugins are passed directly to the auth plugin:
 
 ```typescript
-betterAuthPlugin({
+betterAuth({
   emailAndPassword: { enabled: true },
   plugins: [
     admin(),           // Admin functions
@@ -612,13 +690,13 @@ The auth plugin works with any database provider. The provider handles:
 // Works with any provider
 const config = defineConfig({
   database: pgAdapter({ url: process.env.POSTGRES_URL }),
-  plugins: [betterAuthPlugin({ ... })]
+  auth: betterAuth({ ... })]
 })
 
 // Or SQLite
 const configLocal = defineConfig({
   database: sqliteAdapter({ url: './data.db' }),
-  plugins: [betterAuthPlugin({ ... })]
+  auth: betterAuth({ ... })]
 })
 ```
 
@@ -667,7 +745,7 @@ This creates a lightweight setup without any auth tables.
 
 ```typescript
 import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
-import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+import { betterAuth } from '@deessejs/collections'
 import { admin, organization } from 'better-auth/plugins'
 
 const posts = collection({
@@ -696,29 +774,28 @@ const posts = collection({
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  plugins: [
-    betterAuthPlugin({
-      emailAndPassword: { enabled: true },
-      socialProviders: {
-        github: {
-          clientId: process.env.GITHUB_CLIENT_ID!,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET!
-        }
-      },
-      userFields: {
-        role: field({
-          fieldType: f.select(['user', 'admin']),
-          defaultValue: 'user'
-        })
-      },
-      plugins: [admin(), organization()],
-      hooks: {
-        users: {
-          afterRead: [
-            async ({ result }) => {
-              return result.map(u => ({ ...u }))
-            }
-          ]
+  auth: betterAuth({
+    emailAndPassword: { enabled: true },
+    socialProviders: {
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID!,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET!
+      }
+    },
+    userFields: {
+      role: field({
+        fieldType: f.select(['user', 'admin']),
+        defaultValue: 'user'
+      })
+    },
+    plugins: [admin(), organization()],
+    hooks: {
+      users: {
+        afterRead: [
+          async ({ result }) => {
+            return result.map(u => ({ ...u }))
+          }
+        ]
         }
       },
       onAuthEvent: (event) => {
@@ -739,7 +816,7 @@ A critical design question is: how does TypeScript know that `config.auth` exist
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   collections: [posts],
-  plugins: [betterAuthPlugin({ emailAndPassword: { enabled: true } })]
+  auth: betterAuth({ emailAndPassword: { enabled: true } })]
 })
 
 // How does TypeScript know config.auth exists?
@@ -771,7 +848,7 @@ declare module '@deessejs/collections' {
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   collections: [posts],
-  plugins: [betterAuthPlugin({ emailAndPassword: { enabled: true } })]
+  auth: betterAuth({ emailAndPassword: { enabled: true } })]
 })
 
 config.auth.api.signIn() // ✓ Typed
@@ -797,7 +874,7 @@ const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   collections: [posts]
 })
-  .use(betterAuthPlugin({ emailAndPassword: { enabled: true } }))
+  .use(betterAuth({ emailAndPassword: { enabled: true } }))
   .use(seoPlugin())
 
 // Each .use() returns a new config with additional types
@@ -836,14 +913,10 @@ TypeScript infers types from the plugins array passed to defineConfig.
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   collections: [posts],
-  plugins: [
-    betterAuthPlugin({ emailAndPassword: { enabled: true } }),
-    organizationPlugin()
-  ]
+  auth: betterAuth({ emailAndPassword: { enabled: true } })
 })
 
 config.auth.api.signIn()              // ✓ Typed
-config.db.organizations.findMany()    // ✓ Typed
 ```
 
 Implementation:
@@ -943,7 +1016,7 @@ function betterAuthPlugin(options: AuthOptions): BetterAuthPlugin
 // Usage with HKT-style composition
 const config = pipe(
   baseConfig,
-  betterAuthPlugin({ emailAndPassword: { enabled: true } }).extend,
+  betterAuth({ emailAndPassword: { enabled: true } }).extend,
   seoPlugin().extend,
   analyticsPlugin().extend
 )
@@ -959,7 +1032,7 @@ function pipe<A, B>(a: A, fn: (a: A) => A & B): A & B
 function pipe<A, B, C>(a: A, fn1: (a: A) => A & B, fn2: (a: A & B) => A & B & C): A & B & C
 
 // Or using function composition
-const extendAuth = betterAuthPlugin({ emailAndPassword: { enabled: true } }).extend
+const extendAuth = betterAuth({ emailAndPassword: { enabled: true } }).extend
 const extendSeo = seoPlugin().extend
 
 const config = extendSeo(extendAuth(baseConfig))
@@ -1003,7 +1076,7 @@ class ConfigBuilder<C extends BaseConfig = BaseConfig> {
 
 // Usage
 const config = new ConfigBuilder(baseConfig)
-  .use(betterAuthPlugin({ emailAndPassword: { enabled: true } }))
+  .use(betterAuth({ emailAndPassword: { enabled: true } }))
   .use(organizationPlugin())
   .build()
 
@@ -1044,12 +1117,12 @@ The choice depends on your project complexity:
 **Module Augmentation** is the best choice:
 
 ```typescript
-import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+import { betterAuth } from '@deessejs/collections'
 // ↑ This import extends the Config interface automatically
 
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
-  plugins: [betterAuthPlugin({ emailAndPassword: { enabled: true } })]
+  auth: betterAuth({ emailAndPassword: { enabled: true } })]
 })
 
 config.auth.api.signIn() // ✓ Typed!
@@ -1068,19 +1141,8 @@ config.auth.api.signIn() // ✓ Typed!
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   collections: [posts],
-  plugins: [
-    betterAuthPlugin({ emailAndPassword: { enabled: true } }),
-    organizationPlugin()
-  ]
+  auth: betterAuth({ emailAndPassword: { enabled: true })
 } as const)
-
-// Option B: .use() - explicit chaining
-const config = defineConfig({
-  database: pgAdapter({ url: '...' }),
-  collections: [posts]
-})
-  .use(betterAuthPlugin({ emailAndPassword: { enabled: true } }))
-  .use(organizationPlugin())
 ```
 
 Why avoid Module Augmentation in monorepos?

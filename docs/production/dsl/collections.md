@@ -18,6 +18,14 @@ export const posts = collection({
     description: 'Blog posts and articles'
   },
 
+  // Optional: permissions
+  permissions: {
+    create: async ({ user }) => !!user,
+    read: async ({ user }) => true,
+    update: async ({ user, current }) => user?.role === 'admin' || current.authorId === user?.id,
+    delete: async ({ user, current }) => user?.role === 'admin'
+  },
+
   // Collection fields
   fields: {
     title: field({ fieldType: f.text() }),
@@ -45,6 +53,18 @@ type CollectionConfig<
   admin?: {
     // Field description for admin UI
     description?: string
+  }
+
+  // Optional: permissions for CRUD operations
+  permissions?: {
+    // Permission to create records
+    create?: (context: { user?: User; data: unknown }) => Promise<boolean> | boolean,
+    // Permission to read records
+    read?: (context: { user?: User; query: unknown }) => Promise<boolean> | boolean,
+    // Permission to update records
+    update?: (context: { user?: User; data: unknown; current: unknown }) => Promise<boolean> | boolean,
+    // Permission to delete records
+    delete?: (context: { user?: User; current: unknown }) => Promise<boolean> | boolean
   }
 
   // Required: field definitions
@@ -133,6 +153,107 @@ export const posts = collection({
           ...post,
           title: post.title.toUpperCase()
         }))
+      }
+    ]
+  }
+})
+```
+
+## Permissions
+
+Define access control for each operation:
+
+```typescript
+export const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    authorId: field({ fieldType: f.text() })
+  },
+
+  permissions: {
+    // Anyone can create
+    create: async ({ user }) => !!user,
+
+    // Everyone can read
+    read: async () => true,
+
+    // Only author or admin can update
+    update: async ({ user, current }) => {
+      if (!user) return false
+      return user.role === 'admin' || current.authorId === user.id
+    },
+
+    // Only admin can delete
+    delete: async ({ user }) => user?.role === 'admin'
+  }
+})
+```
+
+### Permission Context
+
+Each permission function receives a context object:
+
+```typescript
+permissions: {
+  create: async ({ user, data }) => {
+    // user: Current authenticated user (from session)
+    // data: The data being created
+    return user?.role === 'admin'
+  },
+
+  read: async ({ user, query }) => {
+    // user: Current authenticated user
+    // query: The query parameters
+    return user?.role !== 'banned'
+  },
+
+  update: async ({ user, data, current }) => {
+    // user: Current authenticated user
+    // data: New data being set
+    // current: Existing record
+    return user?.role === 'admin' || current.ownerId === user?.id
+  },
+
+  delete: async ({ user, current }) => {
+    // user: Current authenticated user
+    // current: Record being deleted
+    return user?.role === 'admin'
+  }
+}
+```
+
+### Permission with Hooks
+
+Combine with hooks for complex logic:
+
+```typescript
+export const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    status: field({ fieldType: f.select(['draft', 'published']) }),
+    authorId: field({ fieldType: f.text() })
+  },
+
+  permissions: {
+    read: async ({ user }) => true,
+    update: async ({ user, current }) => user?.role === 'admin' || current.authorId === user?.id
+  },
+
+  hooks: {
+    beforeCreate: [
+      async ({ data, db }) => {
+        // Add author from session
+        const session = await db.session()
+        data.authorId = session.user.id
+
+        // Auto-set draft for non-admins
+        if (session.user.role !== 'admin') {
+          data.status = 'draft'
+        }
+
+        return data
       }
     ]
   }

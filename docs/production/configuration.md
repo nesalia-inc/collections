@@ -53,6 +53,14 @@ const posts = collection({
   name: 'Posts',
   fields: {
     title: field({ fieldType: f.text() })
+  },
+
+  // Optional: access control
+  permissions: {
+    create: async ({ user }) => !!user,
+    read: async () => true,
+    update: async ({ user, current }) => user?.role === 'admin' || current.authorId === user?.id,
+    delete: async ({ user }) => user?.role === 'admin'
   }
 })
 

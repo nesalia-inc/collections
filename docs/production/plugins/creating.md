@@ -278,10 +278,119 @@ const seoPlugin = plugin({
 // TypeScript doesn't know about metaTitle in the original definition
 type Post = GetCollectionType<typeof posts>
 // Post may not include metaTitle
-
-// Workaround: Use type assertion or module augmentation
-type PostWithSEO = Post & { metaTitle?: string }
 ```
+
+### Solution: withPlugins Helper
+
+Use `withPlugins` to preserve type inference:
+
+```typescript
+import { withPlugins, collection, field, f } from '@deessejs/collections'
+import { seoPlugin } from './plugins/seo'
+
+// Define collection with explicit plugin types
+const posts = withPlugins([seoPlugin], collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() })
+  }
+}))
+
+// TypeScript now knows about metaTitle!
+type Post = GetCollectionType<typeof posts>
+// Post includes: { title: string, metaTitle?: string, ... }
+```
+
+### Module Augmentation
+
+For plugins from packages, use module augmentation:
+
+```typescript
+// plugins.d.ts
+import '@deessejs/collections'
+
+declare module '@deessejs/collections' {
+  interface CollectionFields {
+    metaTitle?: FieldDefinition
+    metaDescription?: FieldDefinition
+  }
+}
+
+// Now all collections include these fields
+```
+
+## Hook Context Mutation
+
+The `beforeOperation` hook can modify the context to inject data:
+
+```typescript
+const tracingPlugin = plugin({
+  name: 'tracing',
+
+  hooks: {
+    beforeOperation: [
+      async (context) => {
+        // Add trace ID to all operations
+        context.data = {
+          ...context.data,
+          traceId: generateTraceId()
+        }
+        return context  // Return modified context
+      }
+    ]
+  }
+})
+```
+
+**Warning:** Modifying context affects all subsequent hooks and the operation itself. Use carefully.
+
+## onReady Hook
+
+For plugins that depend on other plugins' modifications:
+
+```typescript
+const cachePlugin = plugin({
+  name: 'cache',
+
+  onReady: (config) => {
+    // Called after all onInit hooks complete
+    // Now all fields from all plugins are available
+
+    config.collections.forEach(col => {
+      // Can now see fields added by other plugins
+      if (col.fields.metaTitle) {
+        // Add caching for metaTitle field queries
+      }
+    })
+  }
+})
+```
+
+**Use case:** A plugin that needs to analyze or react to fields added by other plugins.
+
+## onInit and Migrations
+
+Changes made in `onInit` are included in migrations:
+
+```typescript
+const versioningPlugin = plugin({
+  name: 'versioning',
+
+  onInit: (config) => {
+    config.collections.forEach(col => {
+      col.fields.version = field({
+        fieldType: f.number(),
+        defaultValue: 1
+      })
+    })
+  }
+})
+
+// Run: npx collections migrate
+// Migration includes version column for all collections
+```
+
+The CLI detects changes made by plugins and includes them in the generated SQL.
 
 For full type support, consider:
 1. Using module augmentation

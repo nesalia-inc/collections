@@ -10,6 +10,14 @@ import { collection, field, f } from '@deessejs/collections'
 export const posts = collection({
   slug: 'posts',
 
+  // Optional: human-readable name
+  name: 'Posts',
+
+  // Optional: admin configuration
+  admin: {
+    description: 'Blog posts and articles'
+  },
+
   // Collection fields
   fields: {
     title: field({ fieldType: f.text() }),
@@ -29,6 +37,15 @@ type CollectionConfig<
 > = {
   // Required: unique identifier
   slug: TSlug
+
+  // Optional: human-readable name for UI
+  name?: string
+
+  // Optional: admin configuration
+  admin?: {
+    // Field description for admin UI
+    description?: string
+  }
 
   // Required: field definitions
   fields: TFields

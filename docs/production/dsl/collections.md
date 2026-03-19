@@ -190,6 +190,41 @@ export const posts = collection({
 })
 ```
 
+### Read Permissions with Query Constraints
+
+The `read` permission can return query constraints instead of just a boolean. This injects filters directly into the SQL WHERE clause:
+
+```typescript
+permissions: {
+  // Boolean: allow all
+  read: async () => true,
+
+  // Query constraints: filter results
+  read: async ({ user }) => {
+    if (!user) return { published: true }  // Public sees only published
+    if (user.role === 'admin') return true  // Admin sees all
+
+    // Return constraints injected into WHERE
+    return {
+      OR: [
+        { authorId: user.id },
+        { published: true }
+      ]
+    }
+  }
+}
+```
+
+**Why Query Constraints?**
+- Boolean permissions reject entire queries for unauthorized users
+- Query constraints filter results at the database level (efficient)
+- Works with millions of records without performance issues
+
+```typescript
+// Without constraints: query fails if user has no permission
+// With constraints: SELECT * WHERE authorId = 'user-123'
+```
+
 ### Permission Context
 
 Each permission function receives a context object:
@@ -324,10 +359,58 @@ type Post = GetCollectionType<typeof posts>
 // }
 ```
 
-These fields are added automatically and cannot be overridden. They provide:
-- `id` - Unique identifier (UUID)
-- `createdAt` - Creation timestamp
-- `updatedAt` - Last update timestamp
+These fields are added automatically and can be configured:
+
+```typescript
+export const posts = collection({
+  slug: 'posts',
+
+  // Configure auto-generated fields
+  id: {
+    type: 'uuid',       // 'uuid' | 'string' | 'number'
+    autoGenerate: true
+  },
+
+  createdAt: {
+    fieldName: 'created_at',  // Rename field
+    autoSet: true
+  },
+
+  updatedAt: {
+    fieldName: 'updated_at',  // Rename field
+    autoSet: true,
+    onUpdate: true           // Auto-update on changes
+  },
+
+  fields: {
+    title: field({ fieldType: f.text() })
+  }
+})
+```
+
+**Options:**
+- `type` - ID type: `'uuid'`, `'string'`, or `'number'`
+- `autoGenerate` - Auto-generate on create (for id)
+- `fieldName` - Customize column name
+- `autoSet` - Auto-set on create (for timestamps)
+- `onUpdate` - Auto-update on changes (for timestamps)
+
+### Disable auto fields
+
+For immutable tables (like logs), disable auto timestamps:
+
+```typescript
+const auditLogs = collection({
+  slug: 'audit_logs',
+
+  updatedAt: false,  // Disable auto-updatedAt
+
+  fields: {
+    action: field({ fieldType: f.text() }),
+    timestamp: field({ fieldType: f.timestamp() })
+  }
+})
+```
 
 ## Using Collections
 

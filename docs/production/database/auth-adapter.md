@@ -265,6 +265,142 @@ permissions: {
 }
 ```
 
+### Permission Hierarchy
+
+When both Collections permissions and Better-Auth's internal logic apply, the execution order is:
+
+1. **Collections Permissions** (first - guard layer)
+   - Collections permissions run first
+   - If denied, the request is blocked immediately
+   - Acts as an additional security layer
+
+2. **Better-Auth Internal Logic**
+   - After Collections permissions pass
+   - Better-Auth's own validation runs
+   - Handles auth-specific rules (password validation, OAuth flows, etc.)
+
+3. **Database Adapter** (last)
+   - Final execution layer
+   - Actual database operation
+
+```typescript
+// Example: Collections permission blocks, Better-Auth never sees the request
+permissions: {
+  users: {
+    // Collections checks first - if admin only, non-admins are blocked here
+    read: async ({ user }) => user?.role === 'admin',
+    update: async ({ user }) => user?.role === 'admin',
+    delete: async ({ user }) => user?.role === 'admin'
+  }
+}
+
+// If Collections allows, Better-Auth then applies its own rules
+// For example: users cannot change their own email to another user's email
+```
+
+**Conflict Resolution:**
+
+| Scenario | Outcome |
+|----------|---------|
+| Collections denies, Better-Auth would allow | Blocked by Collections |
+| Collections allows, Better-Auth denies | Blocked by Better-Auth |
+| Both allow | Operation proceeds |
+
+This two-layer approach provides defense in depth - you can add extra restrictions via Collections while still leveraging Better-Auth's built-in security.
+
+### Performance Warning: Hooks on High-Frequency Collections
+
+Collections like `sessions` are accessed on **every authenticated request**. Adding hooks to these can impact performance:
+
+```typescript
+// ⚠️ Warning: Hooks on sessions run on EVERY request
+betterAuthPlugin({
+  hooks: {
+    sessions: {
+      afterRead: [
+        async ({ result }) => {
+          // This runs on every API call!
+          return result
+        }
+      ]
+    }
+  }
+})
+```
+
+**Best Practices:**
+
+1. **Avoid hooks on `sessions`** unless absolutely necessary
+2. **Use `beforeRead` sparingly** - it runs before every query
+3. **Keep hooks lightweight** - no complex computations
+4. **Consider middleware instead** - for per-request logic, middleware may be more appropriate
+
+```typescript
+// ✅ Better: Use middleware for request-level logic
+app.use('/api/*', async (c, next) => {
+  // This runs once per request, not per collection read
+  await next()
+})
+
+// ✅ If you must use hooks, keep them minimal
+betterAuthPlugin({
+  hooks: {
+    users: {
+      // Only hook on write operations for users
+      afterCreate: [async ({ result }) => { /* ... */ }]
+    }
+  }
+})
+```
+
+## Virtual Collections Limitations
+
+While virtual collections aim to behave exactly like regular collections, there are some known limitations:
+
+### Supported Features
+
+- ✅ CRUD operations (find, findMany, create, update, delete)
+- ✅ Relations from virtual → regular collections
+- ✅ Hooks on all collections
+- ✅ Permissions on all collections
+- ✅ Custom fields via `userFields`
+
+### Known Limitations
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Relations to virtual collections | ⚠️ Partial | `hasMany` from virtual → regular works; reverse may require explicit configuration |
+| Many-to-many via virtual | ⚠️ Partial | Junction tables must be explicit collections |
+| Custom indexes | ❌ Limited | Auth table indexes are managed by Better-Auth |
+| Field-level encryption | ❌ Not supported | Managed by Better-Auth |
+
+### Relations with Virtual Collections
+
+```typescript
+// ✅ Works: Regular collection relates to virtual collection
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    author: field({
+      fieldType: f.relation({ to: 'users' })  // ✓ users is virtual
+    })
+  }
+})
+
+// ⚠️ Use caution: Virtual collection hasMany regular
+const users = collection({
+  slug: 'users',
+  fields: {
+    posts: field({
+      fieldType: f.relation({ to: 'posts', many: true })
+      // May require explicit configuration
+    })
+  }
+})
+```
+
+For complex relations involving virtual collections, prefer explicit junction tables as regular collections.
+
 ## Auth Events
 
 Listen to auth events from the plugin:
@@ -783,13 +919,11 @@ config.organizations         // ✓ Typed
 
 ### Recommendation
 
-For the best Developer Experience (DX) while maintaining type safety:
+The choice depends on your project complexity:
 
-1. **Start with Module Augmentation** - Simplest to implement, good DX
-2. **Add .use() as alternative** - For users who prefer explicit chaining
-3. **Consider type generation** - For complex enterprise setups
+#### For Simple Projects (Single App)
 
-The auth plugin currently works with **Module Augmentation**, where importing `@deessejs/collections-plugin-auth` automatically extends the config type:
+**Module Augmentation** is the best choice:
 
 ```typescript
 import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
@@ -803,7 +937,57 @@ const config = defineConfig({
 config.auth.api.signIn() // ✓ Typed!
 ```
 
-This approach provides the best DX - zero configuration required, types work out of the box.
+- Zero configuration required
+- Types work out of the box
+- Simplest DX
+
+#### For Complex Projects (Monorepo, Multiple Apps)
+
+**Generic Inference (Solution 3)** or **.use() (Solution 2)** are cleaner:
+
+```typescript
+// Option A: Generic Inference - types stay local to this config
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  collections: [posts],
+  plugins: [
+    betterAuthPlugin({ emailAndPassword: { enabled: true } }),
+    organizationPlugin()
+  ]
+} as const)
+
+// Option B: .use() - explicit chaining
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  collections: [posts]
+})
+  .use(betterAuthPlugin({ emailAndPassword: { enabled: true } }))
+  .use(organizationPlugin())
+```
+
+Why avoid Module Augmentation in monorepos?
+- Global interface pollution
+- Can affect other packages unintentionally
+- Harder to track where types come from
+
+#### For Enterprise / Strictly Typed Projects
+
+**Type Generation (Solution 4)** provides the most control:
+
+- Generated types are explicit and reviewable
+- Works regardless of plugin import order
+- No runtime type inference magic
+
+```bash
+# CLI generates types
+npx @deessejs/collections-cli generate-types
+```
+
+---
+
+**Current Implementation:**
+
+The auth plugin uses **Module Augmentation** for the simplest DX. However, future versions will support alternative typing approaches for complex architectures.
 
 ---
 

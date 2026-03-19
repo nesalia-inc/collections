@@ -258,6 +258,19 @@ Select specific fields:
 }
 ```
 
+### include (Relations)
+
+Uses SQL JOINs for efficient fetching:
+
+```typescript
+const posts = await config.db.posts.find({
+  include: {
+    author: true,
+    comments: true
+  }
+})
+```
+
 ## Pagination
 
 ### Offset Pagination
@@ -325,6 +338,46 @@ const count = await config.db.posts.count({ where: { published: true } })
 
 const result = await config.db.posts.createMany({ data: [...] })
 // result.data = 2 (number of created records)
+```
+
+## Result Pattern
+
+All operations return a result object with `.data` for success or `.error` for failures:
+
+```typescript
+const result = await config.db.posts.findById(1)
+
+if (result.error) {
+  console.error(result.error)
+  return
+}
+
+result.data.title
+```
+
+### Optional Total Count
+
+Disable the COUNT query for better performance on large tables:
+
+```typescript
+const result = await config.db.posts.find({
+  limit: 10,
+  count: false
+})
+```
+
+## Transactions
+
+```typescript
+await config.db.$transaction(async (tx) => {
+  const post = await tx.posts.create({
+    data: { title: 'New Post' }
+  })
+
+  await tx.tags.create({
+    data: { name: 'featured', postId: post.data.id }
+  })
+})
 ```
 
 ## Type Safety

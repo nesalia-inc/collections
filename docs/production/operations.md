@@ -380,6 +380,24 @@ Select specific fields:
 }
 ```
 
+### include (Relations)
+
+The `include` option uses SQL JOINs for efficient data fetching:
+
+```typescript
+// Single query with JOINs
+const posts = await config.db.posts.find({
+  include: {
+    author: true,
+    comments: true
+  }
+})
+
+// posts.current.data[0].author is loaded via SQL JOIN
+```
+
+**Note:** Include performs SQL JOINs for optimal performance. For complex nested includes, consider using separate queries for better control.
+
 ## Return Values
 
 ### Paginated Results (find)
@@ -423,6 +441,71 @@ const count = await config.db.posts.count({ where: { published: true } })
 // createMany, updateMany, deleteMany
 const result = await config.db.posts.deleteMany({ where: { published: false } })
 // result.data = 10 (number of affected records)
+```
+
+## Result Pattern
+
+All operations return a result object with `.data` for success or `.error` for failures:
+
+```typescript
+const result = await config.db.posts.findById(1)
+
+if (result.error) {
+  console.error(result.error) // Handle error
+  return
+}
+
+result.data.title // Access data safely
+```
+
+This pattern ensures explicit error handling and prevents uncaught exceptions.
+
+### Optional Total Count
+
+The `total` count requires an extra SQL query (`COUNT(*)`), which can be slow on large tables. Disable it for better performance:
+
+```typescript
+const result = await config.db.posts.find({
+  limit: 10,
+  count: false  // Skip COUNT query
+})
+
+// result.current.data    // Records
+// result.current.total   // undefined (no count performed)
+```
+
+## Transactions
+
+Execute multiple operations atomically:
+
+```typescript
+await config.db.$transaction(async (tx) => {
+  // tx provides the same API as config.db.posts
+  const post = await tx.posts.create({
+    data: { title: 'New Post' }
+  })
+
+  await tx.tags.create({
+    data: { name: 'featured', postId: post.data.id }
+  })
+
+  // If either fails, both are rolled back
+})
+```
+
+### Transaction Return Values
+
+Operations inside a transaction return data directly (not wrapped):
+
+```typescript
+await config.db.$transaction(async (tx) => {
+  const post = await tx.posts.create({
+    data: { title: 'New Post' }
+  })
+
+  // post.data is available directly
+  return post.data.id
+})
 ```
 
 ## Type Safety

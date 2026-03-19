@@ -1,223 +1,151 @@
-# Custom Database Adapter
+# Better-Auth as a Plugin
 
-Learn how collections bridges Better-Auth with Drizzle using a custom adapter.
+Learn how Collections integrates Better-Auth as a first-class plugin, creating virtual collections from auth tables.
 
 ## Overview
 
-Collections uses a custom database adapter to connect Better-Auth with your database. This adapter:
-1. Uses the same Drizzle instance as your collections
-2. Merges Better-Auth tables with your collections tables
-3. Handles all database operations for auth (users, sessions, accounts, etc.)
-4. Supports Better-Auth plugins (admin, organization, apiKey, etc.)
+Collections treats Better-Auth as a **plugin** that provides virtual collections for authentication tables. This architecture:
+
+1. **Plugin-based** - Better-Auth is loaded as a plugin, not hardcoded
+2. **Provider-agnostic** - Works with any database provider (PostgreSQL, MySQL, SQLite)
+3. **Virtual Collections** - Auth tables become queryable collections
+4. **Same API** - Access auth data using the same CRUD operations
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     Collections                           │
-├─────────────────────────────────────────────────────────┤
-│  config.defineConfig({                                   │
-│    database: pgAdapter({ url }),                        │
-│    collections: [posts, todos],                         │
-│    auth: { ... }                                       │
-│  })                                                    │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    defineConfig()                            │
+├─────────────────────────────────────────────────────────────┤
+│  plugins: [                                                 │
+│    betterAuthPlugin({                                       │
+│      emailAndPassword: { enabled: true },                 │
+│      plugins: [admin(), organization()]                    │
+│    })                                                      │
+│  ]                                                         │
+└─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────┐
-│            CollectionsAdapter (Custom)                   │
-├─────────────────────────────────────────────────────────┤
-│  - createAdapterFactory(config)                         │
-│  - Maps Better-Auth models to collections operations    │
-│  - Uses same Drizzle instance                          │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   BetterAuthPlugin                           │
+├─────────────────────────────────────────────────────────────┤
+│  - Creates virtual collections from auth tables             │
+│  - Provides hooks for auth events                           │
+│  - Exposes auth API endpoints                               │
+│  - Maps auth models to collections                          │
+└─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────┐
-│                      Drizzle ORM                        │
-├─────────────────────────────────────────────────────────┤
-│  Tables: users, sessions, accounts, verification,       │
-│          posts, todos, ...                            │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 Virtual Collections                          │
+├─────────────────────────────────────────────────────────────┤
+│  users, sessions, accounts, verifications, apiKeys,          │
+│  organizations, members, ...                                │
+└─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────┐
-│                    PostgreSQL                           │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   Database Provider                          │
+├─────────────────────────────────────────────────────────────┤
+│  pgAdapter | mysqlAdapter | sqliteAdapter | custom         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Database                                │
+├─────────────────────────────────────────────────────────────┤
+│  PostgreSQL | MySQL | SQLite | Custom                      │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-## How It Works
-
-### 1. Schema Merging
-
-When auth is enabled, the adapter merges:
-
-- **Auth tables** (from Better-Auth + plugins): `user`, `session`, `account`, `verification`, `apiKey`, etc.
-- **Collection tables**: `posts`, `todos`, etc.
-
-All tables use the same Drizzle instance and database connection.
-
-### 2. Adapter Methods
-
-The adapter implements all required Better-Auth methods:
-
-```typescript
-adapter: ({
-  options,
-  schema,
-  getFieldName,
-  getModelName,
-  transformInput,
-  transformOutput,
-  transformWhereClause
-}) => {
-  return {
-    create: async ({ model, data, select }) => { ... },
-    update: async ({ model, where, update }) => { ... },
-    updateMany: async ({ model, where, update }) => { ... },
-    delete: async ({ model, where }) => { ... },
-    deleteMany: async ({ model, where }) => { ... },
-    findOne: async ({ model, where, select, join }) => { ... },
-    findMany: async ({ model, where, limit, sortBy, offset, join }) => { ... },
-    count: async ({ model, where }) => { ... }
-  }
-}
-```
-
-### 3. Model Mapping
-
-The adapter maps Better-Auth models to the correct table:
-
-| Better-Auth Model | Table |
-|-------------------|-------|
-| `user` | `users` |
-| `session` | `sessions` |
-| `account` | `accounts` |
-| `verification` | `verifications` |
-| `apiKey` | `apiKeys` |
-
-### 4. Field Transformation
-
-Handles field name transformations:
-- `createdAt` → `created_at`
-- `emailVerified` → `email_verified`
 
 ## Configuration
 
-The adapter is created automatically when you configure auth:
+### As a Plugin
 
 ```typescript
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
+import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    content: field({ fieldType: f.text() })
+  }
+})
+
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
-  collections: [posts, todos],
-  auth: {
-    emailAndPassword: { enabled: true },
-    plugins: [admin(), organization()]
-  }
+  collections: [posts],
+  plugins: [
+    betterAuthPlugin({
+      emailAndPassword: { enabled: true },
+      socialProviders: {
+        github: {
+          clientId: process.env.GITHUB_CLIENT_ID!,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET!
+        }
+      },
+      plugins: [
+        admin(),
+        organization()
+      ]
+    })
+  ]
 })
 ```
 
-The adapter:
-1. Detects which auth plugins are enabled
-2. Creates the required schema tables
-3. Implements the adapter methods using Drizzle
+### Why as a Plugin?
 
-## Plugin Support
+Treating Better-Auth as a plugin provides:
 
-When you add Better-Auth plugins, the adapter automatically handles their tables:
+| Benefit | Description |
+|---------|-------------|
+| **Flexibility** | Enable/disable auth easily |
+| **Swappable** | Replace with other auth solutions |
+| **Extensible** | Add custom auth providers |
+| **Consistent** | Same API pattern as other plugins |
+| **Type-safe** | Full TypeScript inference |
 
-```typescript
-auth: {
-  plugins: [
-    admin(),      // Adds admin-specific tables/fields
-    organization(), // Adds organization, member tables
-    apiKey()     // Adds apiKey table
-  }
-}
-```
+## Virtual Collections
 
-Each plugin can add:
-- New tables
-- New fields to existing tables
-- Custom database hooks
+When the auth plugin is enabled, it creates **virtual collections** for each auth table:
 
-## Extending the Adapter
+### Available Collections
 
-The adapter supports customization via config options:
+| Collection | Description |
+|------------|-------------|
+| `users` | User accounts |
+| `sessions` | Active sessions |
+| `accounts` | OAuth/credential accounts |
+| `verifications` | Email verification tokens |
+| `apiKeys` | API keys (if apiKey plugin enabled) |
+| `organizations` | Organizations (if organization plugin enabled) |
+| `members` | Organization members (if organization plugin enabled) |
 
-```typescript
-{
-  usePlural: true,           // Table names: users, posts
-  supportsJSON: true,         // Native JSON support
-  supportsDates: true,        // Native date support
-  supportsBooleans: true,     // Native boolean support
-  debugLogs: true             // Enable debug logging
-}
-```
-
-## Internal Implementation
-
-The adapter is created using `createAdapterFactory`:
+### Accessing Virtual Collections
 
 ```typescript
-import { createAdapterFactory } from 'better-auth/adapters'
+// Query users collection
+const users = await config.db.users.findMany()
 
-const collectionsAdapter = (db: ReturnType<typeof drizzle>) =>
-  createAdapterFactory({
-    config: {
-      adapterId: 'collections',
-      adapterName: 'Collections Adapter',
-      usePlural: false,
-      supportsJSON: true,
-      supportsDates: true,
-      supportsBooleans: true,
-      supportsNumericIds: true,
-      supportsJoin: true
-    },
-    adapter: ({ getModelName, transformInput, transformOutput }) => {
-      return {
-        create: async ({ model, data, select }) => {
-          const table = getModelName(model)
-          return db.insert(table).values(transformInput(data)).returning()
-        },
-        // ... other methods
-      }
-    }
-  })
+// Query with filters
+const activeSessions = await config.db.sessions.findMany({
+  where: { expiresAt: { gt: new Date() } }
+})
+
+// Find user by ID
+const user = await config.db.users.findById(userId)
+
+// Relations work naturally
+const userWithSessions = await config.db.users.findById(userId, {
+  include: { sessions: true }
+})
 ```
-
-## Database Connection
-
-The same database connection is used for:
-
-1. **Collections CRUD** - `config.db.posts.find()`, etc.
-2. **Auth operations** - Sign in, sessions, etc.
-3. **Plugin operations** - Organization management, API keys
-
-This ensures:
-- Single connection pool
-- Consistent transaction handling
-- Shared schema and migrations
-
-## Migrations
-
-Use the Collections CLI, which wraps Better-Auth's CLI:
-
-```bash
-# Single command - generates schema for auth + collections
-npx collections migrate
-```
-
-The CLI detects:
-- Your configured collections
-- Auth options
-- Enabled plugins
-
-And generates the complete schema for both auth tables and collections.
 
 ## Auth Tables as Virtual Collections
 
-Auth tables (`users`, `sessions`, `accounts`, etc.) are automatically available as Collections:
+Auth tables are automatically available as Collections with full CRUD capabilities:
 
 ```typescript
 // Access auth tables like regular collections
@@ -227,77 +155,335 @@ const sessions = await config.db.sessions.find({
 })
 ```
 
-### Apply Hooks to Auth Tables
+### Collection Structure
 
-You can add hooks to auth collections:
+Each virtual collection has predefined fields based on Better-Auth's schema:
 
 ```typescript
-export const config = defineConfig({
-  database: pgAdapter({ url: process.env.DATABASE_URL! }),
-  collections: [posts],
+// Users collection fields (auto-generated)
+type UsersCollection = {
+  id: string
+  name: string | null
+  email: string
+  emailVerified: boolean
+  image: string | null
+  createdAt: Date
+  updatedAt: Date
+  // Custom fields if extended
+}
 
-  // Add hooks to auth tables
-  auth: {
-    emailAndPassword: { enabled: true },
-    hooks: {
-      users: {
-        afterRead: [
-          async ({ result }) => {
-            // Mask sensitive fields
-            return result.map(user => ({
-              ...user,
-              password: undefined
-            }))
+// Sessions collection fields
+type SessionsCollection = {
+  id: string
+  userId: string
+  token: string
+  expiresAt: Date
+  ipAddress: string | null
+  userAgent: string | null
+}
+```
+
+## Hooks on Auth Tables
+
+You can add hooks to virtual auth collections:
+
+```typescript
+betterAuthPlugin({
+  emailAndPassword: { enabled: true },
+  hooks: {
+    users: {
+      afterRead: [
+        async ({ result }) => {
+          // Mask sensitive fields
+          return result.map(user => ({
+            ...user,
+            // Remove any sensitive fields
+          }))
+        }
+      ]
+    },
+    sessions: {
+      beforeCreate: [
+        async ({ data }) => {
+          // Add IP address tracking
+          return {
+            ...data,
+            ipAddress: getClientIp(),
+            userAgent: getUserAgent()
           }
-        ]
-      }
+        }
+      ]
     }
   }
 })
 ```
 
-### Permissions on Auth Tables
+### Available Hooks
+
+| Collection | Hooks |
+|------------|-------|
+| `users` | beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeRead, afterRead, beforeDelete, afterDelete |
+| `sessions` | beforeCreate, afterCreate, beforeDelete, afterDelete, beforeRead, afterRead |
+| `accounts` | beforeCreate, afterCreate, beforeDelete, afterDelete |
+| `verifications` | beforeCreate, afterCreate, beforeRead, afterRead |
+
+## Permissions
 
 Apply permissions to auth collections:
 
 ```typescript
-auth: {
+betterAuthPlugin({
   emailAndPassword: { enabled: true },
   permissions: {
     users: {
       read: async ({ user }) => user?.role === 'admin',
-      update: async ({ user, current }) => user?.role === 'admin',
+      update: async ({ user, current }) => user?.role === 'admin' || current.id === user?.id,
       delete: async ({ user }) => user?.role === 'admin'
+    },
+    sessions: {
+      read: async ({ user }) => true,  // Users can read their own sessions
+      delete: async ({ user, current }) => user?.id === current.userId || user?.role === 'admin'
+    }
+  }
+})
+```
+
+### Permission Context
+
+Each permission receives a context object:
+
+```typescript
+permissions: {
+  users: {
+    read: async ({ user, query }) => {
+      // user: current authenticated user
+      // query: the incoming query
+      // Return true to allow, false to deny
+      return user?.role === 'admin' || query.where?.id === user?.id
     }
   }
 }
 ```
 
-## Naming Convention
+## Auth Events
 
-The adapter handles singular/plural mapping automatically:
-
-- Collections use plural: `posts`, `users`
-- Auth tables use singular: `user`, `session`
-
-The adapter's `getModelName` function maps between them:
+Listen to auth events from the plugin:
 
 ```typescript
-// In adapter
-getModelName('user')    // → users (collection table)
-getModelName('posts')   // → posts
+betterAuthPlugin({
+  emailAndPassword: { enabled: true },
+  onAuthEvent: (event) => {
+    switch (event.type) {
+      case 'signIn':
+        console.log(`User ${event.userId} signed in`)
+        break
+      case 'signOut':
+        console.log(`User ${event.userId} signed out`)
+        break
+      case 'userCreated':
+        console.log(`New user created: ${event.userId}`)
+        break
+      case 'userUpdated':
+        console.log(`User updated: ${event.userId}`)
+        break
+    }
+  }
+})
 ```
 
-This ensures relations work correctly regardless of naming convention.
+## Extending Users Collection
+
+Extend the users collection with custom fields:
+
+```typescript
+betterAuthPlugin({
+  emailAndPassword: { enabled: true },
+  userFields: {
+    role: field({
+      fieldType: f.select(['user', 'admin', 'moderator']),
+      defaultValue: 'user'
+    }),
+    bio: field({
+      fieldType: f.text(),
+      required: false
+    }),
+    avatar: field({
+      fieldType: f.text(),
+      required: false
+    }),
+    settings: field({
+      fieldType: f.json(),
+      required: false
+    })
+  }
+})
+```
+
+These fields are added to the `users` virtual collection and stored in the same table.
+
+## Plugin Support
+
+Better-Auth plugins are passed directly to the auth plugin:
+
+```typescript
+betterAuthPlugin({
+  emailAndPassword: { enabled: true },
+  plugins: [
+    admin(),           // Admin functions
+    organization(),   // Organization management
+    apiKey(),         // API key authentication
+    twoFactor()       // Two-factor authentication
+  ]
+})
+```
+
+Each plugin adds its own virtual collections:
+
+| Plugin | Adds Collections |
+|--------|-----------------|
+| `admin()` | - |
+| `organization()` | `organizations`, `members` |
+| `apiKey()` | `apiKeys` |
+| `twoFactor()` | `twoFactorSecrets` |
+
+## Database Provider
+
+The auth plugin works with any database provider. The provider handles:
+
+1. **Schema creation** - Creating auth tables
+2. **Query execution** - Running CRUD operations
+3. **Type translation** - Converting between database types
+
+```typescript
+// Works with any provider
+const config = defineConfig({
+  database: pgAdapter({ url: process.env.POSTGRES_URL }),
+  plugins: [betterAuthPlugin({ ... })]
+})
+
+// Or SQLite
+const configLocal = defineConfig({
+  database: sqliteAdapter({ url: './data.db' }),
+  plugins: [betterAuthPlugin({ ... })]
+})
+```
+
+### Provider-Specific Features
+
+Some features vary by provider:
+
+| Feature | PostgreSQL | MySQL | SQLite |
+|---------|------------|-------|--------|
+| Native UUID | ✓ | ✗ (varchar) | ✗ (text) |
+| Native JSON | ✓ (jsonb) | ✓ | ✗ (text) |
+| Indexes | Full | Full | Limited |
+
+## Migrations
+
+The CLI handles migrations for auth tables automatically:
+
+```bash
+# Push schema including auth tables
+npx @deessejs/collections-cli push
+```
+
+The CLI detects:
+- Auth plugin configuration
+- Enabled plugins
+- Custom user fields
+
+And generates the complete schema for all virtual collections.
+
+## Without Auth
+
+If you don't need authentication, simply don't include the plugin:
+
+```typescript
+// No auth - just your collections
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts, comments]
+  // No auth plugin
+})
+```
+
+This creates a lightweight setup without any auth tables.
+
+## Full Example
+
+```typescript
+import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
+import { betterAuthPlugin } from '@deessejs/collections-plugin-auth'
+import { admin, organization } from 'better-auth/plugins'
+
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    content: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean(), defaultValue: false }),
+    author: field({
+      fieldType: f.relation({ to: 'users' })
+    })
+  },
+  hooks: {
+    beforeCreate: [
+      async ({ data, context }) => {
+        // Get user from session
+        const session = await context.auth?.getSession()
+        if (!session) throw new Error('Must be authenticated')
+        data.author = session.user.id
+        return data
+      }
+    ]
+  }
+})
+
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  plugins: [
+    betterAuthPlugin({
+      emailAndPassword: { enabled: true },
+      socialProviders: {
+        github: {
+          clientId: process.env.GITHUB_CLIENT_ID!,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET!
+        }
+      },
+      userFields: {
+        role: field({
+          fieldType: f.select(['user', 'admin']),
+          defaultValue: 'user'
+        })
+      },
+      plugins: [admin(), organization()],
+      hooks: {
+        users: {
+          afterRead: [
+            async ({ result }) => {
+              return result.map(u => ({ ...u }))
+            }
+          ]
+        }
+      },
+      onAuthEvent: (event) => {
+        console.log('Auth event:', event.type, event.userId)
+      }
+    })
+  ]
+})
+```
 
 ## Summary
 
-| Feature | Implementation |
-|---------|----------------|
-| Bridge | Custom adapter using `createAdapterFactory` |
-| Schema | Merged auth + collections tables |
-| CLI | Unified via `collections migrate` |
-| Auth Tables | Available as virtual collections with hooks/permissions |
-| Naming | Automatic singular ↔ plural mapping |
+| Concept | Description |
+|---------|-------------|
+| **Plugin** | Better-Auth is a plugin, not built-in |
+| **Virtual Collections** | Auth tables become queryable collections |
+| **Provider-Agnostic** | Works with any database provider |
+| **Hooks** | Add lifecycle logic to auth operations |
+| **Permissions** | Control access to auth collections |
+| **Extensible** | Custom fields, plugins, events |
 
-The adapter is internal - users don't need to configure it manually. It's created automatically when auth is enabled.
+The auth plugin creates a seamless experience where authentication tables are just another set of collections you can query and extend.

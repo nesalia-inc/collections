@@ -6,7 +6,7 @@ Documentation about database configuration and providers in Collections.
 
 - [Connections](./connections.md) - Database adapters (PostgreSQL, SQLite)
 - [Providers](./providers.md) - Custom provider creation with `databaseProvider`
-- [Auth Adapter](./auth-adapter.md) - How Collections bridges Better-Auth with Drizzle
+- [Better-Auth Plugin](./auth-adapter.md) - Better-Auth as a plugin with virtual collections
 
 ## Overview
 

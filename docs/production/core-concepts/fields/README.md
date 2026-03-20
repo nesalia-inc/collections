@@ -23,6 +23,7 @@ const posts = collection({
 - [Required & Optional](./required.md) - Required vs optional fields
 - [Defaults](./defaults.md) - Default values
 - [Types](./types.md) - All available field types
+- [Custom](./custom.md) - Create custom field types
 
 ## Quick Example
 

@@ -17,6 +17,10 @@ config.db.posts.find()
 config.db.posts.create()
 config.db.posts.update()
 config.db.posts.delete()
+
+// Extend methods (if defined)
+config.db.posts.publish()
+config.db.posts.archive()
 ```
 
 ## Find Records
@@ -137,6 +141,15 @@ result.current.data
 result.current.total
 ```
 
+**Note:** Each record in `data` is enriched with instance methods:
+
+```typescript
+const { data: posts } = await db.posts.find({ where: { published: true } })
+for (const post of posts) {
+  await post.publish()  // Each post has instance methods
+}
+```
+
 ### findById
 
 Get a single record by ID:
@@ -145,6 +158,13 @@ Get a single record by ID:
 const result = await config.db.posts.findById(1)
 
 // result.data = { id: 1, title: 'Post 1', ... }
+```
+
+**Note:** The returned record is enriched with instance methods defined in the collection:
+
+```typescript
+const { data: post } = await db.posts.findById(1)
+await post.publish()  // Calls the publish instance method if defined
 ```
 
 ### findFirst

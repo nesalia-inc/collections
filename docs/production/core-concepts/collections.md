@@ -78,6 +78,12 @@ type CollectionConfig<
 
   // Optional: relations to other collections
   relations?: RelationConfig[]
+
+  // Optional: collection-level methods (accessed via db.collection.method())
+  extend?: CollectionExtendMethods
+
+  // Optional: instance methods (enrich returned records)
+  methods?: CollectionInstanceMethods
 }
 ```
 
@@ -343,6 +349,151 @@ export const users = collection({
 ```
 
 **Note:** The relation defined in `fields` creates the foreign key column. For complex relations (many-to-many with junction table), additional configuration may be needed via the `relations` property.
+
+## Extend Methods (Collection-Level)
+
+The `extend` property adds methods at the collection level. These are called directly on the collection:
+
+```typescript
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    published: field({ fieldType: f.boolean() }),
+    publishedAt: field({ fieldType: f.timestamp(), required: false })
+  },
+
+  // Collection-level methods
+  extend: {
+    // Publish a post
+    publish: async ({ id }, { db, user }) => {
+      await db.posts.update({
+        where: { id },
+        data: { published: true, publishedAt: new Date() }
+      })
+    },
+
+    // Archive a post
+    archive: async ({ id }, { db }) => {
+      await db.posts.update({
+        where: { id },
+        data: { archived: true }
+      })
+    },
+
+    // Custom method with parameters
+    setStatus: async ({ id, status }, { db }) => {
+      await db.posts.update({
+        where: { id },
+        data: { status }
+      })
+    }
+  }
+})
+```
+
+### Usage
+
+```typescript
+// Call extend methods directly on the collection
+await db.posts.publish({ id: "123" })
+await db.posts.archive({ id: "456" })
+await db.posts.setStatus({ id: "789", status: "draft" })
+```
+
+### Context
+
+Extend methods receive a context object:
+
+```typescript
+extend: {
+  myMethod: async (params, { db, user, config }) => {
+    // params: { id, ...custom params }
+    // db: database instance for CRUD operations
+    // user: current authenticated user (if auth enabled)
+    // config: the full config object
+  }
+}
+```
+
+## Instance Methods (Record-Level)
+
+The `methods` property enriches returned records with custom methods. Each record becomes an "enriched" object:
+
+```typescript
+const tasks = collection({
+  slug: 'tasks',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    completed: field({ fieldType: f.boolean() }),
+    completedAt: field({ fieldType: f.timestamp(), required: false })
+  },
+
+  // Instance methods
+  methods: {
+    // Complete the task
+    complete: async (task) => {
+      await db.tasks.update({
+        where: { id: task.id },
+        data: { completed: true, completedAt: new Date() }
+      })
+    },
+
+    // Add a note to the task
+    addNote: async (task, { note }: { note: string }) => {
+      await db.task_notes.create({
+        data: { taskId: task.id, note }
+      })
+    }
+  }
+})
+```
+
+### Usage
+
+```typescript
+// findById returns enriched record
+const { data: task } = await db.tasks.findById({ id: "123" })
+await task.complete()
+await task.addNote({ note: "Finished early!" })
+
+// findMany returns array of enriched records
+const { data: tasks } = await db.tasks.findMany({})
+for (const task of tasks) {
+  await task.complete()
+}
+```
+
+### Context
+
+Instance methods receive the record itself as first argument:
+
+```typescript
+methods: {
+  myMethod: async (record, params, { db, user }) => {
+    // record: the current record data (task.id, task.title, etc.)
+    // params: additional parameters passed to the method
+    // db: database instance
+    // user: current authenticated user
+  }
+}
+```
+
+### Method Signature
+
+```typescript
+// Instance method receives:
+// 1. The record itself (with all its fields)
+// 2. Optional parameters object
+// 3. Context object (db, user)
+
+methods: {
+  doSomething: async (record, params = {}, { db, user }) => {
+    // record.id, record.title, etc. are available
+    // Can perform additional DB operations
+  }
+}
+```
 
 ## Auto-Generated Fields
 

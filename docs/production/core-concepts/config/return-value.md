@@ -27,6 +27,10 @@ config.db.posts.create()
 config.db.posts.update()
 config.db.posts.delete()
 config.db.posts.findById()
+
+// Extend methods (if defined)
+config.db.posts.publish()
+config.db.posts.archive()
 ```
 
 ## Database Operations
@@ -50,6 +54,39 @@ await config.db.posts.update({
 
 // Delete
 await config.db.posts.delete({ where: { id: 1 } })
+```
+
+## Extend Methods (Collection-Level)
+
+Collection-level methods defined with `extend` are available directly on the collection:
+
+```typescript
+// Assuming posts collection has:
+// extend: { publish: async ({ id }, { db }) => {...} }
+
+// Call extend methods on the collection
+await config.db.posts.publish({ id: "123" })
+await config.db.posts.archive({ id: "456" })
+await config.db.posts.setStatus({ id: "789", status: "draft" })
+```
+
+## Instance Methods (Record-Level)
+
+Records returned by `find`, `findById`, `findFirst` are enriched with instance methods:
+
+```typescript
+// Assuming tasks collection has:
+// methods: { complete: async (task) => {...} }
+
+// findById returns enriched record
+const { data: task } = await config.db.tasks.findById({ id: "123" })
+await task.complete()  // Instance method
+
+// find returns array of enriched records
+const { data: tasks } = await config.db.tasks.findMany({})
+for (const task of tasks) {
+  await task.complete()  // Each record has methods
+}
 ```
 
 ## Auth API

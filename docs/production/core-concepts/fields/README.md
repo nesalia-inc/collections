@@ -57,3 +57,7 @@ const posts = collection({
 | `defaultValue` | Default value when not provided |
 | `unique` | Unique constraint |
 | `indexed` | Index for query performance |
+
+## Custom Field Types
+
+You can create your own custom field types for specialized data needs. See [Types - Custom Field Types](./types.md#custom-field-types) for details.

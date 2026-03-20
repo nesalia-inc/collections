@@ -136,13 +136,12 @@ export const OPTIONS = REST_OPTIONS(config)
 - [Quick Start](./getting-started/quick-start.md)
 
 ### Core Concepts
-- [Collections](./core-concepts/collection/README.md) - Define data models
-- [Fields](./core-concepts/fields.md) - Field structure and options
-- [Field Types](./core-concepts/field-types.md) - Available data types
+- [Overview](./core-concepts/README.md) - Core concepts overview
+- [Collections](./core-concepts/collection/README.md) - Data models
+- [Fields & Types](./core-concepts/fields.md) - Field definitions
 - [Hooks](./core-concepts/hooks.md) - Lifecycle hooks
 - [Operations](./core-concepts/operations.md) - CRUD operations
-- [Virtual Collections](./core-concepts/virtual-collections.md) - Auto-generated collections
-- [Configuration](./core-concepts/config/README.md) - defineConfig options
+- [Configuration](./core-concepts/config/README.md) - Configuration
 
 ### Database
 - [Database Overview](./database/README.md)

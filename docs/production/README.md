@@ -1,11 +1,12 @@
 # @deessejs/collections
 
-A high-level data modeling and API layer built on top of Drizzle ORM. Inspired by PayloadCMS but designed for programmatic usage.
+A high-level data modeling and API layer with a provider-agnostic database system. Inspired by PayloadCMS but designed for programmatic usage.
 
 ## Features
 
 - **Collections** - Define data models with fields and types
-- **Auth** - Optional built-in authentication with Better-Auth
+- **Auth** - Optional authentication with swappable providers (Better-Auth, Clerk, Supabase)
+- **Extensions** - Predefined interfaces for cache, email, storage with swappable connectors
 - **REST API** - Automatic REST endpoints
 - **Hooks** - Lifecycle hooks for validation and logic
 - **Relations** - Link collections together
@@ -14,7 +15,7 @@ A high-level data modeling and API layer built on top of Drizzle ORM. Inspired b
 ## Quick Start
 
 ```bash
-pnpm add @deessejs/collections drizzle-orm
+pnpm add @deessejs/collections
 ```
 
 ```typescript
@@ -39,22 +40,43 @@ export const config = defineConfig({
 
 ## Authentication (Optional)
 
-Auth is optional. If enabled, it creates users, sessions, accounts, and verification tables.
+Auth is optional and provider-agnostic. Multiple auth providers are available:
 
 ```typescript
-// With auth - creates user, session, account, verification tables
+// With Better-Auth (built-in)
 export const config = defineConfig({
   database: pgAdapter({ url: process.env.DATABASE_URL! }),
   collections: [posts],
-  auth: {
-    emailAndPassword: { enabled: true }
-  }
+  auth: betterAuth({ emailAndPassword: { enabled: true } })
 })
 
-// Without auth - no auth tables created
+// With Clerk
 export const config = defineConfig({
-  database: sqliteAdapter({ url: './data.db' }),
-  collections: [todos, projects]
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: clerk({ instanceId: '...' })
+})
+```
+
+## Extensions
+
+Extensions provide additional capabilities with swappable connectors:
+
+```typescript
+import { defineConfig, redisCache, sendGridEmail, s3Storage } from '@deessejs/collections'
+
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+
+  // Cache extension - switch connectors easily
+  cache: redisCache({ url: process.env.REDIS_URL! }),
+
+  // Email extension
+  email: sendGridEmail({ apiKey: process.env.SENDGRID_API_KEY! }),
+
+  // Storage extension
+  storage: s3Storage({ bucket: process.env.AWS_BUCKET! })
 })
 ```
 
@@ -108,17 +130,37 @@ export const OPTIONS = REST_OPTIONS(config)
 | PUT | `/api/collections/:collection/:id` | Update record |
 | DELETE | `/api/collections/:collection/:id` | Delete record |
 
-## Documentation
+## Documentation Structure
 
-- [Quick Start](./quick-start.md)
-- [Authentication](./authentication.md)
-- [Next.js](./nextjs.md)
-- [REST API](./api.md)
-- [Field Types](./field-types.md)
-- [Configuration](./config/README.md)
-- [Database](./database/README.md)
-- [Hooks](./hooks.md)
-- [Plugins](./plugins/README.md)
+### Getting Started
+- [Quick Start](./getting-started/quick-start.md)
+
+### Core Concepts
+- [Collections](./core-concepts/collections.md) - Define data models
+- [Fields](./core-concepts/fields.md) - Field structure and options
+- [Field Types](./core-concepts/field-types.md) - Available data types
+- [Hooks](./core-concepts/hooks.md) - Lifecycle hooks
+- [Operations](./core-concepts/operations.md) - CRUD operations
+- [Virtual Collections](./core-concepts/virtual-collections.md) - Auto-generated collections
+- [Configuration](./core-concepts/config/README.md) - defineConfig options
+
+### Database
+- [Database Overview](./database/README.md)
+- [Connections](./database/connections.md) - Database adapters
+- [Providers](./database/providers.md) - Custom providers
+- [Auth Providers](./database/auth.md) - Auth provider configuration
+
+### Features
+- [Authentication](./features/authentication.md) - Auth configuration
+- [Extensions](./features/extensions.md) - Cache, email, storage extensions
+- [Plugins](./features/plugins/README.md) - Custom plugins
+
+### API
+- [REST API](./api/api.md)
+
+### Integrations
+- [Next.js](./integrations/nextjs.md)
+- [CLI](./integrations/cli.md)
 
 ## Architecture
 
@@ -128,18 +170,26 @@ export const OPTIONS = REST_OPTIONS(config)
 ├─────────────────────────────────────────────────────────┤
 │  Collections API                                        │
 │  ├── CRUD Operations (db.posts.find, etc.)             │
-│  ├── Auth API (auth.api.signIn, etc.)                   │
+│  ├── Extensions (cache, email, storage)                 │
 │  └── REST Endpoints (/api/collections/*)              │
 └─────────────────────────────────────────────────────────┘
                               │
                               ▼
                     ┌─────────────────┐
-                    │    Drizzle ORM   │
+                    │   Collections Core │
                     └─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Database Provider                      │
+├─────────────────────────────────────────────────────────┤
+│  pgAdapter | mysqlAdapter | sqliteAdapter | custom      │
+└─────────────────────────────────────────────────────────┘
                               │
                               ▼
                     ┌─────────────────┐
                     │    PostgreSQL    │
+                    │    (or any DB)   │
                     └─────────────────┘
 ```
 

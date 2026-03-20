@@ -13,8 +13,7 @@ Collections are the main organizational unit in Collections.
 
 ## Data Modeling
 
-- [Fields](./fields.md) - Field definitions
-- [Field Types](./field-types.md) - Available data types
+- [Fields](./fields/README.md) - Field definitions
 - [Relations](./collection/relations.md) - Linking collections
 - [Indexes](./collection/indexes.md) - Query performance
 - [Auto-Generated Fields](./collection/auto-generated.md) - System fields (id, createdAt, updatedAt)

@@ -1,6 +1,6 @@
-# Fields
+# Field Definition
 
-Fields are the fundamental building blocks of collections. Each field defines a piece of data in your collection.
+Learn how to define fields with the `field()` function.
 
 ## Field Structure
 
@@ -24,7 +24,7 @@ const posts = collection({
 })
 ```
 
-## Field Definition
+## Field Options
 
 Each field has:
 
@@ -45,45 +45,6 @@ field({
   // Optional: indexed
   indexed?: boolean
 })
-```
-
-## Field Types
-
-The available field types are accessed via `f`:
-
-| Type | Description |
-|------|-------------|
-| `f.text()` | String values |
-| `f.number()` | Numeric values |
-| `f.boolean()` | True/false values |
-| `f.email()` | Email with validation |
-| `f.date()` | Date-only values |
-| `f.timestamp()` | Date and time values |
-| `f.json()` | JSON objects |
-| `f.select(['a', 'b'])` | Enum values |
-| `f.relation({ to: 'collection' })` | References to other collections |
-
-## Required vs Optional
-
-```typescript
-// Required field (default)
-name: field({ fieldType: f.text() })
-
-// Optional field
-nickname: field({ fieldType: f.text(), required: false })
-
-// With default value
-status: field({ fieldType: f.text(), defaultValue: 'draft' })
-```
-
-## Default Values
-
-```typescript
-// Static default
-published: field({ fieldType: f.boolean(), defaultValue: false })
-
-// Dynamic default (handled in hooks)
-createdAt: field({ fieldType: f.timestamp(), defaultValue: 'now' })
 ```
 
 ## Indexes
@@ -141,9 +102,9 @@ hooks: {
 }
 ```
 
-## Declarative Validation (Advanced)
+## Declarative Validation
 
-For common validation rules, you can use the field options:
+For common validation rules, use the field options:
 
 ```typescript
 const posts = collection({

@@ -136,7 +136,7 @@ export const OPTIONS = REST_OPTIONS(config)
 - [Quick Start](./getting-started/quick-start.md)
 
 ### Core Concepts
-- [Collections](./core-concepts/collections.md) - Define data models
+- [Collections](./core-concepts/collection/README.md) - Define data models
 - [Fields](./core-concepts/fields.md) - Field structure and options
 - [Field Types](./core-concepts/field-types.md) - Available data types
 - [Hooks](./core-concepts/hooks.md) - Lifecycle hooks

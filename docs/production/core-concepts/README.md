@@ -32,7 +32,7 @@ Collections are the main organizational unit in Collections.
 ## Operations
 
 - [Operations](./operations.md) - CRUD operations
-- [Virtual Collections](./virtual-collections.md) - Auto-generated collections
+- [Virtual Collections](./virtual-collections.md) - Collections defined by plugins (auth tables)
 
 ## Configuration
 

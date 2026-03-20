@@ -20,14 +20,30 @@ Think of it like a specification:
 
 ## Why Extensions?
 
-### Plugins vs Extensions
+### Vocabulary
 
-| Aspect | Plugin | Extension |
-|--------|--------|-----------|
-| Interface | Custom per plugin | Predefined by Collections |
-| Connectors | N/A | Multiple per extension |
-| Swap implementation | Requires code change | Just change connector |
-| Type safety | Custom types | Standardized types |
+To avoid confusion, here's the terminology:
+
+| Term | Definition |
+|------|------------|
+| **Extension** | A category of functionality (Auth, Cache, Storage) with a predefined interface |
+| **Connector** | A specific implementation of an extension (Better-Auth, Redis, S3) |
+| **Plugin** | Custom functionality that extends Collections beyond predefined interfaces |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Extension                             │
+│  (Auth, Cache, Storage, Email)                           │
+│  Defines: interface + hooks + virtual collections          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   Connector A   │  │   Connector B   │  │   Connector C   │
+│  (Better-Auth)  │  │     (Redis)     │  │      (S3)      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
 
 ### The Extension Contract
 
@@ -127,12 +143,14 @@ Each extension has a standardized interface:
 ```typescript
 interface Extension<
   Config extends Record<string, any>,
-  Api extends Record<string, any>
+  Api extends Record<string, any>,
+  NativeClient = unknown
 > {
   readonly name: string
   readonly config: Config
   readonly api: Api
-  readonly hooks?: HooksConfig
+  readonly native: NativeClient  // Access to underlying client
+  readonly hooks?: ExtensionHooks
   readonly virtualCollections?: Collection[]
 }
 
@@ -154,6 +172,63 @@ interface CacheExtension {
   }
 }
 ```
+
+### Accessing Native Clients
+
+Each extension provides a `.native` property to access the underlying client when you need advanced features:
+
+```typescript
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  storage: s3Storage({ bucket: 'my-bucket' })
+})
+
+// Standard API
+await config.storage.upload('file.txt', data)
+
+// Advanced features via .native (S3-specific)
+const signedUrl = await config.storage.native.getSignedUrl('getObject', {
+  Key: 'file.txt',
+  Expires: 3600
+})
+
+// Or access the raw client
+const s3Client = config.storage.native
+```
+
+This solves the "leaky abstraction" problem - you get a standardized API for common use cases, but can fall back to the native client for advanced features.
+
+### Multiple Instances
+
+You can configure multiple instances of the same extension type:
+
+```typescript
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+
+  // Multiple storage instances
+  storage: {
+    avatars: s3Storage({
+      bucket: 'myapp-avatars',
+      public: true
+    }),
+    documents: s3Storage({
+      bucket: 'myapp-documents',
+      public: false
+    }),
+    backups: localStorage({
+      path: './backups'
+    })
+  }
+})
+
+// Usage
+await config.storage.avatars.upload(`avatars/${userId}`, avatarFile)
+await config.storage.documents.upload(`docs/${docId}`, docFile)
+await config.storage.backups.upload(`backup/${date}`, backupData)
+```
+
+Each instance has its own configuration and is fully typed.
 
 ## Creating a Custom Extension
 
@@ -299,13 +374,15 @@ const config = defineConfig({
 
 Extensions can provide hooks that integrate with Collections lifecycle:
 
+### Extension-Specific Hooks
+
 ```typescript
 const config = defineConfig({
   database: pgAdapter({ url: '...' }),
   cache: redisCache({
     url: 'redis://localhost:6379',
     hooks: {
-      // Invalidate cache when posts are modified
+      // Extension-specific: invalidate cache
       invalidate: async (key, operation) => {
         if (operation.collection === 'posts') {
           await config.cache.delete(`posts:${operation.id}`)
@@ -314,6 +391,48 @@ const config = defineConfig({
     }
   })
 })
+```
+
+### Collection Event Hooks
+
+Extensions can listen to collection events automatically:
+
+```typescript
+const config = defineConfig({
+  database: pgAdapter({ url: '...' }),
+  storage: s3Storage({
+    bucket: 'myapp-files',
+    hooks: {
+      // Listen to collection events
+      onCollectionDelete: async ({ collection, id, data }) => {
+        // Automatically delete files when records are deleted
+        if (collection === 'avatars') {
+          await config.storage.delete(`avatars/${id}.jpg`)
+        }
+        if (collection === 'documents') {
+          // Delete all files associated with this document
+          const keys = await config.storage.list(`docs/${id}/`)
+          await Promise.all(keys.map(k => config.storage.delete(k)))
+        }
+      },
+      onCollectionUpdate: async ({ collection, id, previousData, newData }) => {
+        // Handle file replacement
+        if (collection === 'posts' && newData.coverImage !== previousData.coverImage) {
+          await config.storage.delete(previousData.coverImage)
+        }
+      }
+    }
+  })
+})
+```
+
+This allows extensions to react to data changes without you having to manually coordinate between your business logic and the extension.
+
+```typescript
+// The storage extension automatically handles file cleanup
+// when you delete records from collections
+await config.db.avatars.delete(id)
+// → Automatically triggers onCollectionDelete → deletes S3 file
 ```
 
 ## Virtual Collections from Extensions

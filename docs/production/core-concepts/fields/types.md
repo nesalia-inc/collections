@@ -410,17 +410,19 @@ const title = field({
 
 ## Summary
 
-| Type | Description |
-|------|-------------|
-| `f.text()` | String |
-| `f.number()` | Integer |
-| `f.boolean()` | Boolean |
-| `f.date()` | Date only |
-| `f.timestamp()` | Date with time |
-| `f.email()` | Email with validation |
-| `f.url()` | URL with validation |
-| `f.select(['a', 'b'])` | Enum |
-| `f.json()` | JSON object |
-| `f.array(type)` | Array |
-| `f.relation({ to: '...' })` | Relation |
-| `fieldType({...})` | Custom field type |
+| Type | Description | Options |
+|------|-------------|---------|
+| `f.text()` | String | `minLength`, `maxLength`, `pattern` |
+| `f.number()` | Integer/Decimal | `min`, `max`, `precision`, `scale` |
+| `f.boolean()` | Boolean | - |
+| `f.date()` | Date only | - |
+| `f.timestamp()` | Date with time | - |
+| `f.email()` | Email | - |
+| `f.url()` | URL | - |
+| `f.select(['a', 'b'])` | Enum | Array of options |
+| `f.json()` | JSON | Zod schema |
+| `f.array(type)` | Array | Zod schema for items |
+| `f.relation({ to: '...' })` | Relation | `kind`, `through`, `onDelete` |
+| `f.file()` | File | `multiple` |
+| `f.richtext()` | Rich text | - |
+| `fieldType({...})` | Custom | Zod schema + columnType |

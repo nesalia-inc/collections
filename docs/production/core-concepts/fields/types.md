@@ -390,38 +390,6 @@ const logs = collection({
 })
 ```
 
-## Field asJson Method
-
-Every field type includes an `asJson()` method that serializes its configuration for use by plugins and database providers.
-
-```typescript
-const title = field({ fieldType: f.text({ maxLength: 100 }) })
-
-// Get the JSON representation
-title.asJson()
-// {
-//   name: 'title',
-//   fieldType: { type: 'text', options: { maxLength: 100 } },
-//   required: false,
-//   unique: false,
-//   indexed: false,
-//   defaultValue: undefined
-// }
-```
-
-This allows database adapters and plugins to inspect field definitions programmatically.
-
-```typescript
-// Example: Generate a database schema description
-const describeField = (fieldName: string, fieldDef) => {
-  const json = fieldDef.asJson()
-  return `${fieldName}: ${json.fieldType.type}(${JSON.stringify(json.fieldType.options || {})})`
-}
-
-describeField('title', posts.fields.title)
-// "title: text({"maxLength":100})"
-```
-
 ## Validation vs Database Constraints
 
 Field options like `minLength`, `maxLength`, `min`, `max` serve double duty:

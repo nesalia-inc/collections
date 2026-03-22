@@ -107,25 +107,3 @@ const strongPassword = fieldType({
 ## Plugin Integration
 
 Custom field types can be distributed via plugins. See [Plugins](../features/plugins/README.md) for more details.
-
-## asJson Method
-
-Custom field types also support the `asJson()` method. The returned JSON includes the custom type identifier, allowing plugins and database providers to recognize and handle custom fields appropriately.
-
-```typescript
-const colorPicker = fieldType({
-  schema: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  columnType: 'text'
-})
-
-const colorField = field({ fieldType: colorPicker() })
-
-// asJson includes the custom field type info
-const json = colorField.asJson()
-// {
-//   name: 'color',
-//   fieldType: { type: 'fieldType', value: [Function] },
-//   required: false,
-//   ...
-// }
-```

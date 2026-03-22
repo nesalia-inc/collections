@@ -81,6 +81,49 @@ const title = data.title
 type PostTitle = typeof posts.fields.title
 ```
 
+## Field asJson Method
+
+Each field has an `asJson()` method that returns its JSON representation. This JSON is used by plugins and database providers to understand the field structure.
+
+```typescript
+const titleField = field({ fieldType: f.text() })
+
+// Get JSON representation of the field
+const json = titleField.asJson()
+// {
+//   name: 'title',
+//   fieldType: { type: 'text' },
+//   required: false,
+//   unique: false,
+//   indexed: false
+// }
+```
+
+The `asJson()` method serializes:
+- Field name
+- Field type (text, number, relation, etc.)
+- Field options (required, unique, indexed, defaultValue)
+- Any type-specific options (minLength, maxLength, precision, etc.)
+
+This enables plugins and database adapters to inspect and act on field definitions programmatically.
+
+```typescript
+// Example: iterating over collection fields
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text(), required: true }),
+    slug: field({ fieldType: f.text(), unique: true }),
+    published: field({ fieldType: f.boolean(), defaultValue: false })
+  }
+})
+
+// Access field JSON for database schema generation
+for (const [fieldName, fieldDef] of Object.entries(posts.fields)) {
+  console.log(fieldName, fieldDef.asJson())
+}
+```
+
 ## Field Validation
 
 Validation is handled through the field type's built-in validation:

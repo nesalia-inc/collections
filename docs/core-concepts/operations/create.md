@@ -6,10 +6,10 @@ Learn how to create new records in collections.
 
 ```typescript
 // Create a single record
-create(options: { data: Partial<Post> }): Promise<Result<Post, CreateError>>
+create(options: CreateOperation<T>): Promise<Result<T, CreateError>>
 
 // Create multiple records
-createMany(options: { data: Partial<Post>[] }): Promise<Result<number, CreateError>>
+createMany(options: CreateManyOperation<T>): Promise<Result<number, CreateError>>
 ```
 
 ## create

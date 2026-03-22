@@ -9,7 +9,7 @@ Learn how to create new records in collections.
 create(options: CreateOperation<T>): AsyncResult<T, CreateError>
 
 // Create multiple records
-createMany(options: CreateManyOperation<T>): AsyncResult<number, CreateError>
+createMany(options: CreateManyOperation<T>): AsyncResult<Counted<T[]>, CreateError>
 ```
 
 ## Type Definitions

@@ -22,6 +22,8 @@ type CreateOperation<T> = {
 type CreateManyOperation<T> = {
   data: Partial<T>[]
 }
+
+type Counted<T> = T & { count: number }
 ```
 
 Where `T` is the collection type (e.g., `Post`).

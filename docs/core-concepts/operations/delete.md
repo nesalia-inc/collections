@@ -16,11 +16,11 @@ deleteMany(options: DeleteManyOperation): AsyncResult<Counted<T[]>, DeleteError>
 
 ```typescript
 type DeleteOperation = {
-  where: Filter
+  where: Where
 }
 
 type DeleteManyOperation = {
-  where: Filter
+  where: Where
 }
 ```
 

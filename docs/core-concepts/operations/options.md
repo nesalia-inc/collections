@@ -4,37 +4,7 @@ Common options used across find, create, update, and delete operations.
 
 ## where
 
-Filter conditions:
-
-```typescript
-{
-  where: {
-    // Equal
-    published: true,
-
-    // Not equal
-    status: { ne: 'draft' },
-
-    // In
-    id: { in: [1, 2, 3] },
-
-    // Like (contains)
-    title: { like: '%hello%' },
-
-    // Greater than
-    createdAt: { gt: '2024-01-01' },
-
-    // Less than
-    count: { lt: 10 },
-
-    // Is null
-    deletedAt: { isNull: true },
-
-    // Is not null
-    deletedAt: { isNotNull: true }
-  }
-}
-```
+See [Where Type](./where.md) for the complete type definition and examples.
 
 ## orderBy
 

@@ -2,6 +2,28 @@
 
 Learn how to delete records from collections.
 
+## Function Signature
+
+```typescript
+// Delete a single record
+delete(options: DeleteOperation): AsyncResult<void, DeleteError>
+
+// Delete multiple records
+deleteMany(options: DeleteManyOperation): AsyncResult<Counted<T[]>, DeleteError>
+```
+
+## Type Definitions
+
+```typescript
+type DeleteOperation = {
+  where: Filter
+}
+
+type DeleteManyOperation = {
+  where: Filter
+}
+```
+
 ## delete
 
 Delete a single record:
@@ -21,5 +43,5 @@ const result = await config.db.posts.deleteMany({
   where: { published: false }
 })
 
-// result.data = 10 (number of deleted records)
+// result.data = { data: [...], count: 10 }
 ```

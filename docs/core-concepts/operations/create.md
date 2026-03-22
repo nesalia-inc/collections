@@ -12,6 +12,20 @@ create(options: CreateOperation<T>): Promise<Result<T, CreateError>>
 createMany(options: CreateManyOperation<T>): Promise<Result<number, CreateError>>
 ```
 
+## Type Definitions
+
+```typescript
+type CreateOperation<T> = {
+  data: Partial<T>
+}
+
+type CreateManyOperation<T> = {
+  data: Partial<T>[]
+}
+```
+
+Where `T` is the collection type (e.g., `Post`).
+
 ## create
 
 Create a single record:

@@ -109,7 +109,7 @@ For the Object approach, here's the complete type system:
 ```typescript
 type Where<T = unknown> = {
   [K in keyof T]?: WhereValue<T[K]>
-} & LogicalOperators<Where<T>>
+} & LogicalOperators<Where<T>> & GlobalSearchOperator
 
 // Value can be a direct value or an operator object
 type WhereValue<T> =
@@ -125,6 +125,8 @@ type StringOperator = StringComparisonOperator & StringModeOperator
 type StringComparisonOperator = {
   eq?: string
   ne?: string
+  in?: string[]        // IN ('a', 'b', 'c')
+  notIn?: string[]    // NOT IN ('a', 'b', 'c')
   like?: string        // SQL LIKE (use % for wildcards)
   contains?: string    // LIKE '%value%'
   startsWith?: string  // LIKE 'value%'
@@ -140,6 +142,8 @@ type StringModeOperator = {
 type NumberOperator = {
   eq?: number
   ne?: number
+  in?: number[]        // IN (1, 2, 3)
+  notIn?: number[]     // NOT IN (1, 2, 3)
   gt?: number
   gte?: number
   lt?: number
@@ -160,9 +164,11 @@ type DateOperator = {
 
 // Array operators
 type ArrayOperator<T extends unknown[]> = {
-  contains?: T[number]      // Array contains element
-  containsAny?: T[number][] // Array contains any of these
-  overlaps?: T              // Arrays overlap
+  contains?: T[number]      // Array contains element (@> PostgreSQL)
+  has?: T[number]          // Alias for contains
+  hasAny?: T[number][]    // Array contains any of these
+  containsAny?: T[number][] // Alias for hasAny
+  overlaps?: T            // Arrays overlap (&& PostgreSQL)
 }
 
 // Null checks
@@ -176,6 +182,11 @@ type LogicalOperators<T> = {
   AND?: T[]
   OR?: T[]
   NOT?: T
+}
+
+// Global search operator (applies to all text fields)
+type GlobalSearchOperator = {
+  _search?: string  // Searches across all text fields
 }
 ```
 
@@ -222,6 +233,26 @@ type LogicalOperators<T> = {
 
 // Regex
 { where: { code: { regex: '^[A-Z]{3}-\\d{4}$' } } }
+```
+
+### Global Search (Magic String)
+
+Search across all text fields at once:
+
+```typescript
+// Searches all text fields (title, content, description, etc.)
+{ where: { _search: 'TypeScript' } }
+
+// SQL generated: WHERE title ILIKE '%TypeScript%' OR content ILIKE '%TypeScript%' ...
+
+// Combine with other filters
+{
+  where: {
+    _search: 'react',
+    published: true,
+    category: 'tech'
+  }
+}
 ```
 
 ### Date Operations
@@ -351,15 +382,33 @@ await config.db.posts.find({
 await config.db.posts.find({
   where: and(isPublished, isRecent)
 })
+
+// Functional approach (shorthand - function passed directly)
+await config.db.posts.find(and(isPublished, isRecent))
 ```
 
 ## Notes
 
-### Operator Ambiguity
+### Operator Ambiguity: `contains`
 
 The `contains` operator has different meanings based on the field type:
-- **String**: Translates to `LIKE '%value%'`
-- **Array**: Translates to `@>` array operator (PostgreSQL)
+
+| Field Type | Example | SQL Translation |
+|------------|---------|-----------------|
+| **String** | `{ title: { contains: 'hello' } }` | `LIKE '%hello%'` |
+| **Array** | `{ tags: { contains: 'featured' } }` | `@> 'featured'` (PostgreSQL) |
+
+### Array `has` Operator
+
+For arrays, use `has` for a more explicit API:
+
+```typescript
+// Array contains element (equivalent to contains)
+{ where: { tags: { has: 'featured' } } }
+
+// Check if array contains any of these elements
+{ where: { tags: { hasAny: ['news', 'featured'] } } }
+```
 
 ### Case Sensitivity
 

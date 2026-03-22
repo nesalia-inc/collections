@@ -1,8 +1,110 @@
 # Where Type
 
-The `where` option uses the `Where` type to specify conditions.
+Collections provides a powerful, type-safe filtering system. There are two approaches: the **Object** approach (JSON-like) and the **Functional-Fluent** approach (Proxy-based).
 
-## Type Definition
+## Object Approach
+
+The JSON-like approach is great for serialization (REST APIs, stored filters).
+
+```typescript
+{ where: { published: true, status: { ne: 'draft' } } }
+```
+
+See [Where Type Definition](#where-type-definition) below for the complete type.
+
+---
+
+## Functional-Fluent Approach (Recommended)
+
+The functional approach uses **Proxies** to capture your intent in a type-safe way, producing an immutable **AST (Abstract Syntax Tree)** that can be compiled to SQL or in-memory predicates.
+
+### Why Functional-Fluent?
+
+| Feature | Object Approach | Functional-Fluent |
+|---------|-----------------|-------------------|
+| **Composition** | Difficult (deep merge) | Natural (`and(f1, f2)`) |
+| **Reusability** | Copy-paste JSON | Named functions |
+| **Refactoring** | Hard (string keys) | Easy (typed symbols) |
+| **In-Memory** | Requires manual parser | Native predicate compiler |
+| **Autocomplete** | Partial | Full (`p.`) |
+
+### Basic Usage
+
+```typescript
+import { where, and, or, not, eq, gt, contains } from '@deessejs/collections'
+
+// Define reusable predicates
+const isPublished = where(p => p.published.eq(true))
+const isRecent = where(p => p.createdAt.gt(new Date('2024-01-01')))
+const isDraft = not(isPublished)
+
+// Compose them
+const targetPosts = and(isRecent, isPublished)
+```
+
+### Filter Composition
+
+```typescript
+// Complex filtering with fluent syntax
+const searchFilter = where(p => or(
+  p.title.contains('TypeScript'),
+  p.content.contains('Functional'),
+  and(
+    p.category.eq('Programming'),
+    p.tags.has('Advanced')
+  )
+))
+```
+
+### Deep Path Filtering (Relations)
+
+The Proxy naturally captures the path without magic strings:
+
+```typescript
+const filterByAuthor = where(p =>
+  p.author.profile.location.eq('Paris')
+)
+
+// SQL: WHERE author.profile.location = 'Paris'
+```
+
+### Multi-Target Interpretation
+
+The same filter AST can be interpreted two ways:
+
+```typescript
+const myFilter = and(isPublished, isRecent)
+
+// 1. Database usage
+const postsFromDb = await db.posts.find({ where: myFilter })
+
+// 2. In-memory usage (UI filtering, unit tests)
+// Compiles AST to JS predicate: (item) => boolean
+const isMatch = compileToPredicate(myFilter)
+
+const filteredLocally = localPosts.filter(isMatch)
+```
+
+### Custom DSL Extensions
+
+Extend the DSL without modifying the core types:
+
+```typescript
+// Custom operator
+const priceInRange = (min: number, max: number) =>
+  where<Product>(p => and(
+    p.price.gte(min),
+    p.price.lte(max)
+  ))
+
+const affordable = priceInRange(10, 50)
+```
+
+---
+
+## Where Type Definition
+
+For the Object approach, here's the complete type system:
 
 ```typescript
 type Where<T = unknown> = {
@@ -77,7 +179,9 @@ type LogicalOperators<T> = {
 }
 ```
 
-## Usage Examples
+---
+
+## Object Usage Examples
 
 ### Basic Comparisons
 
@@ -140,7 +244,7 @@ type LogicalOperators<T> = {
 ### Array Operations
 
 ```typescript
-// Array contains element (PostgreSQL @>)
+// Array contains element (PostgreSQL @>).
 { where: { tags: { contains: 'featured' } } }
 
 // Array contains any
@@ -233,28 +337,19 @@ Filter by related collection properties:
 }
 ```
 
+---
+
 ## Usage in Operations
 
 ```typescript
-// Find
+// Object approach
 await config.db.posts.find({
   where: { published: true }
 })
 
-// Update
-await config.db.posts.update({
-  where: { status: 'draft' },
-  data: { status: 'published' }
-})
-
-// Delete
-await config.db.posts.delete({
-  where: { createdAt: { lt: '2024-01-01' } }
-})
-
-// Count
-await config.db.posts.count({
-  where: { published: true }
+// Functional approach
+await config.db.posts.find({
+  where: and(isPublished, isRecent)
 })
 ```
 
@@ -264,7 +359,7 @@ await config.db.posts.count({
 
 The `contains` operator has different meanings based on the field type:
 - **String**: Translates to `LIKE '%value%'`
-- **Array**: Translates to `@> array operator` (PostgreSQL) or array contains
+- **Array**: Translates to `@>` array operator (PostgreSQL)
 
 ### Case Sensitivity
 

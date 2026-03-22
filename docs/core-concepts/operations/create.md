@@ -48,3 +48,52 @@ const result = await config.db.posts.createMany({
 
 // result.data = 3
 ```
+
+## Error Handling
+
+All create operations return a `Result<T, Error>` type:
+
+```typescript
+const result = await config.db.posts.create({
+  data: { title: 'My Post' }
+})
+
+if (result.error) {
+  console.error(result.error)
+  return
+}
+
+result.data // Created record
+```
+
+### Common Errors
+
+#### Data Already Exists
+
+When a unique constraint is violated:
+
+```typescript
+const result = await config.db.posts.create({
+  data: { slug: 'my-post' }  // slug might already exist
+})
+
+if (result.error?.code === 'ALREADY_EXISTS') {
+  // Handle duplicate entry
+  console.error('Post with this slug already exists')
+}
+```
+
+#### Incomplete Data
+
+When required fields are missing:
+
+```typescript
+const result = await config.db.posts.create({
+  data: {}  // Missing required 'title' field
+})
+
+if (result.error?.code === 'INCOMPLETE_DATA') {
+  // Handle validation error
+  console.error('Missing required fields:', result.error.fields)
+}
+```

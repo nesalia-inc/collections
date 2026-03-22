@@ -5,41 +5,71 @@ The `where` option uses the `Where` type to specify conditions.
 ## Type Definition
 
 ```typescript
-type Filter<T = unknown> = {
-  [K in keyof T]?: FilterValue<T[K]>
-} & LogicalOperators<Filter<T>>
+type Where<T = unknown> = {
+  [K in keyof T]?: WhereValue<T[K]>
+} & LogicalOperators<Where<T>>
 
-type FilterValue<T> =
-  | T
-  | ComparisonOperator<T>
-  | ArrayFilterOperator<T>
+// Value can be a direct value or an operator object
+type WhereValue<T> =
+  | T                                    // Direct value (equality shortcut)
+  | ComparisonOperator<T>                // eq, ne, gt, lt, like, etc.
   | NullOperator
+  | (T extends unknown[] ? ArrayOperator<T> : never)
+  | (T extends object ? Where<T> : never) // Nested filtering for relations
 
-type ComparisonOperator<T> = {
-  eq?: T
-  ne?: T
-  gt?: T
-  gte?: T
-  lt?: T
-  lte?: T
-  like?: string
-  contains?: T
-  startsWith?: T
-  endsWith?: T
+// String-specific operators
+type StringOperator = StringComparisonOperator & StringModeOperator
+
+type StringComparisonOperator = {
+  eq?: string
+  ne?: string
+  like?: string        // SQL LIKE (use % for wildcards)
+  contains?: string    // LIKE '%value%'
+  startsWith?: string  // LIKE 'value%'
+  endsWith?: string    // LIKE '%value'
+  regex?: string       // Regular expression
 }
 
-type ArrayFilterOperator<T> = {
-  in?: T[]
-  notIn?: T[]
-  contains?: T[]
-  overlaps?: T[]
+type StringModeOperator = {
+  mode?: 'default' | 'insensitive'  // Case sensitivity
 }
 
+// Number-specific operators
+type NumberOperator = {
+  eq?: number
+  ne?: number
+  gt?: number
+  gte?: number
+  lt?: number
+  lte?: number
+  between?: [number, number]
+}
+
+// Date-specific operators (accepts Date or ISO string)
+type DateOperator = {
+  eq?: Date | string
+  ne?: Date | string
+  gt?: Date | string
+  gte?: Date | string
+  lt?: Date | string
+  lte?: Date | string
+  between?: [Date | string, Date | string]
+}
+
+// Array operators
+type ArrayOperator<T extends unknown[]> = {
+  contains?: T[number]      // Array contains element
+  containsAny?: T[number][] // Array contains any of these
+  overlaps?: T              // Arrays overlap
+}
+
+// Null checks
 type NullOperator = {
   isNull?: boolean
   isNotNull?: boolean
 }
 
+// Logical operators
 type LogicalOperators<T> = {
   AND?: T[]
   OR?: T[]
@@ -52,7 +82,7 @@ type LogicalOperators<T> = {
 ### Basic Comparisons
 
 ```typescript
-// Equal
+// Equal (shortcut)
 { where: { published: true } }
 
 // Not equal
@@ -63,6 +93,9 @@ type LogicalOperators<T> = {
 
 // Less than or equal
 { where: { price: { lte: 100 } } }
+
+// Between (numbers and dates)
+{ where: { price: { between: [10, 100] } } }
 ```
 
 ### String Operations
@@ -71,21 +104,50 @@ type LogicalOperators<T> = {
 // Like (contains)
 { where: { title: { like: '%hello%' } } }
 
+// Contains (shorthand)
+{ where: { title: { contains: 'hello' } } }
+
 // Starts with
 { where: { slug: { startsWith: 'news-' } } }
 
 // Ends with
 { where: { email: { endsWith: '@example.com' } } }
+
+// Case insensitive
+{ where: { name: { eq: 'john', mode: 'insensitive' } } }
+
+// Regex
+{ where: { code: { regex: '^[A-Z]{3}-\\d{4}$' } } }
+```
+
+### Date Operations
+
+```typescript
+// Date greater than (Date object)
+{ where: { createdAt: { gt: new Date('2024-01-01') } } }
+
+// Date greater than (ISO string)
+{ where: { createdAt: { gt: '2024-01-01' } } }
+
+// Between dates
+{ where: {
+  createdAt: {
+    between: ['2024-01-01', '2024-12-31']
+  }
+}}
 ```
 
 ### Array Operations
 
 ```typescript
-// In
-{ where: { id: { in: [1, 2, 3] } } }
+// Array contains element (PostgreSQL @>)
+{ where: { tags: { contains: 'featured' } } }
 
-// Not in
-{ where: { status: { notIn: ['draft', 'archived'] } } }
+// Array contains any
+{ where: { tags: { containsAny: ['news', 'featured'] } } }
+
+// Arrays overlap (PostgreSQL &&)
+{ where: { tags: { overlaps: ['tag1', 'tag2'] } } }
 ```
 
 ### Null Checks
@@ -129,17 +191,44 @@ type LogicalOperators<T> = {
 }
 ```
 
+### Nested / Relation Filtering
+
+Filter by related collection properties:
+
+```typescript
+// Filter posts by author's name
+{
+  where: {
+    author: {
+      name: { eq: 'John' }
+    }
+  }
+}
+
+// Nested relations
+{
+  where: {
+    author: {
+      profile: {
+        verified: true
+      }
+    }
+  }
+}
+```
+
 ### Combining Operators
 
 ```typescript
 {
   where: {
     OR: [
-      { title: { like: '%news%' } },
-      { content: { like: '%news%' } }
+      { title: { contains: 'news' } },
+      { content: { contains: 'news' } }
     ],
     published: true,
-    authorId: { notIn: ['banned-1', 'banned-2'] }
+    authorId: { notIn: ['banned-1', 'banned-2'] },
+    createdAt: { gte: '2024-01-01' }
   }
 }
 ```
@@ -168,3 +257,21 @@ await config.db.posts.count({
   where: { published: true }
 })
 ```
+
+## Notes
+
+### Operator Ambiguity
+
+The `contains` operator has different meanings based on the field type:
+- **String**: Translates to `LIKE '%value%'`
+- **Array**: Translates to `@> array operator` (PostgreSQL) or array contains
+
+### Case Sensitivity
+
+- PostgreSQL: `LIKE` is case-sensitive, use `ILIKE` when `mode: 'insensitive'`
+- MySQL: `LIKE` is case-insensitive by default
+- SQLite: Use `COLLATE NOCASE` when `mode: 'insensitive'`
+
+### Date Handling
+
+Dates can be passed as JavaScript `Date` objects or ISO strings. The database adapter handles the conversion.

@@ -1,104 +1,197 @@
-# @deessejs/collections Documentation
+# @deessejs/collections
 
-Welcome to the documentation for `@deessejs/collections`, a functional-first collection and data modeling layer built on Drizzle ORM.
+A high-level data modeling and API layer with a provider-agnostic database system. Inspired by PayloadCMS but designed for programmatic usage.
 
-## Getting Started
+## Features
 
-This documentation covers the product vision, features, architecture, and use cases. For implementation details and API references, see the individual documentation files.
-
-## What is Currently Implemented
-
-### Core Functionality
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Collection System** | Done | Define data models using `collection()` function |
-| **Field Types** | Done | Text, number, boolean, date, timestamp, JSON, array, select (enum), relations |
-| **Field Options** | Done | required, unique, indexed, default, label, description |
-| **Hooks** | Done | beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeDelete, afterDelete |
-| **Plugins** | Done | Extensible plugin system for adding collections |
-| **Config System** | Done | `defineConfig()` for centralized configuration |
-| **PostgreSQL Adapter** | Done | `pgAdapter()` for PostgreSQL database connection |
-| **Schema Generation** | Done | `buildSchema()` and `buildTable()` from collections |
-| **Migration Commands** | Done | `push()`, `generate()`, `migrate()` functions |
-| **Type Inference** | Done | Full TypeScript inference from collection definitions |
-
-### Field Types Available
-
-```typescript
-import { f } from '@deessejs/collections'
-
-// Primitive types
-f.text()           // Text/string
-f.email()          // Email (with validation)
-f.url()            // URL (with validation)
-f.number()         // Number
-f.boolean()        // Boolean
-f.date()           // Date (without timestamp)
-f.timestamp()      // Date with timestamp
-f.json()           // JSON object
-
-// Complex types
-f.select(['draft', 'published'])  // Enum/select
-f.array(f.text())                 // Array of strings
-f.relation({ collection: 'users' }) // Relations (one-to-one, one-to-many, many-to-many)
-```
-
-### What's Implemented vs What's Not
-
-**Implemented:**
-- Full CRUD via `config.db` (Drizzle instance)
-- Schema generation from collections
-
-**Not Implemented:**
-- CRUD via `config.collections.*` (currently metadata only)
-- Dynamic field generation (auto-slug, computed fields)
-- Relationship cascade operations
-- Field-level validation system
-
-## Documentation Structure
-
-### [Overview](overview.md)
-Introduction to the project, its vision, philosophy, and target audience.
-
-### [Features](features.md)
-Comprehensive list of features including the collection system, field types, query API, hooks, plugins, and developer experience enhancements.
-
-### [Philosophy](philosophy.md)
-Deep dive into the design principles behind the project.
-
-### [Architecture](architecture.md)
-Technical architecture covering core components, data flow, type system, and plugin architecture.
-
-### [Use Cases](use-cases.md)
-Real-world scenarios where `@deessejs/collections` excels.
+- **Collections** - Define data models with fields and types
+- **Auth** - Optional authentication with swappable providers (Better-Auth, Clerk, Supabase)
+- **Extensions** - Predefined interfaces for cache, email, storage with swappable connectors
+- **REST API** - Automatic REST endpoints
+- **Hooks** - Lifecycle hooks for validation and logic
+- **Relations** - Link collections together
+- **TypeScript** - Full type inference
 
 ## Quick Start
+
+```bash
+pnpm add @deessejs/collections
+```
 
 ```typescript
 import { defineConfig, collection, field, f, pgAdapter } from '@deessejs/collections'
 
-// Define your collections
-const users = collection({
-  slug: 'users',
-  name: 'Users',
+const posts = collection({
+  slug: 'posts',
   fields: {
-    name: field({ fieldType: f.text(), required: true }),
-    email: field({ fieldType: f.email(), unique: true }),
-    age: field({ fieldType: f.number() })
+    title: field({ fieldType: f.text() }),
+    content: field({ fieldType: f.text() }),
+    author: field({
+      fieldType: f.relation({ to: 'users' })
+    })
   }
 })
 
-// Create configuration
-const config = defineConfig({
-  database: pgAdapter({ url: 'postgres://localhost:5432/mydb' }),
-  collections: [users]
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts]
 })
-
-// Access generated Drizzle schema
-const { users: usersTable } = config.db
 ```
 
-## Project Status
+## Authentication (Optional)
 
-**Active Development** - Core foundation is implemented. Full CRUD operations and advanced features are on the roadmap.
+Auth is optional and provider-agnostic. Multiple auth providers are available:
+
+```typescript
+// With Better-Auth (built-in)
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: betterAuth({ emailAndPassword: { enabled: true } })
+})
+
+// With Clerk
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+  auth: clerk({ instanceId: '...' })
+})
+```
+
+## Extensions
+
+Extensions provide additional capabilities with swappable connectors:
+
+```typescript
+import { defineConfig, redisCache, sendGridEmail, s3Storage } from '@deessejs/collections'
+
+export const config = defineConfig({
+  database: pgAdapter({ url: process.env.DATABASE_URL! }),
+  collections: [posts],
+
+  // Cache extension - switch connectors easily
+  cache: redisCache({ url: process.env.REDIS_URL! }),
+
+  // Email extension
+  email: sendGridEmail({ apiKey: process.env.SENDGRID_API_KEY! }),
+
+  // Storage extension
+  storage: s3Storage({ bucket: process.env.AWS_BUCKET! })
+})
+```
+
+## Next.js Integration
+
+Create an API route:
+
+```typescript
+// app/(deesse)/api/[...route]/route.ts
+/* THIS FILE WAS GENERATED AUTOMATICALLY BY COLLECTIONS. */
+/* DO NOT MODIFY IT BECAUSE IT COULD BE REWRITTEN AT ANY TIME. */
+import { config } from '@deessejs/collections/config'
+import {
+  REST_DELETE,
+  REST_GET,
+  REST_OPTIONS,
+  REST_PATCH,
+  REST_POST,
+  REST_PUT,
+} from '@deessejs/collections/next'
+
+export const GET = REST_GET(config)
+export const POST = REST_POST(config)
+export const DELETE = REST_DELETE(config)
+export const PATCH = REST_PATCH(config)
+export const PUT = REST_PUT(config)
+export const OPTIONS = REST_OPTIONS(config)
+```
+
+## Field Types
+
+| Type | Description |
+|------|-------------|
+| `f.text()` | String |
+| `f.number()` | Integer |
+| `f.boolean()` | Boolean |
+| `f.email()` | Email with validation |
+| `f.date()` | Date only |
+| `f.timestamp()` | Date with time |
+| `f.select(['a', 'b'])` | Enum |
+| `f.json()` | JSON object |
+| `f.relation({ to: 'users' })` | Relation |
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/collections/:collection` | List records |
+| GET | `/api/collections/:collection/:id` | Get record |
+| POST | `/api/collections/:collection` | Create record |
+| PUT | `/api/collections/:collection/:id` | Update record |
+| DELETE | `/api/collections/:collection/:id` | Delete record |
+
+## Documentation Structure
+
+### Getting Started
+- [Quick Start](./getting-started/quick-start.md)
+
+### Core Concepts
+- [Overview](./core-concepts/README.md) - Core concepts overview
+- [Collections](./core-concepts/collection/README.md) - Data models
+- [Fields & Types](./core-concepts/fields.md) - Field definitions
+- [Hooks](./core-concepts/hooks.md) - Lifecycle hooks
+- [Operations](./core-concepts/operations.md) - CRUD operations
+- [Configuration](./core-concepts/config/README.md) - Configuration
+
+### Database
+- [Database Overview](./database/README.md)
+- [Connections](./database/connections.md) - Database adapters
+- [Providers](./database/providers.md) - Custom providers
+- [Auth Providers](./database/auth.md) - Auth provider configuration
+
+### Features
+- [Authentication](./features/authentication.md) - Auth configuration
+- [Extensions](./features/extensions.md) - Cache, email, storage extensions
+- [Plugins](./features/plugins/README.md) - Custom plugins
+
+### API
+- [REST API](./api/api.md)
+
+### Integrations
+- [Next.js](./integrations/nextjs.md)
+- [CLI](./integrations/cli.md)
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Your App                              │
+├─────────────────────────────────────────────────────────┤
+│  Collections API                                        │
+│  ├── CRUD Operations (db.posts.find, etc.)             │
+│  ├── Extensions (cache, email, storage)                 │
+│  └── REST Endpoints (/api/collections/*)              │
+└─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │   Collections Core │
+                    └─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Database Provider                      │
+├─────────────────────────────────────────────────────────┤
+│  pgAdapter | mysqlAdapter | sqliteAdapter | custom      │
+└─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │    PostgreSQL    │
+                    │    (or any DB)   │
+                    └─────────────────┘
+```
+
+## License
+
+MIT

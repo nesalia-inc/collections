@@ -29,7 +29,8 @@ config.db.posts.archive()
 - [Create](./create.md) - Creating records
 - [Update](./update.md) - Updating records
 - [Delete](./delete.md) - Deleting records
-- [Options](./options.md) - Query options (where, orderBy, include, select)
+- [Where](./where.md) - Where conditions for filtering
+- [Options](./options.md) - Query options (orderBy, include, select)
 - [Results](./results.md) - Return values and result pattern
 - [Transactions](./transactions.md) - Atomic operations
 

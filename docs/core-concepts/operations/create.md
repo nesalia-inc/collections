@@ -2,6 +2,16 @@
 
 Learn how to create new records in collections.
 
+## Function Signature
+
+```typescript
+// Create a single record
+create(options: { data: Partial<Post> }): Promise<Result<Post, CreateError>>
+
+// Create multiple records
+createMany(options: { data: Partial<Post>[] }): Promise<Result<number, CreateError>>
+```
+
 ## create
 
 Create a single record:

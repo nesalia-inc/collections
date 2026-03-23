@@ -12,14 +12,6 @@ const tags = field({
 const emails = field({
   fieldType: f.array(z.string().email())
 })
-
-// Array of objects
-const users = field({
-  fieldType: f.array(z.object({
-    name: z.string(),
-    age: z.number()
-  }))
-})
 ```
 
 ## Implementation
@@ -30,16 +22,6 @@ const array = fieldType({
   type: 'array',
   columnType: 'jsonb',
   schema: z.array(z.string()),
-  validation: z.object({})
-})
-
-const arrayWithObject = fieldType({
-  type: 'array',
-  columnType: 'jsonb',
-  schema: z.array(z.object({
-    name: z.string(),
-    age: z.number()
-  })),
   validation: z.object({})
 })
 ```
@@ -56,10 +38,4 @@ const arrayWithObject = fieldType({
    ```typescript
    db.posts.create({ data: { tags: [1, 2, 3] } })
    // Error: tags must contain only strings
-   ```
-
-3. **Object schema validation**:
-   ```typescript
-   db.users.create({ data: { users: [{ name: "John", age: "invalid" }] } })
-   // Error: users[0].age must be a number
    ```

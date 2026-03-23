@@ -28,16 +28,15 @@ const price = field({
 ## Implementation
 
 ```typescript
-const number = (options?: NumberOptions): FieldType =>
-  fieldType({
-    type: 'number',
-    columnType: options?.precision
-      ? `numeric(${options.precision}, ${options.scale ?? 0})`
-      : 'decimal',
-    schema: options?.min !== undefined || options?.max !== undefined
-      ? z.number().min(options?.min ?? -Infinity).max(options?.max ?? Infinity)
-      : z.number()
-  })
+const number = fieldType({
+  type: 'number',
+  columnType: options?.precision
+    ? `numeric(${options.precision}, ${options.scale ?? 0})`
+    : 'decimal',
+  schema: options?.min !== undefined || options?.max !== undefined
+    ? z.number().min(options?.min ?? -Infinity).max(options?.max ?? Infinity)
+    : z.number()
+})
 ```
 
 ## Type Definition

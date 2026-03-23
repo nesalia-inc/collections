@@ -11,10 +11,9 @@ const published = field({
 ## Implementation
 
 ```typescript
-const boolean = (): FieldType =>
-  fieldType({
-    type: 'boolean',
-    columnType: 'boolean',
-    schema: z.boolean()
-  })
+const boolean = fieldType({
+  type: 'boolean',
+  columnType: 'boolean',
+  schema: z.boolean()
+})
 ```

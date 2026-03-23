@@ -13,10 +13,9 @@ const content = field({
 ## Implementation
 
 ```typescript
-const richtext = (): FieldType =>
-  fieldType({
-    type: 'richtext',
-    columnType: 'text',
-    schema: z.string()
-  })
+const richtext = fieldType({
+  type: 'richtext',
+  columnType: 'text',
+  schema: z.string()
+})
 ```

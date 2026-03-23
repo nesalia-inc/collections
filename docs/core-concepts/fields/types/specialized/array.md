@@ -15,10 +15,9 @@ const scores = field({
 ## Implementation
 
 ```typescript
-const array = <T extends z.ZodType>(itemSchema: T): FieldType =>
-  fieldType({
-    type: 'array',
-    columnType: 'jsonb',
-    schema: z.array(itemSchema)
-  })
+const array = fieldType({
+  type: 'array',
+  columnType: 'jsonb',
+  schema: z.array(itemSchema)
+})
 ```

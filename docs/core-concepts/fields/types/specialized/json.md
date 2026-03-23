@@ -21,10 +21,9 @@ When using a Zod schema, TypeScript infers the type automatically.
 ## Implementation
 
 ```typescript
-const json = <T extends z.ZodType>(schema?: T): FieldType =>
-  fieldType({
-    type: 'json',
-    columnType: 'jsonb',
-    schema: schema ?? z.any()
-  })
+const json = fieldType({
+  type: 'json',
+  columnType: 'jsonb',
+  schema: schema ?? z.any()
+})
 ```

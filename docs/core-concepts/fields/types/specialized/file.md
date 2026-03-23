@@ -21,14 +21,9 @@ const attachments = field({
 ## Implementation
 
 ```typescript
-const file = (options?: FileOptions): FieldType =>
-  fieldType({
-    type: 'file',
-    columnType: options?.multiple ? 'text' : 'varchar(500)',
-    schema: options?.multiple ? z.array(z.string()) : z.string().optional()
-  })
-
-type FileOptions = {
-  multiple?: boolean
-}
+const file = fieldType({
+  type: 'file',
+  columnType: options?.multiple ? 'text' : 'varchar(500)',
+  schema: options?.multiple ? z.array(z.string()) : z.string().optional()
+})
 ```

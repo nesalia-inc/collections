@@ -20,17 +20,15 @@ const createdAt = field({
 ## Implementation
 
 ```typescript
-const date = (): FieldType =>
-  fieldType({
-    type: 'date',
-    columnType: 'date',
-    schema: z.date()
-  })
+const date = fieldType({
+  type: 'date',
+  columnType: 'date',
+  schema: z.date()
+})
 
-const timestamp = (): FieldType =>
-  fieldType({
-    type: 'timestamp',
-    columnType: 'timestamp',
-    schema: z.date()
-  })
+const timestamp = fieldType({
+  type: 'timestamp',
+  columnType: 'timestamp',
+  schema: z.date()
+})
 ```

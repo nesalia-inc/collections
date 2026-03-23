@@ -5,44 +5,49 @@ The `orderBy` option allows you to sort query results by one or more fields.
 ## Type Definition
 
 ```typescript
-type OrderBy<T> = OrderByObject<T> | OrderByArray<T>
+type OrderBy<T> = (selector: OrderBySelector<T>) => OrderByFields<T>
 
-type OrderByObject<T> = {
-  [K in keyof T]?: T[K] extends object ? OrderBy<T[K]> : OrderByValue
+type OrderBySelector<T> = {
+  [K in keyof T]: T[K] extends object ? OrderBySelector<T[K]> : OrderByField
+} & {
+  _desc: <K extends keyof T>(field: K) => Pick<T, K>
+  _asc: <K extends keyof T>(field: K) => Pick<T, K>
 }
 
-type OrderByValue = {
-  order: 'asc' | 'desc'
-  nulls?: 'first' | 'last'
-  mode?: 'default' | 'insensitive'
+type OrderByField = {
+  asc: () => void
+  desc: () => void
 }
 
-type OrderByArray<T> = Array<{
-  field: keyof T
-  order: 'asc' | 'desc'
-  nulls?: 'first' | 'last'
-  mode?: 'default' | 'insensitive'
-}>
+type OrderByFields<T> = {
+  [K in keyof T]?: T[K] extends object ? OrderByFields<T[K]> : {
+    order: 'asc' | 'desc'
+    nulls?: 'first' | 'last'
+    mode?: 'default' | 'insensitive'
+  }
+}
 ```
 
 ## Basic Usage
 
 ```typescript
 const result = await config.db.posts.find({
-  orderBy: { createdAt: 'desc' }
+  orderBy: (p) => ({
+    createdAt: p.createdAt.desc()
+  })
 })
 ```
 
 ## Multiple Fields
 
-Sort by multiple fields (order matters):
+Sort by multiple fields (first field has highest priority):
 
 ```typescript
 const result = await config.db.posts.find({
-  orderBy: [
-    { field: 'status', order: 'asc' },
-    { field: 'createdAt', order: 'desc' }
-  ]
+  orderBy: (p) => ({
+    status: p.status.asc(),
+    createdAt: p.createdAt.desc()
+  })
 })
 ```
 
@@ -51,14 +56,10 @@ const result = await config.db.posts.find({
 Control where null values appear in the sorted results:
 
 ```typescript
-// Nulls first (before non-null values)
 const result = await config.db.posts.find({
-  orderBy: { deletedAt: { order: 'asc', nulls: 'first' } }
-})
-
-// Nulls last (after non-null values)
-const result = await config.db.posts.find({
-  orderBy: { deletedAt: { order: 'asc', nulls: 'last' } }
+  orderBy: (p) => ({
+    deletedAt: { order: 'asc', nulls: 'first' }
+  })
 })
 ```
 
@@ -68,7 +69,9 @@ Sort strings ignoring case:
 
 ```typescript
 const result = await config.db.posts.find({
-  orderBy: { title: { order: 'asc', mode: 'insensitive' } }
+  orderBy: (p) => ({
+    title: { order: 'asc', mode: 'insensitive' }
+  })
 })
 ```
 
@@ -78,22 +81,11 @@ Sort by fields in related collections:
 
 ```typescript
 const result = await config.db.posts.find({
-  orderBy: {
+  orderBy: (p) => ({
     author: {
-      name: 'asc'
+      name: p.author.name.asc()
     }
-  }
-})
-```
-
-```typescript
-// With options on nested field
-const result = await config.db.posts.find({
-  orderBy: {
-    author: {
-      name: { order: 'asc', mode: 'insensitive' }
-    }
-  }
+  })
 })
 ```
 
@@ -104,7 +96,9 @@ Combine with where condition:
 ```typescript
 const result = await config.db.posts.find({
   where: where(p => p.published.eq(true)),
-  orderBy: { createdAt: 'desc' }
+  orderBy: (p) => ({
+    createdAt: p.createdAt.desc()
+  })
 })
 ```
 
@@ -115,14 +109,17 @@ Required for cursor pagination to ensure consistent ordering:
 ```typescript
 const page = await config.db.posts.find({
   cursor: { limit: 10 },
-  orderBy: { id: 'desc' }
+  orderBy: (p) => ({
+    id: p.id.desc()
+  })
 })
 ```
 
 ## Notes
 
 - Always specify `orderBy` when using cursor pagination to ensure consistent results
-- The order of fields in array notation matters - first field has highest priority
-- Use `asc` for ascending (A-Z, 0-9) and `desc` for descending (Z-A, 9-0)
+- The order of fields in the object matters - first field has highest priority
+- Use `.asc()` for ascending (A-Z, 0-9) and `.desc()` for descending (Z-A, 9-0)
 - Default null behavior may vary by database (PostgreSQL: nulls last by default in ascending order)
 - Use `mode: 'insensitive'` for case-insensitive string sorting
+- Full autocomplete support for all fields and nested relations

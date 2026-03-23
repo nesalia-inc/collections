@@ -5,6 +5,11 @@ The `select` option allows you to specify which fields to return from a query, i
 ## Type Definition
 
 ```typescript
+import { select, _all } from '@deessejs/collections'
+
+// Or with import alias
+import { select as sel, _all as allFields } from '@deessejs/collections'
+
 type Select<T> = (selector: Selector<T>) => SelectedFields<T>
 
 type Selector<T> = {
@@ -82,11 +87,15 @@ const result = await config.db.posts.find({
 
 ## With Where
 
-Combine `where` and `select` in the same query:
+Combine functional `where` and `select` in the same query:
 
 ```typescript
+import { where, eq } from '@deessejs/collections'
+
+const isPublished = where(p => p.published.eq(true))
+
 const result = await config.db.posts.find({
-  where: { published: true },
+  where: isPublished,
   select: (p) => ({
     id: p.id,
     title: p.title

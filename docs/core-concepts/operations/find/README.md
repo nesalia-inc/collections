@@ -10,3 +10,4 @@ Learn how to query records from collections.
 - [pagination](./pagination.md) - Pagination strategies (offset and cursor)
 - [count](./count.md) - Count records matching conditions
 - [exists](./exists.md) - Check if a record exists
+- [select](./select.md) - Select specific fields to return

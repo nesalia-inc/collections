@@ -11,18 +11,15 @@ type OrderBySelector<T> = {
   [K in keyof T]: T[K] extends object ? OrderBySelector<T[K]> : OrderByField
 }
 
-type OrderByField = {
+interface OrderByField {
   asc(): OrderByConfig
   desc(): OrderByConfig
 }
 
-type OrderByConfig = {
+interface OrderByConfig {
   order: 'asc' | 'desc'
   nulls?: 'first' | 'last'
   mode?: 'default' | 'insensitive'
-}
-
-interface OrderByConfig {
   nullsFirst(): OrderByConfig
   nullsLast(): OrderByConfig
   insensitive(): OrderByConfig

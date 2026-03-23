@@ -5,8 +5,11 @@ Learn how to delete records from collections.
 ## Function Signature
 
 ```typescript
-// Delete a single record
-delete(options: DeleteOperation): AsyncResult<void, DeleteError>
+// Delete a record by ID
+deleteById(id: ID): AsyncResult<T, DeleteError>
+
+// Delete the first matching record
+deleteFirst(options: DeleteOperation): AsyncResult<T, DeleteError>
 
 // Delete multiple records
 deleteMany(options: DeleteManyOperation): AsyncResult<Counted<T[]>, DeleteError>
@@ -24,19 +27,27 @@ type DeleteManyOperation = {
 }
 ```
 
-## delete
+## deleteById
 
-Delete a single record:
+Delete a single record by its ID:
 
 ```typescript
-const result = await config.db.posts.delete({
-  where: { id: 1 }
+const result = await config.db.posts.deleteById(1)
+```
+
+## deleteFirst
+
+Delete the first record matching the where condition:
+
+```typescript
+const result = await config.db.posts.deleteFirst({
+  where: { status: 'draft', createdAt: { lt: '2024-01-01' } }
 })
 ```
 
 ## deleteMany
 
-Delete multiple records:
+Delete all records matching the where condition:
 
 ```typescript
 const result = await config.db.posts.deleteMany({

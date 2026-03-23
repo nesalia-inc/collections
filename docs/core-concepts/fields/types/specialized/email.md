@@ -8,7 +8,7 @@ const email = field({
 })
 ```
 
-Includes built-in email validation with automatic lowercase transform.
+Includes built-in email validation with automatic lowercase and trim transform.
 
 ## Implementation
 
@@ -24,8 +24,21 @@ const email = fieldType({
 
 ## Validation Flow
 
-1. **Base validation**:
+1. **Transform** (trim + lowercase):
+   Applied before validation to normalize the input.
+
+2. **Base validation**:
    ```typescript
    db.users.create({ data: { email: "not-an-email" } })
    // Error: email must be a valid email address
    ```
+
+## Query Behavior
+
+Searches on this field are case-insensitive thanks to the automatic transform:
+```typescript
+db.users.find({
+  where: (u) => u.email.eq("USER@Example.com")
+})
+// Matches "user@example.com" in database
+```

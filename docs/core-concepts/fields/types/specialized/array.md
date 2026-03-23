@@ -12,17 +12,32 @@ const tags = field({
 const emails = field({
   fieldType: f.array(z.string().email())
 })
+
+// Array with constraints
+const limitedTags = field({
+  fieldType: f.array(z.string(), { min: 1, max: 10 })
+})
 ```
+
+## Options
+
+- `min` - Minimum number of items
+- `max` - Maximum number of items
+- `unique` - Ensure no duplicate items
 
 ## Implementation
 
 ```typescript
-// Generic array field type accepting any Zod schema
-const array = fieldType({
+// Factory function accepting any Zod schema
+const array = (itemSchema: z.ZodTypeAny, options?: ArrayOptions) => fieldType({
   type: 'array',
   columnType: 'jsonb',
-  schema: z.array(z.string()),
-  validation: z.object({})
+  schema: z.array(itemSchema),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    unique: z.boolean().optional()
+  })
 })
 ```
 
@@ -38,4 +53,10 @@ const array = fieldType({
    ```typescript
    db.posts.create({ data: { tags: [1, 2, 3] } })
    // Error: tags must contain only strings
+   ```
+
+3. **Constraints validation**:
+   ```typescript
+   db.posts.create({ data: { tags: [] } })
+   // Error: tags must have at least 1 item
    ```

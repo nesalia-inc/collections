@@ -36,7 +36,10 @@ const lastWeek = field({
 const date = fieldType({
   type: 'date',
   columnType: 'date',
-  schema: z.date(),
+  schema: z.union([
+    z.date(),
+    z.string().datetime()
+  ]),
   validation: z.object({
     min: z.date().optional(),
     max: z.date().optional()
@@ -46,7 +49,10 @@ const date = fieldType({
 const timestamp = fieldType({
   type: 'timestamp',
   columnType: 'timestamp',
-  schema: z.date(),
+  schema: z.union([
+    z.date(),
+    z.string().datetime()
+  ]),
   validation: z.object({
     min: z.date().optional(),
     max: z.date().optional()

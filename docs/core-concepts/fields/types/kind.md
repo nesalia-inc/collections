@@ -1,6 +1,6 @@
 # Column Types
 
-Low-level functions that map directly to database column types.
+Low-level functions that return column type objects used by database providers.
 
 These functions are used internally by field type implementations and plugins.
 
@@ -8,31 +8,43 @@ These functions are used internally by field type implementations and plugins.
 
 ```typescript
 // Numeric types
-serial()     // 'serial'
-integer()    // 'integer'
-numeric()    // 'numeric'
-decimal()    // 'decimal'
-real()       // 'real'
+serial()     // { name: 'serial' }
+integer()    // { name: 'integer' }
+numeric()    // { name: 'numeric', precision, scale }
+decimal()    // { name: 'decimal', precision, scale }
+real()       // { name: 'real' }
 
 // Character types
-text()       // 'text'
-varchar(n)   // 'varchar(n)'
-char(n)      // 'char(n)'
+text()       // { name: 'text' }
+varchar(n)   // { name: 'varchar', length: n }
+char(n)      // { name: 'char', length: n }
 
 // Boolean
-boolean()    // 'boolean'
+boolean()    // { name: 'boolean' }
 
 // Date/Time types
-date()       // 'date'
-timestamp()  // 'timestamp'
+date()       // { name: 'date' }
+timestamp()  // { name: 'timestamp' }
 
 // JSON types
-json()       // 'json'
-jsonb()      // 'jsonb'
+json()       // { name: 'json' }
+jsonb()      // { name: 'jsonb' }
 
 // Other types
-uuid()       // 'uuid'
-enum_(['a', 'b']) // enum
+uuid()       // { name: 'uuid' }
+enum_(['a', 'b']) // { name: 'enum', values: ['a', 'b'] }
+```
+
+## Return Type
+
+```typescript
+interface ColumnTypeObject {
+  name: string
+  length?: number
+  precision?: number
+  scale?: number
+  values?: string[]
+}
 ```
 
 ## Usage
@@ -49,45 +61,4 @@ const myField = fieldType({
 })
 ```
 
-The database provider uses the return value to generate SQL.
-
-## Type Definition
-
-```typescript
-export type ColumnType =
-  | 'serial'
-  | 'integer'
-  | 'numeric'
-  | 'decimal'
-  | 'real'
-  | 'text'
-  | 'varchar'
-  | 'char'
-  | 'boolean'
-  | 'date'
-  | 'timestamp'
-  | 'json'
-  | 'jsonb'
-  | 'uuid'
-  | 'enum'
-```
-
-## Reference
-
-| Function | Column Type | Description |
-|----------|-------------|-------------|
-| `serial()` | `'serial'` | Auto-incrementing integer |
-| `integer()` | `'integer'` | Integer number |
-| `numeric(p, s)` | `'numeric'` | Exact numeric with precision |
-| `decimal(p, s)` | `'decimal'` | Decimal number |
-| `real()` | `'real'` | Single precision float |
-| `text()` | `'text'` | Text string |
-| `varchar(n)` | `'varchar(n)'` | Variable-length string |
-| `char(n)` | `'char(n)'` | Fixed-length string |
-| `boolean()` | `'boolean'` | True/false |
-| `date()` | `'date'` | Date only |
-| `timestamp()` | `'timestamp'` | Date with time |
-| `json()` | `'json'` | JSON string |
-| `jsonb()` | `'jsonb'` | Binary JSON |
-| `uuid()` | `'uuid'` | UUID |
-| `enum_(['a', 'b'])` | `'enum'` | Enum type |
+The database provider uses the column type object to generate SQL.

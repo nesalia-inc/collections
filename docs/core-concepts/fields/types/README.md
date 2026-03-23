@@ -14,7 +14,7 @@ Field types define the shape of your data. Each field has:
 ### Field Type Factory
 - [Factory `f`](./factory.md) - Predefined field types
 - [Custom Field Types](./custom.md) - Create your own field types
-- [FieldTypeKind](./kind.md) - Union type of all field types
+- [ColumnType](./kind.md) - Union type of all column types
 
 ### Primitive Types
 - [Text](./primitives/text.md)

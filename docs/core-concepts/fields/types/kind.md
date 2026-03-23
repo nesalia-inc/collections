@@ -1,11 +1,11 @@
-# FieldTypeKind
+# ColumnType
 
-Union type of all available field types in the database.
+Union type of all available column types in the database.
 
 ## Type Definition
 
 ```typescript
-export type FieldTypeKind =
+export type ColumnType =
   | 'text'
   | 'number'
   | 'boolean'
@@ -14,9 +14,7 @@ export type FieldTypeKind =
   | 'email'
   | 'url'
   | 'select'
-  | 'json'
-  | 'array'
-  | 'richtext'
+  | 'jsonb'
   | 'file'
   | 'relation'
 ```
@@ -29,24 +27,24 @@ This type is useful for:
 - Type narrowing in generic functions
 
 ```typescript
-import { type FieldTypeKind, field, f } from '@deessejs/collections'
+import { type ColumnType, field, f } from '@deessejs/collections'
 
-function isPrimitiveField(type: FieldTypeKind): boolean {
+function isPrimitiveColumn(type: ColumnType): boolean {
   return ['text', 'number', 'boolean', 'date', 'timestamp'].includes(type)
 }
 
-// Example: checking field types
+// Example: checking column types
 const textField = f.text()
-const relationField = f.relation({ to: 'users' })
+const jsonField = f.json()
 
-console.log(isPrimitiveField(textField.type)) // true
-console.log(isPrimitiveField(relationField.type)) // false
+console.log(isPrimitiveColumn(textField.type)) // true
+console.log(isPrimitiveColumn(jsonField.type)) // false
 ```
 
-## Field Type Reference
+## Column Type Reference
 
-| Type | Kind | Description |
-|------|------|-------------|
+| Type | Column Type | Description |
+|------|-------------|-------------|
 | `f.text()` | `'text'` | String value |
 | `f.number()` | `'number'` | Numeric value |
 | `f.boolean()` | `'boolean'` | True/false value |
@@ -55,8 +53,7 @@ console.log(isPrimitiveField(relationField.type)) // false
 | `f.email()` | `'email'` | Email with validation |
 | `f.url()` | `'url'` | URL with validation |
 | `f.select()` | `'select'` | Enum value |
-| `f.json()` | `'json'` | JSON object |
-| `f.array()` | `'array'` | Array of values |
-| `f.richtext()` | `'richtext'` | Rich text content |
+| `f.json()` | `'jsonb'` | JSON object |
+| `f.array()` | `'jsonb'` | Array of values |
 | `f.file()` | `'file'` | File reference |
 | `f.relation()` | `'relation'` | Relation to another collection |

@@ -9,6 +9,68 @@ Field types define the shape of your data. Each field has:
 - A database column type
 - Optional validation and constraints
 
+## Field Type Factory
+
+The `f` object provides predefined field types:
+
+```typescript
+import { field, f } from '@deessejs/collections'
+
+const name = field({
+  fieldType: f.text()
+})
+```
+
+## Custom Field Types
+
+Use `fieldType` to create custom field types with full control:
+
+```typescript
+import { field, fieldType, z } from '@deessejs/collections'
+
+// Simple custom field
+const customText = fieldType({
+  type: 'text',
+  columnType: 'varchar(255)',
+  schema: z.string().min(1).max(255)
+})
+
+// Advanced custom field with options
+const customField = fieldType({
+  type: 'custom',
+  columnType: 'text',
+  schema: z.string(),
+  options: {
+    transform: (value) => value?.trim(),
+    prepare: (value) => value ?? null
+  }
+})
+
+// Usage
+const myField = field({
+  fieldType: customText
+})
+```
+
+### fieldType Function Signature
+
+```typescript
+function fieldType<T extends z.ZodType>(
+  config: FieldTypeConfig<T>
+): FieldType
+
+type FieldTypeConfig<T extends z.ZodType> = {
+  type: string
+  columnType: string
+  schema: T
+  options?: {
+    transform?: (value: z.infer<T>) => z.infer<T>
+    prepare?: (value: z.infer<T>) => z.infer<T>
+    validate?: (value: z.infer<T>) => boolean
+  }
+}
+```
+
 ## Primitive Types
 
 ### Text

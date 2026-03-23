@@ -31,19 +31,45 @@ Each field has:
 ```typescript
 field({
   // Required: the field type
-  fieldType: FieldType,
+  fieldType: FieldType<T>,
 
   // Optional: field is required (default: false)
   required?: boolean,
 
-  // Optional: default value
-  defaultValue?: unknown,
+  // Optional: default value (static or function)
+  defaultValue?: T | (() => T),
 
-  // Optional: unique constraint
+  // Optional: unique constraint (creates index automatically)
   unique?: boolean,
 
-  // Optional: indexed
+  // Optional: indexed for query performance
   indexed?: boolean
+})
+```
+
+## Default Values
+
+Static values or dynamic functions:
+
+```typescript
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    // Static default
+    status: field({ fieldType: f.text(), defaultValue: 'draft' }),
+
+    // Dynamic default (function)
+    publishedAt: field({
+      fieldType: f.timestamp(),
+      defaultValue: () => new Date()
+    }),
+
+    // Dynamic with condition
+    views: field({
+      fieldType: f.number(),
+      defaultValue: () => Math.floor(Math.random() * 1000)
+    })
+  }
 })
 ```
 
@@ -102,31 +128,25 @@ hooks: {
 }
 ```
 
-## Declarative Validation
+## Type Safety
 
-For common validation rules, use the field options:
+TypeScript validates the default value matches the field type:
 
 ```typescript
 const posts = collection({
   slug: 'posts',
   fields: {
-    // Min/max length (text)
-    title: field({ fieldType: f.text({ minLength: 3, maxLength: 100 }) }),
+    // Error: number is not assignable to string
+    title: field({
+      fieldType: f.text(),
+      defaultValue: 123
+    }),
 
-    // Min/max value (number)
-    rating: field({ fieldType: f.number({ min: 1, max: 5 }) }),
-
-    // Unique constraint
-    slug: field({ fieldType: f.text(), unique: true }),
-
-    // Required field
-    content: field({ fieldType: f.text(), required: true }),
-
-    // Default value
-    status: field({ fieldType: f.text(), defaultValue: 'draft' }),
-
-    // Indexed for query performance
-    category: field({ fieldType: f.text(), indexed: true })
+    // Correct: defaultValue matches fieldType
+    views: field({
+      fieldType: f.number(),
+      defaultValue: 0
+    })
   }
 })
 ```

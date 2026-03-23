@@ -56,6 +56,53 @@ type ColumnType =
   | { name: 'enum'; values: string[] }
 ```
 
+## Implementation
+
+### Numeric Types
+
+```typescript
+const serial = () => ({ name: 'serial' as const })
+const integer = () => ({ name: 'integer' as const })
+const numeric = (precision: number, scale: number) => ({ name: 'numeric' as const, precision, scale })
+const decimal = (precision: number, scale: number) => ({ name: 'decimal' as const, precision, scale })
+const real = () => ({ name: 'real' as const })
+```
+
+### Character Types
+
+```typescript
+const text = () => ({ name: 'text' as const })
+const varchar = (length: number) => ({ name: 'varchar' as const, length })
+const char = (length: number) => ({ name: 'char' as const, length })
+```
+
+### Boolean
+
+```typescript
+const boolean = () => ({ name: 'boolean' as const })
+```
+
+### Date/Time Types
+
+```typescript
+const date = () => ({ name: 'date' as const })
+const timestamp = () => ({ name: 'timestamp' as const })
+```
+
+### JSON Types
+
+```typescript
+const json = () => ({ name: 'json' as const })
+const jsonb = () => ({ name: 'jsonb' as const })
+```
+
+### Other Types
+
+```typescript
+const uuid = () => ({ name: 'uuid' as const })
+const enum_ = (values: string[]) => ({ name: 'enum' as const, values })
+```
+
 ## Usage
 
 These functions are used in field type implementations:

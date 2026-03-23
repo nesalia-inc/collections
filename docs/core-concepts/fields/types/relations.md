@@ -94,6 +94,61 @@ const tags = collection({
 
 The system creates a junction table `post_tags` with columns `post_id` and `tag_id`.
 
+## One-to-One
+
+A record in table A is related to exactly one record in table B, and vice versa. Use when you want to split a large table or for organization/security.
+
+```typescript
+const users = collection({
+  slug: 'users',
+  fields: {
+    name: field({ fieldType: f.text() }),
+    // One-to-one: each user has one profile
+    profile: field({
+      fieldType: f.relation({ to: 'profiles', one: true })
+    })
+  }
+})
+
+const profiles = collection({
+  slug: 'profiles',
+  fields: {
+    bio: field({ fieldType: f.text() }),
+    avatar: field({ fieldType: f.file() }),
+    // Reverse relation
+    user: field({
+      fieldType: f.relation({ to: 'users', one: true })
+    })
+  }
+})
+```
+
+Use `one: true` to explicitly mark a one-to-one relationship.
+
+## Polymorphic Relations
+
+**Not supported.** Polymorphic relations (where a single field can point to multiple different tables) are not implemented.
+
+Instead, use explicit relations:
+
+```typescript
+// Instead of polymorphic (not supported)
+commentable_id: number     // Could be article, product, video
+commentable_type: string   // "articles" | "products" | "videos"
+
+// Use explicit relations
+const comments = collection({
+  slug: 'comments',
+  fields: {
+    article: field({ fieldType: f.relation({ to: 'articles' }).optional() }),
+    product: field({ fieldType: f.relation({ to: 'products' }).optional() }),
+    video: field({ fieldType: f.relation({ to: 'videos' }).optional() })
+  }
+})
+```
+
+This approach provides type safety and explicit referential integrity.
+
 ## Relation Options
 
 ```typescript

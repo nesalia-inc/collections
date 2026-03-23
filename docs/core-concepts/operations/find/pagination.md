@@ -83,3 +83,19 @@ if (page2.hasPrevious()) {
   const page1Again = await page2.previous()
 }
 ```
+
+## Combined with Where and Select
+
+Pagination can be combined with where and select:
+
+```typescript
+const page = await config.db.posts.find({
+  where: where(p => p.published.eq(true)),
+  select: (p) => ({
+    id: p.id,
+    title: p.title
+  }),
+  cursor: { limit: 10 },
+  orderBy: { createdAt: 'desc' }
+})
+```

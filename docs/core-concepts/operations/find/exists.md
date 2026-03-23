@@ -20,7 +20,7 @@ type ExistsOperation = {
 
 ```typescript
 const result = await config.db.posts.exists({
-  where: { slug: 'my-post' }
+  where: where(p => p.slug.eq('my-post'))
 })
 
 // result.data = true

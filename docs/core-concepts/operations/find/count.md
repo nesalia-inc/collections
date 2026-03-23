@@ -20,7 +20,7 @@ type CountOperation = {
 
 ```typescript
 const result = await config.db.posts.count({
-  where: { published: true }
+  where: where(p => p.published.eq(true))
 })
 
 // result.data = 42

@@ -24,3 +24,29 @@ const price = field({
 - `max` - Maximum value
 - `precision` - Total number of digits
 - `scale` - Digits after decimal point
+
+## Implementation
+
+```typescript
+const number = (options?: NumberOptions): FieldType =>
+  fieldType({
+    type: 'number',
+    columnType: options?.precision
+      ? `numeric(${options.precision}, ${options.scale ?? 0})`
+      : 'decimal',
+    schema: options?.min !== undefined || options?.max !== undefined
+      ? z.number().min(options?.min ?? -Infinity).max(options?.max ?? Infinity)
+      : z.number()
+  })
+```
+
+## Type Definition
+
+```typescript
+type NumberOptions = {
+  min?: number
+  max?: number
+  precision?: number
+  scale?: number
+}
+```

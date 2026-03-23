@@ -17,3 +17,18 @@ const attachments = field({
 ## Options
 
 - `multiple` - Allow multiple files
+
+## Implementation
+
+```typescript
+const file = (options?: FileOptions): FieldType =>
+  fieldType({
+    type: 'file',
+    columnType: options?.multiple ? 'text' : 'varchar(500)',
+    schema: options?.multiple ? z.array(z.string()) : z.string().optional()
+  })
+
+type FileOptions = {
+  multiple?: boolean
+}
+```

@@ -9,3 +9,17 @@ const email = field({
 ```
 
 Includes built-in email validation with automatic lowercase transform.
+
+## Implementation
+
+```typescript
+const email = (): FieldType =>
+  fieldType({
+    type: 'email',
+    columnType: 'varchar(255)',
+    schema: z.string().email(),
+    options: {
+      transform: (value) => value?.toLowerCase().trim()
+    }
+  })
+```

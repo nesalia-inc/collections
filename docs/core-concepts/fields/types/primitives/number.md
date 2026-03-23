@@ -30,22 +30,14 @@ const price = field({
 ```typescript
 const number = fieldType({
   type: 'number',
-  columnType: 'decimal',
+  columnType: options?.precision
+    ? `numeric(${options.precision}, ${options.scale ?? 0})`
+    : 'decimal',
   schema: z.number(),
-  validation: {
-    min: (value) => value >= options?.min ?? -Infinity,
-    max: (value) => value <= options?.max ?? Infinity
-  }
-})
-
-// Usage with options
-const rating = field({
-  fieldType: f.number({ min: 1, max: 5 })
-})
-
-// Usage with precision/scale
-const price = field({
-  fieldType: f.number({ precision: 10, scale: 2 })
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional()
+  })
 })
 ```
 
@@ -74,16 +66,4 @@ type NumberOptions = {
   precision?: number
   scale?: number
 }
-
-const number = fieldType({
-  type: 'number',
-  columnType: options?.precision
-    ? `numeric(${options.precision}, ${options.scale ?? 0})`
-    : 'decimal',
-  schema: z.number(),
-  validation: {
-    min: options?.min,
-    max: options?.max
-  }
-})
 ```

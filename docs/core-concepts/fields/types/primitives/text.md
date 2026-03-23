@@ -26,11 +26,11 @@ const text = fieldType({
   type: 'text',
   columnType: options?.maxLength ? `varchar(${options.maxLength})` : 'text',
   schema: z.string(),
-  validation: {
-    minLength: options?.minLength,
-    maxLength: options?.maxLength,
-    pattern: options?.pattern
-  }
+  validation: z.object({
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    pattern: z.string().optional()
+  })
 })
 ```
 

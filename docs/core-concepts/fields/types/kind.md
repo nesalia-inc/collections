@@ -10,14 +10,14 @@ These functions are used internally by field type implementations and plugins.
 // Numeric types
 serial()     // { name: 'serial' }
 integer()    // { name: 'integer' }
-numeric()    // { name: 'numeric', precision, scale }
-decimal()    // { name: 'decimal', precision, scale }
+numeric(p, s) // { name: 'numeric'; precision: number; scale: number }
+decimal(p, s) // { name: 'decimal'; precision: number; scale: number }
 real()       // { name: 'real' }
 
 // Character types
 text()       // { name: 'text' }
-varchar(n)   // { name: 'varchar', length: n }
-char(n)      // { name: 'char', length: n }
+varchar(n)   // { name: 'varchar'; length: number }
+char(n)      // { name: 'char'; length: number }
 
 // Boolean
 boolean()    // { name: 'boolean' }
@@ -28,23 +28,32 @@ timestamp()  // { name: 'timestamp' }
 
 // JSON types
 json()       // { name: 'json' }
-jsonb()      // { name: 'jsonb' }
+jsonb()       // { name: 'jsonb' }
 
 // Other types
 uuid()       // { name: 'uuid' }
-enum_(['a', 'b']) // { name: 'enum', values: ['a', 'b'] }
+enum_(values) // { name: 'enum'; values: string[] }
 ```
 
 ## Return Type
 
 ```typescript
-interface ColumnTypeObject {
-  name: string
-  length?: number
-  precision?: number
-  scale?: number
-  values?: string[]
-}
+type ColumnType =
+  | { name: 'serial' }
+  | { name: 'integer' }
+  | { name: 'numeric'; precision: number; scale: number }
+  | { name: 'decimal'; precision: number; scale: number }
+  | { name: 'real' }
+  | { name: 'text' }
+  | { name: 'varchar'; length: number }
+  | { name: 'char'; length: number }
+  | { name: 'boolean' }
+  | { name: 'date' }
+  | { name: 'timestamp' }
+  | { name: 'json' }
+  | { name: 'jsonb' }
+  | { name: 'uuid' }
+  | { name: 'enum'; values: string[] }
 ```
 
 ## Usage

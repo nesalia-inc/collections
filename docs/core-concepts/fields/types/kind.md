@@ -7,26 +7,33 @@ These functions are used internally by field type implementations and plugins.
 ## Functions
 
 ```typescript
-// Primitive types
-integer()     // 'integer'
+// Numeric types
+serial()     // 'serial'
+integer()    // 'integer'
+numeric()    // 'numeric'
 decimal()    // 'decimal'
-text()        // 'text'
-boolean()     // 'boolean'
+real()       // 'real'
 
-// Date types
-date()        // 'date'
-timestamp()   // 'timestamp'
+// Character types
+text()       // 'text'
+varchar(n)   // 'varchar(n)'
+char(n)      // 'char(n)'
 
-// String types with length
-email()       // 'email' (semantic type)
-url()         // 'url' (semantic type)
-varchar(255)  // 'varchar(255)'
+// Boolean
+boolean()    // 'boolean'
+
+// Date/Time types
+date()       // 'date'
+timestamp()  // 'timestamp'
+tile()       // 'tile'
 
 // JSON types
-json()        // 'jsonb'
+json()       // 'json'
+jsonb()      // 'jsonb'
 
-// UUID
-uuid()        // 'uuid'
+// Other types
+uuid()       // 'uuid'
+enum_(['a', 'b']) // enum
 ```
 
 ## Usage
@@ -49,33 +56,41 @@ The database provider uses the return value to generate SQL.
 
 ```typescript
 export type ColumnType =
+  | 'serial'
   | 'integer'
+  | 'numeric'
   | 'decimal'
+  | 'real'
   | 'text'
+  | 'varchar'
+  | 'char'
   | 'boolean'
   | 'date'
   | 'timestamp'
-  | 'email'
-  | 'url'
-  | 'varchar'
+  | 'tile'
+  | 'json'
   | 'jsonb'
   | 'uuid'
-  | 'file'
-  | 'relation'
+  | 'enum'
 ```
 
 ## Reference
 
 | Function | Column Type | Description |
 |----------|-------------|-------------|
+| `serial()` | `'serial'` | Auto-incrementing integer |
 | `integer()` | `'integer'` | Integer number |
-| `decimal()` | `'decimal'` | Decimal number |
+| `numeric(p, s)` | `'numeric'` | Exact numeric with precision |
+| `decimal(p, s)` | `'decimal'` | Decimal number |
+| `real()` | `'real'` | Single precision float |
 | `text()` | `'text'` | Text string |
+| `varchar(n)` | `'varchar(n)'` | Variable-length string |
+| `char(n)` | `'char(n)'` | Fixed-length string |
 | `boolean()` | `'boolean'` | True/false |
 | `date()` | `'date'` | Date only |
 | `timestamp()` | `'timestamp'` | Date with time |
-| `email()` | `'email'` | Email string |
-| `url()` | `'url'` | URL string |
-| `varchar(n)` | `'varchar(n)'` | Variable-length string |
-| `json()` | `'jsonb'` | JSON object |
+| `tile()` | `'tile'` | PostGIS tile |
+| `json()` | `'json'` | JSON string |
+| `jsonb()` | `'jsonb'` | Binary JSON |
 | `uuid()` | `'uuid'` | UUID |
+| `enum_(['a', 'b'])` | `'enum'` | Enum type |

@@ -10,6 +10,19 @@ const birthDate = field({
 const createdAt = field({
   fieldType: f.timestamp()
 })
+
+// With min/max validation
+const recentDate = field({
+  fieldType: f.date({ min: new Date('2020-01-01') })
+})
+
+// With timestamp range
+const lastWeek = field({
+  fieldType: f.timestamp({
+    min: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    max: new Date()
+  })
+})
 ```
 
 ## Types

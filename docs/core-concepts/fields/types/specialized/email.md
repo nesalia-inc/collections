@@ -17,6 +17,15 @@ const email = fieldType({
   type: 'email',
   columnType: 'varchar(255)',
   schema: z.string().email(),
-  transform: (value) => value?.toLowerCase().trim()
+  transform: (value) => value?.toLowerCase().trim(),
+  validation: z.object({})
 })
 ```
+
+## Validation Flow
+
+1. **Base validation**:
+   ```typescript
+   db.users.create({ data: { email: "not-an-email" } })
+   // Error: email must be a valid email address
+   ```

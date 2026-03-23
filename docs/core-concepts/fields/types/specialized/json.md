@@ -24,7 +24,8 @@ When using a Zod schema, TypeScript infers the type automatically.
 const json = fieldType({
   type: 'json',
   columnType: 'jsonb',
-  schema: z.any()
+  schema: z.any(),
+  validation: z.object({})
 })
 
 const jsonWithSchema = fieldType({
@@ -33,6 +34,21 @@ const jsonWithSchema = fieldType({
   schema: z.object({
     theme: z.enum(['light', 'dark']),
     notifications: z.boolean()
-  })
+  }),
+  validation: z.object({})
 })
 ```
+
+## Validation Flow
+
+1. **Base validation**:
+   ```typescript
+   db.users.create({ data: { metadata: "not-json" } })
+   // Error: metadata must be valid JSON
+   ```
+
+2. **Schema validation** (if schema defined):
+   ```typescript
+   db.users.create({ data: { settings: { theme: "invalid" } } })
+   // Error: settings.theme must be 'light' or 'dark'
+   ```

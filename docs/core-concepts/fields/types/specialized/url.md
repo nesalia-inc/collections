@@ -16,6 +16,15 @@ Includes built-in URL validation.
 const url = fieldType({
   type: 'url',
   columnType: 'varchar(2048)',
-  schema: z.string().url()
+  schema: z.string().url(),
+  validation: z.object({})
 })
 ```
+
+## Validation Flow
+
+1. **Base validation**:
+   ```typescript
+   db.users.create({ data: { website: "not-a-url" } })
+   // Error: website must be a valid URL
+   ```

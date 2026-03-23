@@ -24,20 +24,22 @@ const attachments = field({
 const file = fieldType({
   type: 'file',
   columnType: 'varchar(500)',
-  schema: z.string().optional()
+  schema: z.string().optional(),
+  validation: z.object({})
 })
 
 const fileMultiple = fieldType({
   type: 'file',
   columnType: 'text',
-  schema: z.array(z.string())
+  schema: z.array(z.string()),
+  validation: z.object({})
 })
 ```
 
-## Type Definition
+## Validation Flow
 
-```typescript
-type FileOptions = {
-  multiple?: boolean
-}
-```
+1. **Base validation**:
+   ```typescript
+   db.users.create({ data: { avatar: 123 } })
+   // Error: avatar must be a string
+   ```

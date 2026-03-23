@@ -55,9 +55,9 @@ const myField = field({
 ### fieldType Function Signature
 
 ```typescript
-function fieldType<T extends z.ZodType>(
+const fieldType = <T extends z.ZodType>(
   config: FieldTypeConfig<T>
-): FieldType
+) => FieldType
 
 type FieldTypeConfig<T extends z.ZodType> = {
   type: string
@@ -71,7 +71,7 @@ type FieldTypeConfig<T extends z.ZodType> = {
 }
 ```
 
-### Implementation
+### fieldType Implementation
 
 ```typescript
 import { z } from 'zod'
@@ -79,36 +79,34 @@ import { z } from 'zod'
 /**
  * Creates a custom field type with full control over schema and behavior
  */
-function fieldType<T extends z.ZodType>(
+const fieldType = <T extends z.ZodType>(
   config: FieldTypeConfig<T>
-): FieldType {
-  return {
-    // Type identifier for serialization/debugging
-    type: config.type,
+): FieldType => ({
+  // Type identifier for serialization/debugging
+  type: config.type,
 
-    // Database column type (SQL column definition)
-    columnType: config.columnType,
+  // Database column type (SQL column definition)
+  columnType: config.columnType,
 
-    // Zod schema for validation and type inference
-    schema: config.schema,
+  // Zod schema for validation and type inference
+  schema: config.schema,
 
-    // Optional runtime options
-    ...(config.options && {
-      transform: config.options.transform,
-      prepare: config.options.prepare,
-      validate: config.options.validate
-    }),
+  // Optional runtime options
+  ...(config.options && {
+    transform: config.options.transform,
+    prepare: config.options.prepare,
+    validate: config.options.validate
+  }),
 
-    // Helper to get the TypeScript type
-    getType: () => z.infer<T>,
+  // Helper to get the TypeScript type
+  getType: () => z.infer<T>,
 
-    // Helper to parse/validate a value
-    parse: (value: unknown) => config.schema.parse(value),
+  // Helper to parse/validate a value
+  parse: (value: unknown) => config.schema.parse(value),
 
-    // Helper to safely parse a value
-    safeParse: (value: unknown) => config.schema.safeParse(value)
-  }
-}
+  // Helper to safely parse a value
+  safeParse: (value: unknown) => config.schema.safeParse(value)
+})
 
 /**
  * Predefined field type factory (f object)
@@ -198,6 +196,23 @@ const f = {
     fieldType({
       type: 'richtext',
       columnType: 'text',
+      schema: z.string()
+    }),
+
+  file: (options?: FileOptions): FieldType =>
+    fieldType({
+      type: 'file',
+      columnType: options?.multiple ? 'text' : 'varchar(500)',
+      schema: options?.multiple ? z.array(z.string()) : z.string().optional()
+    }),
+
+  relation: (options: RelationOptions): FieldType =>
+    fieldType({
+      type: 'relation',
+      columnType: options.many ? 'text' : 'uuid',
+      schema: options.many ? z.array(z.string()) : z.string()
+    })
+}
       schema: z.string()
     }),
 

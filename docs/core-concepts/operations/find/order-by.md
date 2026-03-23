@@ -11,18 +11,18 @@ type OrderBySelector<T> = {
   [K in keyof T]: T[K] extends object ? OrderBySelector<T[K]> : OrderByField
 }
 
-interface OrderByField {
-  asc(): OrderByConfig
-  desc(): OrderByConfig
+type OrderByField = {
+  asc: () => OrderByConfig
+  desc: () => OrderByConfig
 }
 
-interface OrderByConfig {
+type OrderByConfig = {
   order: 'asc' | 'desc'
   nulls?: 'first' | 'last'
   mode?: 'default' | 'insensitive'
-  nullsFirst(): OrderByConfig
-  nullsLast(): OrderByConfig
-  insensitive(): OrderByConfig
+  nullsFirst: () => OrderByConfig
+  nullsLast: () => OrderByConfig
+  insensitive: () => OrderByConfig
 }
 
 type OrderByFields<T> = {
@@ -35,7 +35,7 @@ type OrderByFields<T> = {
 ```typescript
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    createdAt: p.createdAt.desc()
+    createdAt: p.createdAt.desc
   })
 })
 ```
@@ -47,8 +47,8 @@ Sort by multiple fields (first field has highest priority):
 ```typescript
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    status: p.status.asc(),
-    createdAt: p.createdAt.desc()
+    status: p.status.asc,
+    createdAt: p.createdAt.desc
   })
 })
 ```
@@ -61,14 +61,14 @@ Compose with nulls handling:
 // Nulls first
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    deletedAt: p.deletedAt.asc().nullsFirst()
+    deletedAt: p.deletedAt.asc.nullsFirst
   })
 })
 
 // Nulls last
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    deletedAt: p.deletedAt.desc().nullsLast()
+    deletedAt: p.deletedAt.desc.nullsLast
   })
 })
 ```
@@ -80,7 +80,7 @@ Compose with case insensitive:
 ```typescript
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    title: p.title.asc().insensitive()
+    title: p.title.asc.insensitive
   })
 })
 ```
@@ -92,7 +92,7 @@ Chain multiple options:
 ```typescript
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    title: p.title.desc().nullsLast().insensitive()
+    title: p.title.desc.nullsLast.insensitive
   })
 })
 ```
@@ -105,7 +105,7 @@ Sort by fields in related collections:
 const result = await config.db.posts.find({
   orderBy: (p) => ({
     author: {
-      name: p.author.name.asc()
+      name: p.author.name.asc
     }
   })
 })
@@ -119,7 +119,7 @@ Combine with where condition:
 const result = await config.db.posts.find({
   where: where(p => p.published.eq(true)),
   orderBy: (p) => ({
-    createdAt: p.createdAt.desc()
+    createdAt: p.createdAt.desc
   })
 })
 ```
@@ -132,7 +132,7 @@ Required for cursor pagination to ensure consistent ordering:
 const page = await config.db.posts.find({
   cursor: { limit: 10 },
   orderBy: (p) => ({
-    id: p.id.desc()
+    id: p.id.desc
   })
 })
 ```
@@ -141,7 +141,7 @@ const page = await config.db.posts.find({
 
 - Always specify `orderBy` when using cursor pagination to ensure consistent results
 - The order of fields in the object matters - first field has highest priority
-- Use `.asc()` for ascending (A-Z, 0-9) and `.desc()` for descending (Z-A, 9-0)
-- Chain `.nullsFirst()`, `.nullsLast()` for null handling
-- Chain `.insensitive()` for case-insensitive string sorting
+- Use `.asc` for ascending (A-Z, 0-9) and `.desc` for descending (Z-A, 9-0)
+- Chain `.nullsFirst`, `.nullsLast` for null handling
+- Chain `.insensitive` for case-insensitive string sorting
 - Full autocomplete support for all fields and nested relations

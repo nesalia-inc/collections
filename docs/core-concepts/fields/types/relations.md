@@ -92,18 +92,48 @@ const tags = collection({
 })
 ```
 
-The system creates a junction table `post_tags` with columns `post_id` and `tag_id`.
+The system automatically creates a junction table `post_tags` with columns `post_id` and `tag_id`. You do not need to create this collection manually.
+
+To add extra fields to the junction (e.g., `addedAt`), create the junction collection explicitly:
+
+```typescript
+// Create the junction collection manually
+const postTags = collection({
+  slug: 'post_tags',
+  fields: {
+    post: field({ fieldType: f.relation({ to: 'posts' }) }),
+    tag: field({ fieldType: f.relation({ to: 'tags' }) }),
+    addedAt: field({ fieldType: f.timestamp() })
+  }
+})
+
+// Reference it in the relation
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    tags: field({
+      fieldType: f.relation({
+        to: 'tags',
+        many: true,
+        through: 'post_tags'
+      })
+    })
+  }
+})
+```
 
 ## One-to-One
 
 A record in table A is related to exactly one record in table B, and vice versa. Use when you want to split a large table or for organization/security.
+
+One side is **physical** (holds the foreign key column) and one side is **virtual** (reverse lookup).
 
 ```typescript
 const users = collection({
   slug: 'users',
   fields: {
     name: field({ fieldType: f.text() }),
-    // One-to-one: each user has one profile
+    // Physical: creates "profile_id" column in users table
     profile: field({
       fieldType: f.relation({ to: 'profiles', one: true })
     })
@@ -115,7 +145,7 @@ const profiles = collection({
   fields: {
     bio: field({ fieldType: f.text() }),
     avatar: field({ fieldType: f.file() }),
-    // Reverse relation
+    // Virtual: reverse lookup, no column created
     user: field({
       fieldType: f.relation({ to: 'users', one: true })
     })
@@ -124,6 +154,23 @@ const profiles = collection({
 ```
 
 Use `one: true` to explicitly mark a one-to-one relationship.
+
+## Self-Referencing Relations
+
+A relation that points to the same collection (useful for hierarchies like categories, org charts):
+
+```typescript
+const categories = collection({
+  slug: 'categories',
+  fields: {
+    name: field({ fieldType: f.text() }),
+    // Category can have a parent category
+    parent: field({
+      fieldType: f.relation({ to: 'categories' }).optional()
+    })
+  }
+})
+```
 
 ## Polymorphic Relations
 
@@ -270,5 +317,19 @@ const posts = collection({
 | Option | Behavior |
 |--------|----------|
 | `cascade` | Automatically delete/update related records |
-| `set null` | Set foreign key to NULL (requires nullable relation) |
+| `set null` | Set foreign key to NULL (requires nullable/optional relation) |
 | `restrict` | Prevent deletion/update if related records exist |
+
+To use `set null`, the relation must be optional:
+
+```typescript
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    author: field({
+      fieldType: f.relation({ to: 'users' }).optional(),
+      onDelete: 'set null'  // Sets author to NULL when user is deleted
+    })
+  }
+})
+```

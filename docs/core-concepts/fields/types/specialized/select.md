@@ -10,15 +10,23 @@ const status = field({
 
 Creates an enum field with predefined options.
 
+## Options
+
+- `label` - Display label for UI (future feature)
+
 ## Implementation
 
 ```typescript
-const select = fieldType({
-  type: 'select',
-  columnType: 'varchar(50)',
-  schema: z.enum(['draft', 'published', 'archived']),
-  validation: z.object({})
-})
+// Factory function accepting any string array
+const select = <T extends string>(options: [T, ...T[]]) => {
+  const maxLength = Math.max(...options.map(o => o.length))
+  return fieldType({
+    type: 'select',
+    columnType: `varchar(${maxLength})`,
+    schema: z.enum(options),
+    validation: z.object({})
+  })
+}
 ```
 
 ## Validation Flow

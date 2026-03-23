@@ -48,11 +48,3 @@ When a user creates a record:
    // Error: age must be >= 0 (user-defined constraint)
    ```
 
-## Type Definition
-
-```typescript
-type NumberOptions = {
-  min?: number
-  max?: number
-}
-```

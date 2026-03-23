@@ -24,7 +24,7 @@ const title = field({
 ```typescript
 const text = fieldType({
   type: 'text',
-  columnType: options?.maxLength ? `varchar(${options.maxLength})` : 'text',
+  columnType: 'text',
   schema: z.string(),
   validation: z.object({
     minLength: z.number().optional(),
@@ -50,12 +50,3 @@ When a user creates a record:
    // Error: name must have at least 1 character (user-defined constraint)
    ```
 
-## Type Definition
-
-```typescript
-type TextOptions = {
-  minLength?: number
-  maxLength?: number
-  pattern?: string
-}
-```

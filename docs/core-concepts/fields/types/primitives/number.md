@@ -30,12 +30,32 @@ const price = field({
 ```typescript
 const number = fieldType({
   type: 'number',
-  columnType: options?.precision
-    ? `numeric(${options.precision}, ${options.scale ?? 0})`
-    : 'decimal',
-  schema: options?.min !== undefined || options?.max !== undefined
-    ? z.number().min(options?.min ?? -Infinity).max(options?.max ?? Infinity)
-    : z.number()
+  columnType: 'decimal',
+  schema: z.number()
+})
+
+const numberMin = fieldType({
+  type: 'number',
+  columnType: 'decimal',
+  schema: z.number().min(1)
+})
+
+const numberMax = fieldType({
+  type: 'number',
+  columnType: 'decimal',
+  schema: z.number().max(100)
+})
+
+const numberMinMax = fieldType({
+  type: 'number',
+  columnType: 'decimal',
+  schema: z.number().min(1).max(100)
+})
+
+const decimal = fieldType({
+  type: 'number',
+  columnType: 'numeric(10, 2)',
+  schema: z.number()
 })
 ```
 

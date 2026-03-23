@@ -24,6 +24,15 @@ When using a Zod schema, TypeScript infers the type automatically.
 const json = fieldType({
   type: 'json',
   columnType: 'jsonb',
-  schema: schema ?? z.any()
+  schema: z.any()
+})
+
+const jsonWithSchema = fieldType({
+  type: 'json',
+  columnType: 'jsonb',
+  schema: z.object({
+    theme: z.enum(['light', 'dark']),
+    notifications: z.boolean()
+  })
 })
 ```

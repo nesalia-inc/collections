@@ -24,11 +24,27 @@ const title = field({
 ```typescript
 const text = fieldType({
   type: 'text',
-  columnType: options?.maxLength ? `varchar(${options.maxLength})` : 'text',
-  schema: options?.minLength || options?.maxLength
-    ? z.string().min(options.minLength ?? 0).max(options.maxLength!)
-    : z.string(),
-  options: options?.pattern ? { validate: (v) => new RegExp(options.pattern!).test(v) } : undefined
+  columnType: 'text',
+  schema: z.string()
+})
+
+const textMinLength = fieldType({
+  type: 'text',
+  columnType: 'text',
+  schema: z.string().min(1)
+})
+
+const textMaxLength = fieldType({
+  type: 'text',
+  columnType: 'varchar(100)',
+  schema: z.string().max(100)
+})
+
+const textPattern = fieldType({
+  type: 'text',
+  columnType: 'text',
+  schema: z.string(),
+  validate: (value) => /^[A-Z]+$/.test(value)
 })
 ```
 

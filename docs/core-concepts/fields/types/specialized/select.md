@@ -15,7 +15,7 @@ Creates an enum field with predefined options.
 ```typescript
 const select = fieldType({
   type: 'select',
-  columnType: `varchar(${Math.max(...values.map(v => v.length))})`,
-  schema: z.enum(values)
+  columnType: 'varchar(50)',
+  schema: z.enum(['draft', 'published', 'archived'])
 })
 ```

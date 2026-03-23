@@ -18,6 +18,12 @@ const scores = field({
 const array = fieldType({
   type: 'array',
   columnType: 'jsonb',
-  schema: z.array(itemSchema)
+  schema: z.array(z.string())
+})
+
+const arrayNumber = fieldType({
+  type: 'array',
+  columnType: 'jsonb',
+  schema: z.array(z.number())
 })
 ```

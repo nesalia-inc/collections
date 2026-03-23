@@ -17,8 +17,6 @@ const email = fieldType({
   type: 'email',
   columnType: 'varchar(255)',
   schema: z.string().email(),
-  options: {
-    transform: (value) => value?.toLowerCase().trim()
-  }
+  transform: (value) => value?.toLowerCase().trim()
 })
 ```

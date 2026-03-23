@@ -14,16 +14,18 @@ type OrderBySelector<T> = {
 type OrderByField = {
   asc(): OrderByConfig
   desc(): OrderByConfig
-  ascNullsFirst(): OrderByConfig
-  ascNullsLast(): OrderByConfig
-  descNullsFirst(): OrderByConfig
-  descNullsLast(): OrderByConfig
 }
 
 type OrderByConfig = {
   order: 'asc' | 'desc'
   nulls?: 'first' | 'last'
   mode?: 'default' | 'insensitive'
+}
+
+interface OrderByConfig {
+  nullsFirst(): OrderByConfig
+  nullsLast(): OrderByConfig
+  insensitive(): OrderByConfig
 }
 
 type OrderByFields<T> = {
@@ -56,32 +58,44 @@ const result = await config.db.posts.find({
 
 ## Nulls Handling
 
-Control where null values appear in the sorted results using fluent API:
+Compose with nulls handling:
 
 ```typescript
 // Nulls first
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    deletedAt: p.deletedAt.ascNullsFirst()
+    deletedAt: p.deletedAt.asc().nullsFirst()
   })
 })
 
 // Nulls last
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    deletedAt: p.deletedAt.descNullsLast()
+    deletedAt: p.deletedAt.desc().nullsLast()
   })
 })
 ```
 
 ## Case Insensitive Sort
 
-Sort strings ignoring case:
+Compose with case insensitive:
 
 ```typescript
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    title: { order: 'asc', mode: 'insensitive' }
+    title: p.title.asc().insensitive()
+  })
+})
+```
+
+## Combine Options
+
+Chain multiple options:
+
+```typescript
+const result = await config.db.posts.find({
+  orderBy: (p) => ({
+    title: p.title.desc().nullsLast().insensitive()
   })
 })
 ```
@@ -131,7 +145,6 @@ const page = await config.db.posts.find({
 - Always specify `orderBy` when using cursor pagination to ensure consistent results
 - The order of fields in the object matters - first field has highest priority
 - Use `.asc()` for ascending (A-Z, 0-9) and `.desc()` for descending (Z-A, 9-0)
-- Use `.ascNullsFirst()`, `.ascNullsLast()`, `.descNullsFirst()`, `.descNullsLast()` for null handling
-- Default null behavior may vary by database (PostgreSQL: nulls last by default in ascending order)
-- Use `mode: 'insensitive'` for case-insensitive string sorting
+- Chain `.nullsFirst()`, `.nullsLast()` for null handling
+- Chain `.insensitive()` for case-insensitive string sorting
 - Full autocomplete support for all fields and nested relations

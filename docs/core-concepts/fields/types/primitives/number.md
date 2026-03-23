@@ -28,49 +28,24 @@ const price = field({
 ## Implementation
 
 ```typescript
-// Base field type - validates that the value is a number
 const number = fieldType({
   type: 'number',
   columnType: 'decimal',
-  schema: z.number()
-})
-
-// With minimum constraint
-const numberMin = fieldType({
-  type: 'number',
-  columnType: 'decimal',
   schema: z.number(),
   validation: {
-    min: (value) => value >= 0
+    min: (value) => value >= options?.min ?? -Infinity,
+    max: (value) => value <= options?.max ?? Infinity
   }
 })
 
-// With maximum constraint
-const numberMax = fieldType({
-  type: 'number',
-  columnType: 'decimal',
-  schema: z.number(),
-  validation: {
-    max: (value) => value <= 100
-  }
+// Usage with options
+const rating = field({
+  fieldType: f.number({ min: 1, max: 5 })
 })
 
-// With min and max constraints
-const numberMinMax = fieldType({
-  type: 'number',
-  columnType: 'decimal',
-  schema: z.number(),
-  validation: {
-    min: (value) => value >= 1,
-    max: (value) => value <= 100
-  }
-})
-
-// Decimal with precision/scale
-const decimal = fieldType({
-  type: 'number',
-  columnType: 'numeric(10, 2)',
-  schema: z.number()
+// Usage with precision/scale
+const price = field({
+  fieldType: f.number({ precision: 10, scale: 2 })
 })
 ```
 
@@ -84,7 +59,7 @@ When a user creates a record:
    // Error: age must be a number (base schema z.number())
    ```
 
-2. **User constraint validation** (if defined):
+2. **User constraint validation** (if options defined):
    ```typescript
    db.users.create({ data: { age: -4 } })
    // Error: age must be >= 0 (user-defined constraint)
@@ -100,15 +75,15 @@ type NumberOptions = {
   scale?: number
 }
 
-type FieldTypeConfig<T> = {
-  type: string
-  columnType: string
-  schema: T
-  validation?: {
-    min?: (value: number) => boolean
-    max?: (value: number) => boolean
+const number = fieldType({
+  type: 'number',
+  columnType: options?.precision
+    ? `numeric(${options.precision}, ${options.scale ?? 0})`
+    : 'decimal',
+  schema: z.number(),
+  validation: {
+    min: options?.min,
+    max: options?.max
   }
-  transform?: (value: unknown) => unknown
-  prepare?: (value: unknown) => unknown
-}
+})
 ```

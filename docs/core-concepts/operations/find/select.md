@@ -90,12 +90,8 @@ const result = await config.db.posts.find({
 Combine functional `where` and `select` in the same query:
 
 ```typescript
-import { where, eq } from '@deessejs/collections'
-
-const isPublished = where(p => p.published.eq(true))
-
 const result = await config.db.posts.find({
-  where: isPublished,
+  where: where(p => p.published.eq(true)),
   select: (p) => ({
     id: p.id,
     title: p.title

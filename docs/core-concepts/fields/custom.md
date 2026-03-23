@@ -9,7 +9,7 @@ You can extend the built-in field types with custom types that include specific 
 ## Using `fieldType()`
 
 ```typescript
-import { fieldType, collection, field } from '@deessejs/collections'
+import { fieldType, collection, field, text } from '@deessejs/collections'
 import { z } from 'zod'
 
 // Create a custom field type with validation
@@ -18,13 +18,13 @@ const colorPicker = fieldType({
   schema: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a hex color'),
 
   // How to store in the database
-  columnType: 'text'
+  columnType: text()
 })
 
 // Or with options for flexibility
 const phoneNumber = (countryCode: string = 'US') => fieldType({
   schema: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
-  columnType: 'text'
+  columnType: text()
 })
 ```
 
@@ -46,13 +46,13 @@ const products = collection({
 ## Example: ColorPicker
 
 ```typescript
-import { fieldType, collection, field } from '@deessejs/collections'
+import { fieldType, collection, field, text } from '@deessejs/collections'
 import { z } from 'zod'
 
 // Define the custom field type
 const ColorPicker = fieldType({
   schema: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
-  columnType: 'text'
+  columnType: text()
 })
 
 // Use it in a collection
@@ -71,9 +71,11 @@ const posts = collection({
 ## Example: Phone Number
 
 ```typescript
+import { fieldType, collection, field, text } from '@deessejs/collections'
+
 const PhoneNumber = (defaultCountry?: string) => fieldType({
   schema: z.string().min(10).max(15),
-  columnType: 'text'
+  columnType: text()
 })
 
 const users = collection({
@@ -93,6 +95,8 @@ const users = collection({
 Add custom validation logic:
 
 ```typescript
+import { fieldType, text } from '@deessejs/collections'
+
 const strongPassword = fieldType({
   schema: z.string()
     .min(8)
@@ -100,7 +104,7 @@ const strongPassword = fieldType({
       (val) => /[A-Z]/.test(val) && /[0-9]/.test(val),
       'Password must contain uppercase and number'
     ),
-  columnType: 'text'
+  columnType: text()
 })
 ```
 

@@ -21,25 +21,21 @@ const attachments = field({
 ## Implementation
 
 ```typescript
+import { varchar, text } from '@deessejs/collections'
+
 const file = fieldType({
   type: 'file',
-  columnType: 'varchar(500)',
+  columnType: varchar(500),
   schema: z.string().optional(),
   validation: z.object({})
 })
 
 const fileMultiple = fieldType({
   type: 'file',
-  columnType: 'text',
+  columnType: text(),
   schema: z.array(z.string()),
   validation: z.object({})
 })
 ```
 
-## Validation Flow
-
-1. **Base validation**:
-   ```typescript
-   db.users.create({ data: { avatar: 123 } })
-   // Error: avatar must be a string
-   ```
+The `varchar(500)` and `text()` functions return the SQL column types.

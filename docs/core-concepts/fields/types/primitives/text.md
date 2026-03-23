@@ -24,7 +24,7 @@ const title = field({
 ```typescript
 const text = fieldType({
   type: 'text',
-  columnType: 'text',
+  columnType: text(),
   schema: z.string(),
   validation: z.object({
     minLength: z.number().optional(),
@@ -34,19 +34,4 @@ const text = fieldType({
 })
 ```
 
-## Validation Flow
-
-When a user creates a record:
-
-1. **Base validation** (always applied):
-   ```typescript
-   db.users.create({ data: { name: 123 } })
-   // Error: name must be a string (base schema z.string())
-   ```
-
-2. **User constraint validation** (if options defined):
-   ```typescript
-   db.users.create({ data: { name: "" } })
-   // Error: name must have at least 1 character (user-defined constraint)
-   ```
-
+The `text()` function returns `'text'` (the SQL column type).

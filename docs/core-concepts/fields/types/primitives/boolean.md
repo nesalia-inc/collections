@@ -13,7 +13,9 @@ const published = field({
 ```typescript
 const boolean = fieldType({
   type: 'boolean',
-  columnType: 'boolean',
+  columnType: boolean(),
   schema: z.boolean()
 })
 ```
+
+The `boolean()` function returns `'boolean'` (the SQL column type).

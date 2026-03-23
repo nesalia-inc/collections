@@ -2,11 +2,14 @@
 
 Low-level functions that map directly to database column types.
 
+These functions are used internally by field type implementations and plugins.
+
 ## Functions
 
 ```typescript
 // Primitive types
 integer()     // 'integer'
+decimal()    // 'decimal'
 text()        // 'text'
 boolean()     // 'boolean'
 
@@ -14,55 +17,49 @@ boolean()     // 'boolean'
 date()        // 'date'
 timestamp()   // 'timestamp'
 
-// String types
-email()       // 'varchar(255)'
-url()         // 'varchar(2048)'
+// String types with length
+email()       // 'email' (semantic type)
+url()         // 'url' (semantic type)
+varchar(255)  // 'varchar(255)'
 
 // JSON types
 json()        // 'jsonb'
 
-// Enum type
-enum(['a', 'b', 'c']) // 'varchar' with CHECK constraint
-
-// Special types
-file()        // 'varchar(500)'
-relation()    // 'uuid'
+// UUID
+uuid()        // 'uuid'
 ```
 
 ## Usage
 
+These functions are used in field type implementations:
+
 ```typescript
-import { field, integer, text, boolean, json, enum_ } from '@deessejs/collections'
+import { fieldType, text, boolean, json, varchar, integer } from '@deessejs/collections'
 
-// Primitive fields
-const age = field({ type: integer() })
-const name = field({ type: text() })
-const active = field({ type: boolean() })
-
-// JSON field
-const metadata = field({ type: json() })
-
-// Enum field
-const status = field({
-  type: enum_(['draft', 'published', 'archived'])
+const myField = fieldType({
+  type: 'myField',
+  columnType: varchar(255),
+  schema: z.string()
 })
 ```
 
-## Type Definition
+The database provider uses the return value to generate SQL.
 
-The return type of these functions is `ColumnType`:
+## Type Definition
 
 ```typescript
 export type ColumnType =
   | 'integer'
+  | 'decimal'
   | 'text'
   | 'boolean'
   | 'date'
   | 'timestamp'
   | 'email'
   | 'url'
-  | 'jsonb'
   | 'varchar'
+  | 'jsonb'
+  | 'uuid'
   | 'file'
   | 'relation'
 ```
@@ -72,13 +69,13 @@ export type ColumnType =
 | Function | Column Type | Description |
 |----------|-------------|-------------|
 | `integer()` | `'integer'` | Integer number |
+| `decimal()` | `'decimal'` | Decimal number |
 | `text()` | `'text'` | Text string |
 | `boolean()` | `'boolean'` | True/false |
 | `date()` | `'date'` | Date only |
 | `timestamp()` | `'timestamp'` | Date with time |
-| `email()` | `'email'` | Email string (validated) |
-| `url()` | `'url'` | URL string (validated) |
+| `email()` | `'email'` | Email string |
+| `url()` | `'url'` | URL string |
+| `varchar(n)` | `'varchar(n)'` | Variable-length string |
 | `json()` | `'jsonb'` | JSON object |
-| `enum_(['a', 'b'])` | `'varchar'` | Enum with constraint |
-| `file()` | `'file'` | File reference |
-| `relation()` | `'relation'` | Relation to another collection |
+| `uuid()` | `'uuid'` | UUID |

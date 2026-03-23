@@ -31,9 +31,11 @@ const level = field({
 ## Implementation
 
 ```typescript
+import { integer } from '@deessejs/collections'
+
 const number = fieldType({
   type: 'number',
-  columnType: 'decimal',
+  columnType: decimal(),
   schema: z.number(),
   validation: z.object({
     min: z.number().optional(),
@@ -43,7 +45,7 @@ const number = fieldType({
 
 const integer = fieldType({
   type: 'integer',
-  columnType: 'integer',
+  columnType: integer(),
   schema: z.number().int(),
   validation: z.object({
     min: z.number().optional(),
@@ -52,19 +54,4 @@ const integer = fieldType({
 })
 ```
 
-## Validation Flow
-
-When a user creates a record:
-
-1. **Base validation** (always applied):
-   ```typescript
-   db.users.create({ data: { age: "wow" } })
-   // Error: age must be a number (base schema z.number())
-   ```
-
-2. **User constraint validation** (if options defined):
-   ```typescript
-   db.users.create({ data: { age: -4 } })
-   // Error: age must be >= 0 (user-defined constraint)
-   ```
-
+The `integer()` function returns `'integer'`. The `decimal()` function returns `'decimal'`.

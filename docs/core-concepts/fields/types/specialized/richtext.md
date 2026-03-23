@@ -15,16 +15,10 @@ const content = field({
 ```typescript
 const richtext = fieldType({
   type: 'richtext',
-  columnType: 'text',
+  columnType: text(),
   schema: z.string(),
   validation: z.object({})
 })
 ```
 
-## Validation Flow
-
-1. **Base validation**:
-   ```typescript
-   db.posts.create({ data: { content: 123 } })
-   // Error: content must be a string
-   ```
+The `text()` function returns `'text'` (the SQL column type).

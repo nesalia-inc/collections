@@ -5,19 +5,19 @@ Use `fieldType` to create custom field types with full control.
 ## Usage
 
 ```typescript
-import { field, fieldType, z } from '@deessejs/collections'
+import { field, fieldType, z, varchar, text } from '@deessejs/collections'
 
 // Simple custom field
 const customText = fieldType({
   type: 'text',
-  columnType: 'varchar(255)',
+  columnType: varchar(255),
   schema: z.string().min(1).max(255)
 })
 
 // Advanced custom field with options
 const customField = fieldType({
   type: 'custom',
-  columnType: 'text',
+  columnType: text(),
   schema: z.string(),
   options: {
     transform: (value) => value?.trim(),
@@ -44,7 +44,7 @@ const fieldType = <T extends z.ZodType>(
 ```typescript
 type FieldTypeConfig<T extends z.ZodType> = {
   type: string
-  columnType: string
+  columnType: ColumnType
   schema: T
   options?: {
     transform?: (value: z.infer<T>) => z.infer<T>
@@ -53,6 +53,8 @@ type FieldTypeConfig<T extends z.ZodType> = {
   }
 }
 ```
+
+The `columnType` accepts the return value of column type functions like `varchar(255)`, `text()`, `integer()`, etc.
 
 ## Implementation
 

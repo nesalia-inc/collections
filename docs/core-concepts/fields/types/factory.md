@@ -15,83 +15,73 @@ const name = field({
 ## Factory Implementation
 
 ```typescript
+import { text, boolean, date, timestamp, email, url, json, varchar, integer, decimal } from '@deessejs/collections'
+
 const f = {
   text: fieldType({
     type: 'text',
-    columnType: 'text',
+    columnType: text(),
     schema: z.string()
   }),
 
   number: fieldType({
     type: 'number',
-    columnType: 'decimal',
+    columnType: decimal(),
     schema: z.number()
   }),
 
   boolean: fieldType({
     type: 'boolean',
-    columnType: 'boolean',
+    columnType: boolean(),
     schema: z.boolean()
   }),
 
   date: fieldType({
     type: 'date',
-    columnType: 'date',
+    columnType: date(),
     schema: z.date()
   }),
 
   timestamp: fieldType({
     type: 'timestamp',
-    columnType: 'timestamp',
+    columnType: timestamp(),
     schema: z.date()
   }),
 
   email: fieldType({
     type: 'email',
-    columnType: 'varchar(255)',
+    columnType: email(),
     schema: z.string().email(),
     transform: (value) => value?.toLowerCase().trim()
   }),
 
   url: fieldType({
     type: 'url',
-    columnType: 'varchar(2048)',
+    columnType: url(),
     schema: z.string().url()
-  }),
-
-  select: fieldType({
-    type: 'select',
-    columnType: 'varchar(50)',
-    schema: z.enum(['draft', 'published', 'archived'])
   }),
 
   json: fieldType({
     type: 'json',
-    columnType: 'jsonb',
+    columnType: json(),
     schema: z.any()
-  }),
-
-  array: fieldType({
-    type: 'array',
-    columnType: 'jsonb',
-    schema: z.array(z.string())
   }),
 
   richtext: fieldType({
     type: 'richtext',
-    columnType: 'text',
+    columnType: text(),
     schema: z.string()
   }),
 
   file: fieldType({
     type: 'file',
-    columnType: 'varchar(500)',
+    columnType: varchar(500),
     schema: z.string().optional()
   }),
 
   relation: fieldType({
     type: 'relation',
-    columnType: 'uuid',
+    columnType: uuid(),
     schema: z.string()
   })
 }

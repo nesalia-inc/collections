@@ -15,7 +15,7 @@ Includes built-in URL validation with automatic normalization.
 ```typescript
 const url = fieldType({
   type: 'url',
-  columnType: 'varchar(2048)',
+  columnType: url(),
   schema: z.string().url(),
   transform: (value) => {
     const trimmed = value?.trim()
@@ -30,16 +30,4 @@ const url = fieldType({
 })
 ```
 
-## Validation Flow
-
-1. **Transform** (add protocol if missing, trim):
-   ```typescript
-   db.users.create({ data: { website: "www.google.com" } })
-   // Stored as: https://www.google.com
-   ```
-
-2. **Base validation**:
-   ```typescript
-   db.users.create({ data: { website: "not-a-url" } })
-   // Error: website must be a valid URL
-   ```
+The `url()` function returns `'url'` (the SQL column type).

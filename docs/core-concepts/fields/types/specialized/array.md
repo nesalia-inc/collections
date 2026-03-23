@@ -28,10 +28,12 @@ const limitedTags = field({
 ## Implementation
 
 ```typescript
+import { json } from '@deessejs/collections'
+
 // Factory function accepting any Zod schema
 const array = (itemSchema: z.ZodTypeAny, options?: ArrayOptions) => fieldType({
   type: 'array',
-  columnType: 'jsonb',
+  columnType: json(),
   schema: z.array(itemSchema),
   validation: z.object({
     min: z.number().optional(),
@@ -41,22 +43,4 @@ const array = (itemSchema: z.ZodTypeAny, options?: ArrayOptions) => fieldType({
 })
 ```
 
-## Validation Flow
-
-1. **Base validation**:
-   ```typescript
-   db.posts.create({ data: { tags: "not-array" } })
-   // Error: tags must be an array
-   ```
-
-2. **Item validation**:
-   ```typescript
-   db.posts.create({ data: { tags: [1, 2, 3] } })
-   // Error: tags must contain only strings
-   ```
-
-3. **Constraints validation**:
-   ```typescript
-   db.posts.create({ data: { tags: [] } })
-   // Error: tags must have at least 1 item
-   ```
+The `json()` function returns `'jsonb'` (the SQL column type).

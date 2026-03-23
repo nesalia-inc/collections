@@ -35,7 +35,7 @@ const lastWeek = field({
 ```typescript
 const date = fieldType({
   type: 'date',
-  columnType: 'date',
+  columnType: date(),
   schema: z.union([
     z.date(),
     z.string().datetime()
@@ -48,7 +48,7 @@ const date = fieldType({
 
 const timestamp = fieldType({
   type: 'timestamp',
-  columnType: 'timestamp',
+  columnType: timestamp(),
   schema: z.union([
     z.date(),
     z.string().datetime()
@@ -60,17 +60,4 @@ const timestamp = fieldType({
 })
 ```
 
-## Validation Flow
-
-1. **Base validation**:
-   ```typescript
-   db.users.create({ data: { birthDate: "not a date" } })
-   // Error: birthDate must be a date
-   ```
-
-2. **User constraint validation**:
-   ```typescript
-   db.users.create({ data: { birthDate: new Date('2000-01-01') } })
-   // Error: birthDate must be after 2000-01-01
-   ```
-
+The `date()` function returns `'date'`. The `timestamp()` function returns `'timestamp'`.

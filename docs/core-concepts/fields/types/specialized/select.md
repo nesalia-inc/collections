@@ -17,22 +17,18 @@ Creates an enum field with predefined options.
 ## Implementation
 
 ```typescript
+import { varchar } from '@deessejs/collections'
+
 // Factory function accepting any string array
 const select = <T extends string>(options: [T, ...T[]]) => {
   const maxLength = Math.max(...options.map(o => o.length))
   return fieldType({
     type: 'select',
-    columnType: `varchar(${maxLength})`,
+    columnType: varchar(maxLength),
     schema: z.enum(options),
     validation: z.object({})
   })
 }
 ```
 
-## Validation Flow
-
-1. **Base validation**:
-   ```typescript
-   db.posts.create({ data: { status: "invalid" } })
-   // Error: status must be one of: draft, published, archived
-   ```
+The `varchar(maxLength)` function returns a `'varchar'` SQL column type.

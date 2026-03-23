@@ -5,13 +5,14 @@ Get a single record by ID.
 ## Function Signature
 
 ```typescript
-findById(id: { id: ID }, options?: FindByIdOperation): AsyncResult<T, FindByIdError>
+findById(options: FindByIdOperation): AsyncResult<T, FindByIdError>
 ```
 
 ## Type Definition
 
 ```typescript
 type FindByIdOperation = {
+  id: ID
   select?: Select
   include?: Include
 }
@@ -22,7 +23,9 @@ type FindByIdOperation = {
 ### By ID
 
 ```typescript
-const result = await config.db.posts.findById({ id: 1 })
+const result = await config.db.posts.findById({
+  id: 1
+})
 
 // result.data = { id: 1, title: 'Post 1', ... }
 ```
@@ -30,7 +33,8 @@ const result = await config.db.posts.findById({ id: 1 })
 ### With select
 
 ```typescript
-const result = await config.db.posts.findById({ id: 1 }, {
+const result = await config.db.posts.findById({
+  id: 1,
   select: ['id', 'title']
 })
 

@@ -2,10 +2,15 @@
 
 The `select` option allows you to specify which fields to return from a query, improving performance by reducing data transfer.
 
-## Function Signature
+## Type Definition
 
 ```typescript
-type Select = Field[]
+type Select<T> = SelectField<T>[]
+
+type SelectField<T> =
+  | keyof T
+  | (T extends object ? `${keyof T & string}.${SelectField<T[keyof T]> & string}` : never)
+  | `-${keyof T & string}`
 ```
 
 ## Basic Usage
@@ -32,12 +37,34 @@ const result = await config.db.posts.findById({
 
 ## With Nested Relations
 
-Select fields from related collections:
+Select fields from related collections using dot notation:
 
 ```typescript
+interface Post {
+  id: ID
+  title: string
+  author: User
+}
+
+interface User {
+  id: ID
+  name: string
+  profile: Profile
+}
+
+interface Profile {
+  id: ID
+  bio: string
+}
+
+// Select nested fields using dot notation
 const result = await config.db.posts.find({
-  select: ['id', 'title', 'author.id', 'author.name']
+  select: ['id', 'title', 'author.id', 'author.name', 'author.profile.bio']
 })
+
+// result.current.data = [
+//   { id: 1, title: 'Post 1', author: { id: 1, name: 'John', profile: { bio: 'Hello' } } }
+// ]
 ```
 
 ## Exclude Fields

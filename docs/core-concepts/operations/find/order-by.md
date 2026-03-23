@@ -9,22 +9,25 @@ type OrderBy<T> = (selector: OrderBySelector<T>) => OrderByFields<T>
 
 type OrderBySelector<T> = {
   [K in keyof T]: T[K] extends object ? OrderBySelector<T[K]> : OrderByField
-} & {
-  _desc: <K extends keyof T>(field: K) => Pick<T, K>
-  _asc: <K extends keyof T>(field: K) => Pick<T, K>
 }
 
 type OrderByField = {
-  asc: () => void
-  desc: () => void
+  asc(): OrderByConfig
+  desc(): OrderByConfig
+  ascNullsFirst(): OrderByConfig
+  ascNullsLast(): OrderByConfig
+  descNullsFirst(): OrderByConfig
+  descNullsLast(): OrderByConfig
+}
+
+type OrderByConfig = {
+  order: 'asc' | 'desc'
+  nulls?: 'first' | 'last'
+  mode?: 'default' | 'insensitive'
 }
 
 type OrderByFields<T> = {
-  [K in keyof T]?: T[K] extends object ? OrderByFields<T[K]> : {
-    order: 'asc' | 'desc'
-    nulls?: 'first' | 'last'
-    mode?: 'default' | 'insensitive'
-  }
+  [K in keyof T]?: T[K] extends object ? OrderByFields<T[K]> : OrderByConfig
 }
 ```
 
@@ -51,14 +54,22 @@ const result = await config.db.posts.find({
 })
 ```
 
-## With Nulls Handling
+## Nulls Handling
 
-Control where null values appear in the sorted results:
+Control where null values appear in the sorted results using fluent API:
 
 ```typescript
+// Nulls first
 const result = await config.db.posts.find({
   orderBy: (p) => ({
-    deletedAt: { order: 'asc', nulls: 'first' }
+    deletedAt: p.deletedAt.ascNullsFirst()
+  })
+})
+
+// Nulls last
+const result = await config.db.posts.find({
+  orderBy: (p) => ({
+    deletedAt: p.deletedAt.descNullsLast()
   })
 })
 ```
@@ -120,6 +131,7 @@ const page = await config.db.posts.find({
 - Always specify `orderBy` when using cursor pagination to ensure consistent results
 - The order of fields in the object matters - first field has highest priority
 - Use `.asc()` for ascending (A-Z, 0-9) and `.desc()` for descending (Z-A, 9-0)
+- Use `.ascNullsFirst()`, `.ascNullsLast()`, `.descNullsFirst()`, `.descNullsLast()` for null handling
 - Default null behavior may vary by database (PostgreSQL: nulls last by default in ascending order)
 - Use `mode: 'insensitive'` for case-insensitive string sorting
 - Full autocomplete support for all fields and nested relations

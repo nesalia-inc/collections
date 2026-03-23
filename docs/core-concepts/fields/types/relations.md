@@ -2,6 +2,41 @@
 
 Define relationships between collections.
 
+## Type Safety
+
+Relations use string-based slugs for flexibility, but type safety is achieved through code generation:
+
+```bash
+# Generate types from your collections
+pnpm collections generate
+```
+
+This generates a `.d.ts` file with all collection types:
+
+```typescript
+// collections.d.ts (generated)
+export type UsersCollection = {
+  slug: 'users'
+  fields: {
+    id: string
+    name: string
+    email: string
+    posts: PostsCollection[]
+  }
+}
+
+export type PostsCollection = {
+  slug: 'posts'
+  fields: {
+    id: string
+    title: string
+    author: UsersCollection
+  }
+}
+```
+
+Now `f.relation({ to: 'users' })` becomes type-safe with full auto-completion.
+
 ## Belongs To (Foreign Key Owner)
 
 ```typescript

@@ -11,31 +11,29 @@ Relations use string-based slugs for flexibility, but type safety is achieved th
 pnpm collections generate
 ```
 
-This generates a `.d.ts` file with all collection types:
+This generates a `.d.ts` file with collection types:
 
 ```typescript
 // collections.d.ts (generated)
-export type UsersCollection = {
-  slug: 'users'
-  fields: {
-    id: string
-    name: string
-    email: string
-    posts: PostsCollection[]
-  }
-}
 
-export type PostsCollection = {
-  slug: 'posts'
-  fields: {
-    id: string
-    title: string
-    author: UsersCollection
-  }
-}
+// Union type of all collection slugs - used by f.relation()
+export type CollectionsSlugs = 'users' | 'posts' | 'tags' | ...
+
+// Collection types
+export type UsersCollection = { ... }
+export type PostsCollection = { ... }
 ```
 
-Now `f.relation({ to: 'users' })` becomes type-safe with full auto-completion.
+Now `f.relation({ to: 'users' })` becomes type-safe:
+
+```typescript
+// to: Accepts only valid collection slugs
+to: CollectionsSlugs
+
+// TypeScript errors if invalid slug
+field({ fieldType: f.relation({ to: 'invalid' }) })
+// Error: Type '"invalid"' is not assignable to type 'CollectionsSlugs'
+```
 
 ## Belongs To (Foreign Key Owner)
 

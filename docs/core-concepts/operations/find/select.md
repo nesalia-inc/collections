@@ -80,6 +80,22 @@ const result = await config.db.posts.find({
 })
 ```
 
+## With Where
+
+Combine `where` and `select` in the same query:
+
+```typescript
+const result = await config.db.posts.find({
+  where: { published: true },
+  select: (p) => ({
+    id: p.id,
+    title: p.title
+  })
+})
+
+// Only returns id and title of published posts
+```
+
 ## Notes
 
 - If `select` is not provided, all fields are returned by default

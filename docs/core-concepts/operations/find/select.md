@@ -101,6 +101,58 @@ const result = await config.db.posts.find({
 // Only returns id and title of published posts
 ```
 
+## Aliasing
+
+Rename fields on the fly:
+
+```typescript
+const result = await config.db.users.find({
+  select: (u) => ({
+    id: u.id,
+    displayName: u.fullName,  // rename fullName to displayName
+    email: u.emailAddress     // rename emailAddress to email
+  })
+})
+
+// result.current.data = [
+//   { id: 1, displayName: 'John Doe', email: 'john@example.com' }
+// ]
+```
+
+## Computed Fields
+
+Include simple computed expressions:
+
+```typescript
+const result = await config.db.users.find({
+  select: (u) => ({
+    id: u.id,
+    name: u.name,
+    isAdult: u.age.gt(18),       // boolean computed field
+    isSenior: u.age.gte(65),    // computed field
+    fullName: u.firstName.concat(' ', u.lastName)  // string concatenation
+  })
+})
+```
+
+## Exclude ID
+
+To exclude the ID field from the result:
+
+```typescript
+const result = await config.db.posts.find({
+  select: (p) => ({
+    title: p.title,
+    content: p.content
+    // id is excluded
+  })
+})
+
+// result.current.data = [
+//   { title: 'Post 1', content: 'Content...' }
+// ]
+```
+
 ## Notes
 
 - If `select` is not provided, all fields are returned by default

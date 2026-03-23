@@ -11,28 +11,19 @@ const age = field({
 const rating = field({
   fieldType: f.number({ min: 1, max: 5 })
 })
-
-// Decimal for financial data
-const price = field({
-  fieldType: f.number({ precision: 10, scale: 2 })
-})
 ```
 
 ## Options
 
 - `min` - Minimum value
 - `max` - Maximum value
-- `precision` - Total number of digits
-- `scale` - Digits after decimal point
 
 ## Implementation
 
 ```typescript
 const number = fieldType({
   type: 'number',
-  columnType: options?.precision
-    ? `numeric(${options.precision}, ${options.scale ?? 0})`
-    : 'decimal',
+  columnType: 'decimal',
   schema: z.number(),
   validation: z.object({
     min: z.number().optional(),
@@ -63,7 +54,5 @@ When a user creates a record:
 type NumberOptions = {
   min?: number
   max?: number
-  precision?: number
-  scale?: number
 }
 ```

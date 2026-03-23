@@ -16,19 +16,35 @@ type Post = GetCollectionType<typeof posts>
 // }
 ```
 
-## Configuration
+## ID Types
 
-Auto-generated fields can be configured per collection:
+| Type | Generation | Use Case |
+|------|------------|----------|
+| `uuid` | ORM generates UUIDv7 (recommended) | Distributed systems, best index performance |
+| `number` | Database auto-increment | Simple apps, small scale |
+| `string` | Custom or auto-generate | Legacy databases |
 
 ```typescript
 const posts = collection({
   slug: 'posts',
 
-  // Configure ID
+  // Configure ID type
   id: {
-    type: 'uuid',       // 'uuid' | 'string' | 'number'
+    type: 'uuid',       // 'uuid' | 'number' | 'string'
     autoGenerate: true
   },
+
+  fields: {
+    title: field({ fieldType: f.text() })
+  }
+})
+```
+
+## Timestamps
+
+```typescript
+const posts = collection({
+  slug: 'posts',
 
   // Configure timestamps
   createdAt: {
@@ -46,6 +62,27 @@ const posts = collection({
     title: field({ fieldType: f.text() })
   }
 })
+```
+
+## Soft Delete
+
+Enable automatic soft delete filtering:
+
+```typescript
+const users = collection({
+  slug: 'users',
+  softDelete: true,
+
+  fields: {
+    name: field({ fieldType: f.text() })
+  }
+})
+
+// Automatically excludes deleted records
+const activeUsers = db.users.findMany()
+
+// Include deleted records when needed
+const allUsers = db.users.findMany({ withDeleted: true })
 ```
 
 ## Disable Fields

@@ -3,17 +3,17 @@
 ```typescript
 import { field, f, z } from '@deessejs/collections'
 
-// Basic array with item type
+// Array of strings
 const tags = field({
   fieldType: f.array(z.string())
 })
 
-// Custom validation on array items
+// Array with custom item validation
 const emails = field({
   fieldType: f.array(z.string().email())
 })
 
-// Custom validation schema
+// Array of objects
 const users = field({
   fieldType: f.array(z.object({
     name: z.string(),
@@ -25,6 +25,7 @@ const users = field({
 ## Implementation
 
 ```typescript
+// Generic array field type accepting any Zod schema
 const array = fieldType({
   type: 'array',
   columnType: 'jsonb',
@@ -32,14 +33,7 @@ const array = fieldType({
   validation: z.object({})
 })
 
-const arrayCustomItem = fieldType({
-  type: 'array',
-  columnType: 'jsonb',
-  schema: z.array(z.string().email()),
-  validation: z.object({})
-})
-
-const arrayWithSchema = fieldType({
+const arrayWithObject = fieldType({
   type: 'array',
   columnType: 'jsonb',
   schema: z.array(z.object({
@@ -64,7 +58,7 @@ const arrayWithSchema = fieldType({
    // Error: tags must contain only strings
    ```
 
-3. **Custom schema validation**:
+3. **Object schema validation**:
    ```typescript
    db.users.create({ data: { users: [{ name: "John", age: "invalid" }] } })
    // Error: users[0].age must be a number

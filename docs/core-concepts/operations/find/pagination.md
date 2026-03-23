@@ -99,3 +99,52 @@ const page = await config.db.posts.find({
   orderBy: { createdAt: 'desc' }
 })
 ```
+
+## State Preservation
+
+The `next()` and `previous()` methods automatically preserve all original query parameters:
+
+```typescript
+const page1 = await config.db.posts.find({
+  where: where(p => p.published.eq(true)),
+  select: (p) => ({ id: p.id, title: p.title }),
+  cursor: { limit: 10 }
+})
+
+// next() keeps where, select, orderBy automatically
+const page2 = await page1.next()
+// page2 still filters by published and selects only id/title
+```
+
+## Cursor Pagination Options
+
+### Manual Cursor
+
+You can pass a manual cursor value:
+
+```typescript
+const result = await config.db.posts.find({
+  cursor: { value: 'base64-encoded-cursor', limit: 10 },
+  orderBy: { createdAt: 'desc' }
+})
+```
+
+### Without Total (Better Performance)
+
+For cursor pagination on large datasets, you can skip the total count:
+
+```typescript
+const result = await config.db.posts.find({
+  cursor: { limit: 10, includeTotal: false },
+  orderBy: { id: 'desc' }
+})
+
+// result.current.total is undefined
+// This saves a COUNT(*) query on large tables
+```
+
+## Performance Notes
+
+- **Offset Pagination**: Returns `total` which requires a `COUNT(*)` query. Can be slow on tables with millions of rows.
+- **Cursor Pagination**: More performant for large datasets as it doesn't need to count all records.
+- Use `includeTotal: false` in cursor pagination to skip the count query when you don't need the total.

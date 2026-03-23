@@ -25,9 +25,17 @@ Creates a field with predefined options of any type using union of literals.
 
 ```typescript
 // Factory function accepting any array of values
-const options = <T extends readonly [T, ...T[]]>(options: T) => {
-  const first = options[0]
-  const columnType = typeof first === 'number' ? 'integer' : 'varchar(50)'
+const options = <T extends readonly unknown[]>(options: T) => {
+  const hasNumber = options.some(o => typeof o === 'number')
+  const hasString = options.some(o => typeof o === 'string')
+
+  // Mixed types: use varchar to avoid DB errors
+  const columnType = hasNumber && hasString
+    ? 'varchar(255)'
+    : hasNumber
+      ? 'integer'
+      : `varchar(${Math.max(50, ...options.map(o => String(o).length))})`
+
   const schema = z.union(options.map(opt => z.literal(opt)))
   return fieldType({
     type: 'options',

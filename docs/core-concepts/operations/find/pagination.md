@@ -50,7 +50,7 @@ offset = (page - 1) * limit
 ```typescript
 const result = await config.db.posts.find({
   cursor: { limit: 10 },
-  orderBy: { id: 'desc' }
+  orderBy: (p) => ({ id: p.id.desc })
 })
 
 // Access data
@@ -69,7 +69,7 @@ Cursor pagination automatically handles navigation using the last record's value
 // First page
 const page1 = await config.db.posts.find({
   cursor: { limit: 10 },
-  orderBy: { id: 'desc' }
+  orderBy: (p) => ({ id: p.id.desc })
 })
 
 // Get next page - automatically uses last record as cursor
@@ -125,7 +125,7 @@ You can pass a manual cursor value:
 ```typescript
 const result = await config.db.posts.find({
   cursor: { value: 'base64-encoded-cursor', limit: 10 },
-  orderBy: { createdAt: 'desc' }
+  orderBy: (p) => ({ createdAt: p.createdAt.desc })
 })
 ```
 
@@ -136,7 +136,7 @@ For cursor pagination on large datasets, you can skip the total count:
 ```typescript
 const result = await config.db.posts.find({
   cursor: { limit: 10, includeTotal: false },
-  orderBy: { id: 'desc' }
+  orderBy: (p) => ({ id: p.id.desc })
 })
 
 // result.current.total is undefined

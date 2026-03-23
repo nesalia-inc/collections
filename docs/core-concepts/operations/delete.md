@@ -6,7 +6,7 @@ Learn how to delete records from collections.
 
 ```typescript
 // Delete a record by ID
-deleteById(id: ID): AsyncResult<T, DeleteError>
+deleteById(options: DeleteByIdOperation): AsyncResult<T, DeleteError>
 
 // Delete the first matching record
 deleteFirst(options: DeleteOperation): AsyncResult<T, DeleteError>
@@ -18,6 +18,10 @@ deleteMany(options: DeleteManyOperation): AsyncResult<Counted<T[]>, DeleteError>
 ## Type Definitions
 
 ```typescript
+type DeleteByIdOperation = {
+  id: ID
+}
+
 type DeleteOperation = {
   where: Where
 }
@@ -26,6 +30,8 @@ type DeleteManyOperation = {
   where: Where
   limit?: number
 }
+
+type Counted<T> = T & { count: number }
 ```
 
 ## deleteById
@@ -33,7 +39,7 @@ type DeleteManyOperation = {
 Delete a single record by its ID:
 
 ```typescript
-const result = await config.db.posts.deleteById(1)
+const result = await config.db.posts.deleteById({ id: 1 })
 ```
 
 ## deleteFirst
@@ -42,7 +48,7 @@ Delete the first record matching the where condition:
 
 ```typescript
 const result = await config.db.posts.deleteFirst({
-  where: { status: 'draft', createdAt: { lt: '2024-01-01' } }
+  where: where(p => p.status.eq('draft').and(p.createdAt.lt('2024-01-01')))
 })
 ```
 
@@ -52,7 +58,7 @@ Delete records matching the where condition, with optional limit:
 
 ```typescript
 const result = await config.db.posts.deleteMany({
-  where: { published: false },
+  where: where(p => p.published.eq(false)),
   limit: 100
 })
 

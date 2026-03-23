@@ -5,23 +5,55 @@ The `select` option allows you to specify which fields to return from a query, i
 ## Type Definition
 
 ```typescript
-type Select<T> = SelectField<T>[]
+type Select<T> = (selector: Selector<T>) => SelectedFields<T>
 
-type SelectField<T> =
-  | keyof T
-  | (T extends object ? `${keyof T & string}.${SelectField<T[keyof T]> & string}` : never)
-  | `-${keyof T & string}`
+type Selector<T> = {
+  [K in keyof T]: T[K] extends object ? Selector<T[K]> : SelectorField<T[K]>
+} & {
+  _all: () => T
+}
+
+type SelectorField<T> = T
+
+type SelectedFields<T> = {
+  [K in keyof T]?: T[K] extends object ? SelectedFields<T[K]> : boolean
+}
 ```
 
 ## Basic Usage
 
+Use a selector function with full type safety:
+
 ```typescript
-// Select only specific fields
 const result = await config.db.posts.find({
-  select: ['id', 'title', 'slug']
+  select: (p) => ({
+    id: p.id,
+    title: p.title
+  })
 })
 
-// result.current.data = [{ id: 1, title: 'Post 1', slug: 'post-1' }]
+// result.current.data = [{ id: 1, title: 'Post 1' }]
+```
+
+## With Nested Relations
+
+Select fields from related collections:
+
+```typescript
+const result = await config.db.posts.find({
+  select: (p) => ({
+    id: p.id,
+    title: p.title,
+    author: {
+      id: p.author.id,
+      name: p.author.name
+    }
+  })
+})
+
+// result.current.data = [
+//   { id: 1, title: 'Post 1', author: { id: 1, name: 'John' } }
+// ]
 ```
 
 ## With findById
@@ -29,52 +61,22 @@ const result = await config.db.posts.find({
 ```typescript
 const result = await config.db.posts.findById({
   id: 1,
-  select: ['id', 'title']
+  select: (p) => ({
+    id: p.id,
+    title: p.title
+  })
 })
 
 // result.data = { id: 1, title: 'Post 1' }
 ```
 
-## With Nested Relations
+## Select All Fields
 
-Select fields from related collections using dot notation:
-
-```typescript
-interface Post {
-  id: ID
-  title: string
-  author: User
-}
-
-interface User {
-  id: ID
-  name: string
-  profile: Profile
-}
-
-interface Profile {
-  id: ID
-  bio: string
-}
-
-// Select nested fields using dot notation
-const result = await config.db.posts.find({
-  select: ['id', 'title', 'author.id', 'author.name', 'author.profile.bio']
-})
-
-// result.current.data = [
-//   { id: 1, title: 'Post 1', author: { id: 1, name: 'John', profile: { bio: 'Hello' } } }
-// ]
-```
-
-## Exclude Fields
-
-Use `-` prefix to exclude specific fields:
+Use `_all` to select all fields:
 
 ```typescript
-// Get all fields except content
 const result = await config.db.posts.find({
-  select: ['-content']
+  select: (p) => p._all()
 })
 ```
 
@@ -83,4 +85,5 @@ const result = await config.db.posts.find({
 - If `select` is not provided, all fields are returned by default
 - The `id` field is always included even if not explicitly selected
 - Selecting only required fields improves query performance
+- Full autocomplete support for all fields and nested relations
 - Works with all find operations (find, findFirst, findById)

@@ -24,6 +24,7 @@ type DeleteOperation = {
 
 type DeleteManyOperation = {
   where: Where
+  limit?: number
 }
 ```
 
@@ -47,11 +48,12 @@ const result = await config.db.posts.deleteFirst({
 
 ## deleteMany
 
-Delete all records matching the where condition:
+Delete records matching the where condition, with optional limit:
 
 ```typescript
 const result = await config.db.posts.deleteMany({
-  where: { published: false }
+  where: { published: false },
+  limit: 100
 })
 
 // result.data = { data: [...], count: 10 }

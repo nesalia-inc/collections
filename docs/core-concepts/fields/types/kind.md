@@ -25,7 +25,6 @@ boolean()    // 'boolean'
 // Date/Time types
 date()       // 'date'
 timestamp()  // 'timestamp'
-tile()       // 'tile'
 
 // JSON types
 json()       // 'json'
@@ -67,7 +66,6 @@ export type ColumnType =
   | 'boolean'
   | 'date'
   | 'timestamp'
-  | 'tile'
   | 'json'
   | 'jsonb'
   | 'uuid'
@@ -89,7 +87,6 @@ export type ColumnType =
 | `boolean()` | `'boolean'` | True/false |
 | `date()` | `'date'` | Date only |
 | `timestamp()` | `'timestamp'` | Date with time |
-| `tile()` | `'tile'` | PostGIS tile |
 | `json()` | `'json'` | JSON string |
 | `jsonb()` | `'jsonb'` | Binary JSON |
 | `uuid()` | `'uuid'` | UUID |

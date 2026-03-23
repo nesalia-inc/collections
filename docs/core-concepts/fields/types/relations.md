@@ -2,7 +2,7 @@
 
 Define relationships between collections.
 
-## Belongs To (One-to-Many)
+## Belongs To (Foreign Key Owner)
 
 ```typescript
 const posts = collection({
@@ -16,7 +16,9 @@ const posts = collection({
 })
 ```
 
-## Has Many (One-to-Many reverse)
+Creates a foreign key column `author_id` in the `posts` table.
+
+## Has Many (Virtual / Reverse Lookup)
 
 ```typescript
 const users = collection({
@@ -30,7 +32,9 @@ const users = collection({
 })
 ```
 
-## Many-to-Many
+Virtual relation - no column created. The system queries `posts` where `author_id` matches.
+
+## Many-to-Many (Junction Table)
 
 ```typescript
 const posts = collection({
@@ -41,7 +45,7 @@ const posts = collection({
       fieldType: f.relation({
         to: 'tags',
         many: true,
-        through: 'post_tags'  // Junction table
+        through: 'post_tags'
       })
     })
   }
@@ -55,7 +59,7 @@ const tags = collection({
 })
 ```
 
-**Note:** When `many: true` is set without a `through` table, it creates a reverse relation (e.g., "user has many posts"). For true many-to-many relations, use the `through` option.
+The system creates a junction table `post_tags` with columns `post_id` and `tag_id`.
 
 ## Relation Options
 
@@ -72,9 +76,10 @@ field({
     through?: string,
 
     // Optional: disambiguate when multiple relations exist
+    // Must be a key of the target collection's fields
     on?: 'author' | 'validator',
 
-    // Optional: foreign key column name
+    // Optional: foreign key column name in database
     fieldName?: 'author_id',
 
     // Optional: referential integrity
@@ -85,6 +90,27 @@ field({
   })
 })
 ```
+
+## Understanding the `on` Option
+
+The `on` option is a pointer to a field in the target collection that holds the foreign key:
+
+```typescript
+// posts collection has this field:
+author: field({ fieldType: f.relation({ to: 'users' }) })
+
+// users collection uses 'on' to reference that field:
+posts: field({
+  fieldType: f.relation({ to: 'posts', many: true, on: 'author' })
+})
+```
+
+This is equivalent to the SQL query:
+```sql
+SELECT * FROM posts WHERE author_id = [USER_ID];
+```
+
+The `on` value must be a valid field key from the target collection.
 
 ## Virtual vs Physical Relations
 

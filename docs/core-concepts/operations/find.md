@@ -122,9 +122,7 @@ result.current.total
 
 ```typescript
 const { data: posts } = await db.posts.find({ where: { published: true } })
-for (const post of posts) {
-  await post.publish()  // Each post has instance methods
-}
+await Promise.all(posts.map((post) => post.publish()))
 ```
 
 ## findById

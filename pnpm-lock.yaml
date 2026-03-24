@@ -11,6 +11,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.7
         version: 2.29.8(@types/node@22.19.13)
+      '@eslint/js':
+        specifier: ^8.57.0
+        version: 8.57.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.17.0
         version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -36,7 +39,7 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.19.13)
 
-  packages/core:
+  packages/collections:
     dependencies:
       dotenv:
         specifier: ^16.4.0
@@ -787,6 +790,10 @@ packages:
 
   '@eslint/eslintrc@2.1.4':
     resolution: {integrity: sha512-269Z39MS6wVJtsoUl10L60WdkhJVdPG24Q4eZTH3nnF6lpvSShEK3wQjDX9JRWAUPvPh7COouPpU9IrqaZFvtQ==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
+  '@eslint/js@8.57.0':
+    resolution: {integrity: sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
   '@eslint/js@8.57.1':
@@ -2972,6 +2979,8 @@ snapshots:
       strip-json-comments: 3.1.1
     transitivePeerDependencies:
       - supports-color
+
+  '@eslint/js@8.57.0': {}
 
   '@eslint/js@8.57.1': {}
 

@@ -46,13 +46,11 @@ export type ColumnType =
   | { name: 'uuid' }
   | { name: 'enum'; values: string[] }
 
-export type ColumnTypeError = Error<{
-  precision?: number
-  scale?: number
-  length?: number
-  values?: string[]
-  reason?: 'empty' | 'duplicates'
-}>
+// Error union type for discriminated union
+export type ColumnTypeError =
+  | Error<{ precision: number; scale: number }>
+  | Error<{ length: number }>
+  | Error<{ values: string[]; reason: 'empty' | 'duplicates' }>
 
 // Numeric types
 export const serial = (): Result<ColumnType, Unit> => ok({ name: 'serial' })

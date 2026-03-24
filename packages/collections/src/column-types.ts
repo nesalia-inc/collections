@@ -46,18 +46,25 @@ export type ColumnType =
   | { name: 'uuid' }
   | { name: 'enum'; values: string[] }
 
+// Helper to extract error type from error builder
+type ExtractError<T> = T extends () => Result<any, infer E>
+  ? E
+  : T extends (args: infer A) => Result<any, infer E>
+    ? E
+    : never
+
 // Numeric types
 export const serial = (): Result<ColumnType, Unit> => ok({ name: 'serial' })
 export const integer = (): Result<ColumnType, Unit> => ok({ name: 'integer' })
 
-export const numeric = (precision: number, scale: number): Result<ColumnType, Error<{ precision: number; scale: number }>> => {
+export const numeric = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (precision < scale || precision < 1 || scale < 0) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
-export const decimal = (precision: number, scale: number): Result<ColumnType, Error<{ precision: number; scale: number }>> => {
+export const decimal = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (precision < scale || precision < 1 || scale < 0) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
@@ -69,14 +76,14 @@ export const real = (): Result<ColumnType, Unit> => ok({ name: 'real' })
 // Character types
 export const text = (): Result<ColumnType, Unit> => ok({ name: 'text' })
 
-export const varchar = (length: number): Result<ColumnType, Error<{ length: number }>> => {
+export const varchar = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (length < 1) {
     return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'varchar', length })
 }
 
-export const char = (length: number): Result<ColumnType, Error<{ length: number }>> => {
+export const char = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (length < 1) {
     return err(InvalidLengthError({ length }).error)
   }
@@ -98,7 +105,7 @@ export const jsonb = (): Result<ColumnType, Unit> => ok({ name: 'jsonb' })
 // Other types
 export const uuid = (): Result<ColumnType, Unit> => ok({ name: 'uuid' })
 
-export const enum_ = (values: string[]): Result<ColumnType, Error<{ values: string[]; reason: 'empty' | 'duplicates' }>> => {
+export const enum_ = (values: string[]): Result<ColumnType, ExtractError<typeof InvalidEnumValuesError>> => {
   if (!values || values.length === 0) {
     return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
   }

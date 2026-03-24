@@ -1,6 +1,8 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
+import { type Result, ok, err } from '@deessejs/core'
+
 export type ColumnType =
   | { name: 'serial' }
   | { name: 'integer' }
@@ -22,33 +24,38 @@ export type ColumnType =
 // Numeric types
 export const serial = (): ColumnType => ({ name: 'serial' })
 export const integer = (): ColumnType => ({ name: 'integer' })
-export const numeric = (precision: number, scale: number): ColumnType => {
+
+export const numeric = (precision: number, scale: number): Result<ColumnType> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    throw new Error('Invalid precision/scale: precision must be >= scale and >= 1')
+    return err(['Invalid precision/scale: precision must be >= scale and >= 1'] as const)
   }
-  return { name: 'numeric', precision, scale }
+  return ok({ name: 'numeric', precision, scale })
 }
-export const decimal = (precision: number, scale: number): ColumnType => {
+
+export const decimal = (precision: number, scale: number): Result<ColumnType> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    throw new Error('Invalid precision/scale: precision must be >= scale and >= 1')
+    return err(['Invalid precision/scale: precision must be >= scale and >= 1'] as const)
   }
-  return { name: 'decimal', precision, scale }
+  return ok({ name: 'decimal', precision, scale })
 }
+
 export const real = (): ColumnType => ({ name: 'real' })
 
 // Character types
 export const text = (): ColumnType => ({ name: 'text' })
-export const varchar = (length: number): ColumnType => {
+
+export const varchar = (length: number): Result<ColumnType> => {
   if (length < 1) {
-    throw new Error('Invalid length: must be >= 1')
+    return err(['Invalid length: must be >= 1'] as const)
   }
-  return { name: 'varchar', length }
+  return ok({ name: 'varchar', length })
 }
-export const char = (length: number): ColumnType => {
+
+export const char = (length: number): Result<ColumnType> => {
   if (length < 1) {
-    throw new Error('Invalid length: must be >= 1')
+    return err(['Invalid length: must be >= 1'] as const)
   }
-  return { name: 'char', length }
+  return ok({ name: 'char', length })
 }
 
 // Boolean
@@ -65,13 +72,14 @@ export const jsonb = (): ColumnType => ({ name: 'jsonb' })
 
 // Other types
 export const uuid = (): ColumnType => ({ name: 'uuid' })
-export const enum_ = (values: string[]): ColumnType => {
+
+export const enum_ = (values: string[]): Result<ColumnType> => {
   if (!values || values.length === 0) {
-    throw new Error('Invalid values: array must not be empty')
+    return err(['Invalid values: array must not be empty'] as const)
   }
   const unique = new Set(values)
   if (unique.size !== values.length) {
-    throw new Error('Invalid values: array must not contain duplicates')
+    return err(['Invalid values: array must not contain duplicates'] as const)
   }
-  return { name: 'enum', values }
+  return ok({ name: 'enum', values })
 }

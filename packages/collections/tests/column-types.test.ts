@@ -33,23 +33,25 @@ describe('column-types', () => {
 
     it('numeric returns correct type with precision and scale', () => {
       const result = numeric(10, 2)
-      expect(result).toEqual({ name: 'numeric', precision: 10, scale: 2 })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'numeric', precision: 10, scale: 2 })
     })
 
-    it('numeric throws on invalid precision/scale', () => {
-      expect(() => numeric(0, 2)).toThrow('Invalid precision/scale')
-      expect(() => numeric(2, 5)).toThrow('Invalid precision/scale')
-      expect(() => numeric(-1, 0)).toThrow('Invalid precision/scale')
+    it('numeric returns error on invalid precision/scale', () => {
+      expect(numeric(0, 2).ok).toBe(false)
+      expect(numeric(2, 5).ok).toBe(false)
+      expect(numeric(-1, 0).ok).toBe(false)
     })
 
     it('decimal returns correct type with precision and scale', () => {
       const result = decimal(10, 2)
-      expect(result).toEqual({ name: 'decimal', precision: 10, scale: 2 })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'decimal', precision: 10, scale: 2 })
     })
 
-    it('decimal throws on invalid precision/scale', () => {
-      expect(() => decimal(0, 2)).toThrow('Invalid precision/scale')
-      expect(() => decimal(2, 5)).toThrow('Invalid precision/scale')
+    it('decimal returns error on invalid precision/scale', () => {
+      expect(decimal(0, 2).ok).toBe(false)
+      expect(decimal(2, 5).ok).toBe(false)
     })
 
     it('real returns correct type', () => {
@@ -66,21 +68,23 @@ describe('column-types', () => {
 
     it('varchar returns correct type with length', () => {
       const result = varchar(255)
-      expect(result).toEqual({ name: 'varchar', length: 255 })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'varchar', length: 255 })
     })
 
-    it('varchar throws on invalid length', () => {
-      expect(() => varchar(0)).toThrow('Invalid length')
-      expect(() => varchar(-1)).toThrow('Invalid length')
+    it('varchar returns error on invalid length', () => {
+      expect(varchar(0).ok).toBe(false)
+      expect(varchar(-1).ok).toBe(false)
     })
 
     it('char returns correct type with length', () => {
       const result = char(10)
-      expect(result).toEqual({ name: 'char', length: 10 })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'char', length: 10 })
     })
 
-    it('char throws on invalid length', () => {
-      expect(() => char(0)).toThrow('Invalid length')
+    it('char returns error on invalid length', () => {
+      expect(char(0).ok).toBe(false)
     })
   })
 
@@ -128,15 +132,16 @@ describe('column-types', () => {
 
     it('enum returns correct type with values', () => {
       const result = enum_(['draft', 'published', 'archived'])
-      expect(result).toEqual({ name: 'enum', values: ['draft', 'published', 'archived'] })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'enum', values: ['draft', 'published', 'archived'] })
     })
 
-    it('enum throws on empty array', () => {
-      expect(() => enum_([])).toThrow('Invalid values: array must not be empty')
+    it('enum returns error on empty array', () => {
+      expect(enum_([]).ok).toBe(false)
     })
 
-    it('enum throws on duplicate values', () => {
-      expect(() => enum_(['a', 'a'])).toThrow('Invalid values: array must not contain duplicates')
+    it('enum returns error on duplicate values', () => {
+      expect(enum_(['a', 'a']).ok).toBe(false)
     })
   })
 
@@ -145,14 +150,14 @@ describe('column-types', () => {
       const types: ColumnType[] = [
         serial(),
         integer(),
-        numeric(10, 2),
+        numeric(10, 2).value,
         text(),
-        varchar(255),
+        varchar(255).value,
         bool(),
         date(),
         json(),
         uuid(),
-        enum_(['a', 'b']),
+        enum_(['a', 'b']).value,
       ]
 
       expect(types[0].name).toBe('serial')

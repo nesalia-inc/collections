@@ -8,9 +8,11 @@ import {
   text,
   varchar,
   char,
+  bool,
   boolean,
   date,
   timestamp,
+  timestamptz,
   json,
   jsonb,
   uuid,
@@ -35,9 +37,20 @@ describe('column-types', () => {
       expect(result).toEqual({ name: 'numeric', precision: 10, scale: 2 })
     })
 
+    it('numeric throws on invalid precision/scale', () => {
+      expect(() => numeric(0, 2)).toThrow('Invalid precision/scale')
+      expect(() => numeric(2, 5)).toThrow('Invalid precision/scale')
+      expect(() => numeric(-1, 0)).toThrow('Invalid precision/scale')
+    })
+
     it('decimal returns correct type with precision and scale', () => {
       const result = decimal(10, 2)
       expect(result).toEqual({ name: 'decimal', precision: 10, scale: 2 })
+    })
+
+    it('decimal throws on invalid precision/scale', () => {
+      expect(() => decimal(0, 2)).toThrow('Invalid precision/scale')
+      expect(() => decimal(2, 5)).toThrow('Invalid precision/scale')
     })
 
     it('real returns correct type', () => {
@@ -57,14 +70,28 @@ describe('column-types', () => {
       expect(result).toEqual({ name: 'varchar', length: 255 })
     })
 
+    it('varchar throws on invalid length', () => {
+      expect(() => varchar(0)).toThrow('Invalid length')
+      expect(() => varchar(-1)).toThrow('Invalid length')
+    })
+
     it('char returns correct type with length', () => {
       const result = char(10)
       expect(result).toEqual({ name: 'char', length: 10 })
     })
+
+    it('char throws on invalid length', () => {
+      expect(() => char(0)).toThrow('Invalid length')
+    })
   })
 
   describe('boolean', () => {
-    it('boolean returns correct type', () => {
+    it('bool returns correct type', () => {
+      const result = bool()
+      expect(result).toEqual({ name: 'boolean' })
+    })
+
+    it('boolean alias returns correct type', () => {
       const result = boolean()
       expect(result).toEqual({ name: 'boolean' })
     })
@@ -79,6 +106,11 @@ describe('column-types', () => {
     it('timestamp returns correct type', () => {
       const result = timestamp()
       expect(result).toEqual({ name: 'timestamp' })
+    })
+
+    it('timestamptz returns correct type', () => {
+      const result = timestamptz()
+      expect(result).toEqual({ name: 'timestamptz' })
     })
   })
 
@@ -104,25 +136,31 @@ describe('column-types', () => {
       const result = enum_(['draft', 'published', 'archived'])
       expect(result).toEqual({ name: 'enum', values: ['draft', 'published', 'archived'] })
     })
+
+    it('enum throws on empty array', () => {
+      expect(() => enum_([])).toThrow('Invalid values: array must not be empty')
+    })
+
+    it('enum throws on duplicate values', () => {
+      expect(() => enum_(['a', 'a'])).toThrow('Invalid values: array must not contain duplicates')
+    })
   })
 
   describe('type discrimination', () => {
     it('ColumnType discriminated union works correctly', () => {
-      // Test that TypeScript can discriminate between types
       const types: ColumnType[] = [
         serial(),
         integer(),
         numeric(10, 2),
         text(),
         varchar(255),
-        boolean(),
+        bool(),
         date(),
         json(),
         uuid(),
         enum_(['a', 'b']),
       ]
 
-      // Each type should have correct name
       expect(types[0].name).toBe('serial')
       expect(types[1].name).toBe('integer')
       expect(types[4].name).toBe('varchar')

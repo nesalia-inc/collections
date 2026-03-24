@@ -51,6 +51,18 @@ export const isInvalidLengthError = (e: ColumnTypeError): boolean =>
 export const isInvalidEnumValuesError = (e: ColumnTypeError): boolean =>
   e.name === 'InvalidEnumValues'
 
+// Validation constants
+const MIN_PRECISION = 1
+const MIN_SCALE = 0
+const isValidPrecisionScale = (precision: number, scale: number): boolean =>
+  precision >= MIN_PRECISION && scale >= MIN_SCALE && precision >= scale
+
+const MIN_LENGTH = 1
+const isValidLength = (length: number): boolean => length >= MIN_LENGTH
+
+const isNonEmptyArray = <T>(arr: T[]): boolean => arr !== null && arr !== undefined && arr.length > 0
+const hasNoDuplicates = <T>(arr: T[]): boolean => new Set(arr).size === arr.length
+
 export type ColumnType =
   | { name: 'serial' }
   | { name: 'integer' }
@@ -74,14 +86,14 @@ export const serial = (): Success<ColumnType> => ok({ name: 'serial' })
 export const integer = (): Success<ColumnType> => ok({ name: 'integer' })
 
 export const numeric = (precision: number, scale: number): Result<ColumnType, Error<InvalidPrecisionScaleErrorArgs>> => {
-  if (precision < scale || precision < 1 || scale < 0) {
+  if (!isValidPrecisionScale(precision, scale)) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
 export const decimal = (precision: number, scale: number): Result<ColumnType, Error<InvalidPrecisionScaleErrorArgs>> => {
-  if (precision < scale || precision < 1 || scale < 0) {
+  if (!isValidPrecisionScale(precision, scale)) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'decimal', precision, scale })
@@ -93,14 +105,14 @@ export const real = (): Success<ColumnType> => ok({ name: 'real' })
 export const text = (): Success<ColumnType> => ok({ name: 'text' })
 
 export const varchar = (length: number): Result<ColumnType, Error<InvalidLengthErrorArgs>> => {
-  if (length < 1) {
+  if (!isValidLength(length)) {
     return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'varchar', length })
 }
 
 export const char = (length: number): Result<ColumnType, Error<InvalidLengthErrorArgs>> => {
-  if (length < 1) {
+  if (!isValidLength(length)) {
     return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'char', length })
@@ -122,11 +134,10 @@ export const jsonb = (): Success<ColumnType> => ok({ name: 'jsonb' })
 export const uuid = (): Success<ColumnType> => ok({ name: 'uuid' })
 
 export const enum_ = (values: string[]): Result<ColumnType, Error<InvalidEnumValuesErrorArgs>> => {
-  if (!values || values.length === 0) {
+  if (!isNonEmptyArray(values)) {
     return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
   }
-  const unique = new Set(values)
-  if (unique.size !== values.length) {
+  if (!hasNoDuplicates(values)) {
     return err(InvalidEnumValuesError({ values, reason: 'duplicates' }).error)
   }
   return ok({ name: 'enum', values })

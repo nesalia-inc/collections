@@ -1,7 +1,32 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
-import { type Result, ok, err } from '@deessejs/core'
+import { type Result, ok, err, error, type Unit, type Error } from '@deessejs/core'
+import { z } from 'zod'
+
+// Error definitions
+const InvalidPrecisionScaleError = error({
+  name: 'InvalidPrecisionScale',
+  schema: z.object({
+    precision: z.number(),
+    scale: z.number(),
+  }),
+})
+
+const InvalidLengthError = error({
+  name: 'InvalidLength',
+  schema: z.object({
+    length: z.number(),
+  }),
+})
+
+const InvalidEnumValuesError = error({
+  name: 'InvalidEnumValues',
+  schema: z.object({
+    values: z.array(z.string()),
+    reason: z.enum(['empty', 'duplicates']),
+  }),
+})
 
 export type ColumnType =
   | { name: 'serial' }
@@ -21,65 +46,73 @@ export type ColumnType =
   | { name: 'uuid' }
   | { name: 'enum'; values: string[] }
 
-// Numeric types
-export const serial = (): ColumnType => ({ name: 'serial' })
-export const integer = (): ColumnType => ({ name: 'integer' })
+export type ColumnTypeError = Error<{
+  precision?: number
+  scale?: number
+  length?: number
+  values?: string[]
+  reason?: 'empty' | 'duplicates'
+}>
 
-export const numeric = (precision: number, scale: number): Result<ColumnType> => {
+// Numeric types
+export const serial = (): Result<ColumnType, Unit> => ok({ name: 'serial' })
+export const integer = (): Result<ColumnType, Unit> => ok({ name: 'integer' })
+
+export const numeric = (precision: number, scale: number): Result<ColumnType, ColumnTypeError> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    return err(['Invalid precision/scale: precision must be >= scale and >= 1'] as const)
+    return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
-export const decimal = (precision: number, scale: number): Result<ColumnType> => {
+export const decimal = (precision: number, scale: number): Result<ColumnType, ColumnTypeError> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    return err(['Invalid precision/scale: precision must be >= scale and >= 1'] as const)
+    return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'decimal', precision, scale })
 }
 
-export const real = (): ColumnType => ({ name: 'real' })
+export const real = (): Result<ColumnType, Unit> => ok({ name: 'real' })
 
 // Character types
-export const text = (): ColumnType => ({ name: 'text' })
+export const text = (): Result<ColumnType, Unit> => ok({ name: 'text' })
 
-export const varchar = (length: number): Result<ColumnType> => {
+export const varchar = (length: number): Result<ColumnType, ColumnTypeError> => {
   if (length < 1) {
-    return err(['Invalid length: must be >= 1'] as const)
+    return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'varchar', length })
 }
 
-export const char = (length: number): Result<ColumnType> => {
+export const char = (length: number): Result<ColumnType, ColumnTypeError> => {
   if (length < 1) {
-    return err(['Invalid length: must be >= 1'] as const)
+    return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'char', length })
 }
 
 // Boolean
-export const bool = (): ColumnType => ({ name: 'boolean' })
+export const bool = (): Result<ColumnType, Unit> => ok({ name: 'boolean' })
 
 // Date/Time types
-export const date = (): ColumnType => ({ name: 'date' })
-export const timestamp = (): ColumnType => ({ name: 'timestamp' })
-export const timestamptz = (): ColumnType => ({ name: 'timestamptz' })
+export const date = (): Result<ColumnType, Unit> => ok({ name: 'date' })
+export const timestamp = (): Result<ColumnType, Unit> => ok({ name: 'timestamp' })
+export const timestamptz = (): Result<ColumnType, Unit> => ok({ name: 'timestamptz' })
 
 // JSON types
-export const json = (): ColumnType => ({ name: 'json' })
-export const jsonb = (): ColumnType => ({ name: 'jsonb' })
+export const json = (): Result<ColumnType, Unit> => ok({ name: 'json' })
+export const jsonb = (): Result<ColumnType, Unit> => ok({ name: 'jsonb' })
 
 // Other types
-export const uuid = (): ColumnType => ({ name: 'uuid' })
+export const uuid = (): Result<ColumnType, Unit> => ok({ name: 'uuid' })
 
-export const enum_ = (values: string[]): Result<ColumnType> => {
+export const enum_ = (values: string[]): Result<ColumnType, ColumnTypeError> => {
   if (!values || values.length === 0) {
-    return err(['Invalid values: array must not be empty'] as const)
+    return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
   }
   const unique = new Set(values)
   if (unique.size !== values.length) {
-    return err(['Invalid values: array must not contain duplicates'] as const)
+    return err(InvalidEnumValuesError({ values, reason: 'duplicates' }).error)
   }
   return ok({ name: 'enum', values })
 }

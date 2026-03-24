@@ -17,18 +17,22 @@ import {
   uuid,
   enum_,
   type ColumnType,
+  type ColumnTypeError,
 } from '../src/column-types'
+import { isError } from '@deessejs/core'
 
 describe('column-types', () => {
   describe('numeric types', () => {
     it('serial returns correct type', () => {
       const result = serial()
-      expect(result).toEqual({ name: 'serial' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'serial' })
     })
 
     it('integer returns correct type', () => {
       const result = integer()
-      expect(result).toEqual({ name: 'integer' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'integer' })
     })
 
     it('numeric returns correct type with precision and scale', () => {
@@ -41,6 +45,15 @@ describe('column-types', () => {
       expect(numeric(0, 2).ok).toBe(false)
       expect(numeric(2, 5).ok).toBe(false)
       expect(numeric(-1, 0).ok).toBe(false)
+    })
+
+    it('numeric error has correct name and args', () => {
+      const result = numeric(0, 2)
+      if (result.ok) return
+      expect(isError(result.error)).toBe(true)
+      expect(result.error.name).toBe('InvalidPrecisionScale')
+      expect(result.error.args.precision).toBe(0)
+      expect(result.error.args.scale).toBe(2)
     })
 
     it('decimal returns correct type with precision and scale', () => {
@@ -56,14 +69,16 @@ describe('column-types', () => {
 
     it('real returns correct type', () => {
       const result = real()
-      expect(result).toEqual({ name: 'real' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'real' })
     })
   })
 
   describe('character types', () => {
     it('text returns correct type', () => {
       const result = text()
-      expect(result).toEqual({ name: 'text' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'text' })
     })
 
     it('varchar returns correct type with length', () => {
@@ -75,6 +90,14 @@ describe('column-types', () => {
     it('varchar returns error on invalid length', () => {
       expect(varchar(0).ok).toBe(false)
       expect(varchar(-1).ok).toBe(false)
+    })
+
+    it('varchar error has correct name and args', () => {
+      const result = varchar(0)
+      if (result.ok) return
+      expect(isError(result.error)).toBe(true)
+      expect(result.error.name).toBe('InvalidLength')
+      expect(result.error.args.length).toBe(0)
     })
 
     it('char returns correct type with length', () => {
@@ -91,43 +114,50 @@ describe('column-types', () => {
   describe('boolean', () => {
     it('bool returns correct type', () => {
       const result = bool()
-      expect(result).toEqual({ name: 'boolean' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'boolean' })
     })
   })
 
   describe('date/time types', () => {
     it('date returns correct type', () => {
       const result = date()
-      expect(result).toEqual({ name: 'date' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'date' })
     })
 
     it('timestamp returns correct type', () => {
       const result = timestamp()
-      expect(result).toEqual({ name: 'timestamp' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'timestamp' })
     })
 
     it('timestamptz returns correct type', () => {
       const result = timestamptz()
-      expect(result).toEqual({ name: 'timestamptz' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'timestamptz' })
     })
   })
 
   describe('json types', () => {
     it('json returns correct type', () => {
       const result = json()
-      expect(result).toEqual({ name: 'json' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'json' })
     })
 
     it('jsonb returns correct type', () => {
       const result = jsonb()
-      expect(result).toEqual({ name: 'jsonb' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'jsonb' })
     })
   })
 
   describe('other types', () => {
     it('uuid returns correct type', () => {
       const result = uuid()
-      expect(result).toEqual({ name: 'uuid' })
+      expect(result.ok).toBe(true)
+      expect(result.value).toEqual({ name: 'uuid' })
     })
 
     it('enum returns correct type with values', () => {
@@ -137,26 +167,36 @@ describe('column-types', () => {
     })
 
     it('enum returns error on empty array', () => {
-      expect(enum_([]).ok).toBe(false)
+      const result = enum_([])
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.name).toBe('InvalidEnumValues')
+        expect(result.error.args.reason).toBe('empty')
+      }
     })
 
     it('enum returns error on duplicate values', () => {
-      expect(enum_(['a', 'a']).ok).toBe(false)
+      const result = enum_(['a', 'a'])
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.name).toBe('InvalidEnumValues')
+        expect(result.error.args.reason).toBe('duplicates')
+      }
     })
   })
 
   describe('type discrimination', () => {
     it('ColumnType discriminated union works correctly', () => {
       const types: ColumnType[] = [
-        serial(),
-        integer(),
+        serial().value,
+        integer().value,
         numeric(10, 2).value,
-        text(),
+        text().value,
         varchar(255).value,
-        bool(),
-        date(),
-        json(),
-        uuid(),
+        bool().value,
+        date().value,
+        json().value,
+        uuid().value,
         enum_(['a', 'b']).value,
       ]
 

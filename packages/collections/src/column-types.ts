@@ -1,32 +1,17 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
-import { type Success, ok, err, error, type Error } from '@deessejs/core'
-import { z } from 'zod'
+import { type Success, ok, err, type Result, type Error } from '@deessejs/core'
 
-// Error definitions
-const InvalidPrecisionScaleError = error({
-  name: 'InvalidPrecisionScale',
-  schema: z.object({
-    precision: z.number(),
-    scale: z.number(),
-  }),
-})
+// Error types
+export type InvalidPrecisionScaleErrorArgs = { precision: number; scale: number }
+export type InvalidLengthErrorArgs = { length: number }
+export type InvalidEnumValuesErrorArgs = { values: string[]; reason: 'empty' | 'duplicates' }
 
-const InvalidLengthError = error({
-  name: 'InvalidLength',
-  schema: z.object({
-    length: z.number(),
-  }),
-})
-
-const InvalidEnumValuesError = error({
-  name: 'InvalidEnumValues',
-  schema: z.object({
-    values: z.array(z.string()),
-    reason: z.enum(['empty', 'duplicates']),
-  }),
-})
+export type ColumnTypeError =
+  | Error<InvalidPrecisionScaleErrorArgs>
+  | Error<InvalidLengthErrorArgs>
+  | Error<InvalidEnumValuesErrorArgs>
 
 export type ColumnType =
   | { name: 'serial' }
@@ -46,27 +31,20 @@ export type ColumnType =
   | { name: 'uuid' }
   | { name: 'enum'; values: string[] }
 
-// Helper to extract error type from error builder
-type ExtractError<T> = T extends () => Result<any, infer E>
-  ? E
-  : T extends (args: infer A) => Result<any, infer E>
-    ? E
-    : never
-
 // Numeric types
 export const serial = (): Success<ColumnType> => ok({ name: 'serial' })
 export const integer = (): Success<ColumnType> => ok({ name: 'integer' })
 
-export const numeric = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
+export const numeric = (precision: number, scale: number): Result<ColumnType, ColumnTypeError> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    return err(InvalidPrecisionScaleError({ precision, scale }).error)
+    return err({ name: 'InvalidPrecisionScale', args: { precision, scale }, notes: [], cause: null })
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
-export const decimal = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
+export const decimal = (precision: number, scale: number): Result<ColumnType, ColumnTypeError> => {
   if (precision < scale || precision < 1 || scale < 0) {
-    return err(InvalidPrecisionScaleError({ precision, scale }).error)
+    return err({ name: 'InvalidPrecisionScale', args: { precision, scale }, notes: [], cause: null })
   }
   return ok({ name: 'decimal', precision, scale })
 }
@@ -76,16 +54,16 @@ export const real = (): Success<ColumnType> => ok({ name: 'real' })
 // Character types
 export const text = (): Success<ColumnType> => ok({ name: 'text' })
 
-export const varchar = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
+export const varchar = (length: number): Result<ColumnType, ColumnTypeError> => {
   if (length < 1) {
-    return err(InvalidLengthError({ length }).error)
+    return err({ name: 'InvalidLength', args: { length }, notes: [], cause: null })
   }
   return ok({ name: 'varchar', length })
 }
 
-export const char = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
+export const char = (length: number): Result<ColumnType, ColumnTypeError> => {
   if (length < 1) {
-    return err(InvalidLengthError({ length }).error)
+    return err({ name: 'InvalidLength', args: { length }, notes: [], cause: null })
   }
   return ok({ name: 'char', length })
 }
@@ -105,13 +83,13 @@ export const jsonb = (): Success<ColumnType> => ok({ name: 'jsonb' })
 // Other types
 export const uuid = (): Success<ColumnType> => ok({ name: 'uuid' })
 
-export const enum_ = (values: string[]): Result<ColumnType, ExtractError<typeof InvalidEnumValuesError>> => {
+export const enum_ = (values: string[]): Result<ColumnType, ColumnTypeError> => {
   if (!values || values.length === 0) {
-    return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
+    return err({ name: 'InvalidEnumValues', args: { values, reason: 'empty' }, notes: [], cause: null })
   }
   const unique = new Set(values)
   if (unique.size !== values.length) {
-    return err(InvalidEnumValuesError({ values, reason: 'duplicates' }).error)
+    return err({ name: 'InvalidEnumValues', args: { values, reason: 'duplicates' }, notes: [], cause: null })
   }
   return ok({ name: 'enum', values })
 }

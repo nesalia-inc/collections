@@ -1,7 +1,7 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
-import { type Result, ok, err, error, type Unit, type Error } from '@deessejs/core'
+import { type Result, ok, err, error, type Error } from '@deessejs/core'
 import { z } from 'zod'
 
 // Error definitions
@@ -54,8 +54,8 @@ type ExtractError<T> = T extends () => Result<any, infer E>
     : never
 
 // Numeric types
-export const serial = (): Result<ColumnType, Unit> => ok({ name: 'serial' })
-export const integer = (): Result<ColumnType, Unit> => ok({ name: 'integer' })
+export const serial = (): Result<ColumnType, never> => ok({ name: 'serial' })
+export const integer = (): Result<ColumnType, never> => ok({ name: 'integer' })
 
 export const numeric = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (precision < scale || precision < 1 || scale < 0) {
@@ -71,10 +71,10 @@ export const decimal = (precision: number, scale: number): Result<ColumnType, Ex
   return ok({ name: 'decimal', precision, scale })
 }
 
-export const real = (): Result<ColumnType, Unit> => ok({ name: 'real' })
+export const real = (): Result<ColumnType, never> => ok({ name: 'real' })
 
 // Character types
-export const text = (): Result<ColumnType, Unit> => ok({ name: 'text' })
+export const text = (): Result<ColumnType, never> => ok({ name: 'text' })
 
 export const varchar = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (length < 1) {
@@ -91,19 +91,19 @@ export const char = (length: number): Result<ColumnType, ExtractError<typeof Inv
 }
 
 // Boolean
-export const bool = (): Result<ColumnType, Unit> => ok({ name: 'boolean' })
+export const bool = (): Result<ColumnType, never> => ok({ name: 'boolean' })
 
 // Date/Time types
-export const date = (): Result<ColumnType, Unit> => ok({ name: 'date' })
-export const timestamp = (): Result<ColumnType, Unit> => ok({ name: 'timestamp' })
-export const timestamptz = (): Result<ColumnType, Unit> => ok({ name: 'timestamptz' })
+export const date = (): Result<ColumnType, never> => ok({ name: 'date' })
+export const timestamp = (): Result<ColumnType, never> => ok({ name: 'timestamp' })
+export const timestamptz = (): Result<ColumnType, never> => ok({ name: 'timestamptz' })
 
 // JSON types
-export const json = (): Result<ColumnType, Unit> => ok({ name: 'json' })
-export const jsonb = (): Result<ColumnType, Unit> => ok({ name: 'jsonb' })
+export const json = (): Result<ColumnType, never> => ok({ name: 'json' })
+export const jsonb = (): Result<ColumnType, never> => ok({ name: 'jsonb' })
 
 // Other types
-export const uuid = (): Result<ColumnType, Unit> => ok({ name: 'uuid' })
+export const uuid = (): Result<ColumnType, never> => ok({ name: 'uuid' })
 
 export const enum_ = (values: string[]): Result<ColumnType, ExtractError<typeof InvalidEnumValuesError>> => {
   if (!values || values.length === 0) {

@@ -38,6 +38,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@deessejs/core": "^0.2.0"
+    "@deessejs/core": "^0.3.1"
   }
 }

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@deessejs/core':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.3.1
+        version: 0.3.1
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.7
@@ -192,8 +192,8 @@ packages:
   '@deessejs/core@0.1.9':
     resolution: {integrity: sha512-gGNxkpiJ3pJlNxfFJXlCnLJVeSHgIgFpfBR8uEYDZnAL5FO61GwxhetJEN3DKuFN0jvHV3UoQLr8akUlPlEHCA==}
 
-  '@deessejs/core@0.2.0':
-    resolution: {integrity: sha512-1mCQQppqdRaTUeFXScEwBzIFY5v704SiPMpewRiRFqcvFM7HKaAy64AYcVJUo+8kE5LYx99qbGmLEXZ90CY55A==}
+  '@deessejs/core@0.3.1':
+    resolution: {integrity: sha512-RRltb8nvDLgzUGvStIk4mM6dph/DL451ergRsdMAY/GtUbvFy+PELxcSP4GHjOnm0TS8wndQ8u/1t43YFezAmQ==}
 
   '@deessejs/type-testing@0.1.5':
     resolution: {integrity: sha512-vIpQiqRKUIzQ9+7YUfZAsUdefQZN91rBOGF3HDL6ocHvZir80rlkTKyrqDbBrleBovXRbnHieU0UvYVZjl5drg==}
@@ -2663,7 +2663,7 @@ snapshots:
     dependencies:
       zod: 4.3.6
 
-  '@deessejs/core@0.2.0':
+  '@deessejs/core@0.3.1':
     dependencies:
       zod: 4.3.6
 

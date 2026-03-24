@@ -9,7 +9,6 @@ import {
   varchar,
   char,
   bool,
-  boolean,
   date,
   timestamp,
   timestamptz,
@@ -88,11 +87,6 @@ describe('column-types', () => {
   describe('boolean', () => {
     it('bool returns correct type', () => {
       const result = bool()
-      expect(result).toEqual({ name: 'boolean' })
-    })
-
-    it('boolean alias returns correct type', () => {
-      const result = boolean()
       expect(result).toEqual({ name: 'boolean' })
     })
   })

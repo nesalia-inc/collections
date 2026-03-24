@@ -75,7 +75,3 @@ export const enum_ = (values: string[]): ColumnType => {
   }
   return { name: 'enum', values }
 }
-
-// Backwards compatibility alias
-/** @deprecated Use bool() instead */
-export const boolean = bool

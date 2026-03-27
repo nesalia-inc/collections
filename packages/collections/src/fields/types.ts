@@ -17,7 +17,7 @@ export interface FieldTypeOptions<T> {
   /** Column type for database mapping */
   readonly columnType: ColumnType
 
-  /** Optional transformation function (e.g., toLowerCase for emails) */
+  /** Optional transformation function (e.g., toLowerCase for emails). Defaults to identity. */
   readonly transform?: (value: unknown) => T
 }
 
@@ -35,8 +35,8 @@ export interface FieldType<T> {
   /** Column type for database mapping */
   readonly columnType: ColumnType
 
-  /** Optional transformation function */
-  readonly transform?: (value: unknown) => T
+  /** Transformation function (always provided by fieldType factory) */
+  readonly transform: (value: unknown) => T
 }
 
 /**

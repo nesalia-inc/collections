@@ -13,17 +13,20 @@ import type { FieldType, FieldTypeOptions } from './types'
  * const textField = fieldType({
  *   type: 'text',
  *   schema: z.string(),
- *   columnType: text()
+ *   columnType: { name: 'varchar', length: 255 }
  * })
  * ```
  */
 export function fieldType<T>(
   options: FieldTypeOptions<T>
 ): FieldType<T> {
+  // Default identity transform if none provided
+  const transform = options.transform ?? ((val: unknown) => val as T)
+
   return Object.freeze({
     type: options.type,
     schema: options.schema,
     columnType: options.columnType,
-    transform: options.transform,
+    transform,
   })
 }

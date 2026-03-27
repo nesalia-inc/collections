@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { fieldType } from './fieldType'
-import type { FieldType } from './types'
+import type { FieldType, TextFieldOptions } from './types'
 
 import {
   enum_ as columnEnum,
@@ -20,20 +20,30 @@ import {
  *
  * const nameField = field({ fieldType: f.text() })
  * const emailField = field({ fieldType: f.email() })
+ * const bioField = field({ fieldType: f.text({ maxLength: 1000 }) })
  * const statusField = field({ fieldType: f.select(['draft', 'published', 'archived']) })
  * ```
  */
 export const f = {
   /**
    * text - Text/string field type
-   * Uses varchar(255) as column type
+   * @param options - Optional configuration (minLength, maxLength, pattern)
    */
-  text: (): FieldType<string> =>
-    fieldType({
+  text: (options: TextFieldOptions = {}): FieldType<string> => {
+    let schema = z.string()
+    if (options.minLength !== undefined) schema = schema.min(options.minLength)
+    if (options.maxLength !== undefined) schema = schema.max(options.maxLength)
+    if (options.pattern !== undefined) schema = schema.regex(new RegExp(options.pattern))
+
+    return fieldType({
       type: 'text',
-      schema: z.string(),
-      columnType: { name: 'varchar', length: 255 } as ColumnType,
-    }),
+      schema,
+      columnType: {
+        name: 'varchar',
+        length: options.maxLength ?? 255,
+      } as ColumnType,
+    })
+  },
 
   /**
    * email - Email field type with validation
@@ -206,12 +216,13 @@ export const f = {
 
   /**
    * array - Array field type for storing lists
+   * Respects the transform function of the item type
    * @param itemType - The field type of array elements
    *
    * @example
    * ```typescript
    * f.array(f.text())  // Array of strings
-   * f.array(f.uuid())  // Array of UUIDs
+   * f.array(f.email()) // Array of emails (each lowercased)
    * ```
    */
   array: <T>(itemType: FieldType<T>): FieldType<T[]> =>
@@ -219,6 +230,11 @@ export const f = {
       type: 'array',
       schema: z.array(itemType.schema),
       columnType: { name: 'json' } as ColumnType,
+      transform: (value: unknown) => {
+        if (!Array.isArray(value)) return []
+        // Delegate transformation to the child type's transform
+        return value.map(item => itemType.transform(item))
+      },
     }),
 
   /**

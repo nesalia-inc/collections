@@ -1,11 +1,11 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
-import { type Success, ok, err, type Result, error, type ExtractError, type ErrorBuilder } from '@deessejs/core'
+import { type Success, ok, err, type Result, error, type ExtractError } from '@deessejs/core'
 import { z } from 'zod'
 
 // Error builders using @deessejs/core error system
-const InvalidPrecisionScaleError: ErrorBuilder<InvalidPrecisionScaleErrorArgs> = error({
+const InvalidPrecisionScaleError = error({
   name: 'InvalidPrecisionScale',
   schema: z.object({
     precision: z.number(),
@@ -13,25 +13,20 @@ const InvalidPrecisionScaleError: ErrorBuilder<InvalidPrecisionScaleErrorArgs> =
   }),
 })
 
-const InvalidLengthError: ErrorBuilder<InvalidLengthErrorArgs> = error({
+const InvalidLengthError = error({
   name: 'InvalidLength',
   schema: z.object({
     length: z.number(),
   }),
 })
 
-const InvalidEnumValuesError: ErrorBuilder<InvalidEnumValuesErrorArgs> = error({
+const InvalidEnumValuesError = error({
   name: 'InvalidEnumValues',
   schema: z.object({
     values: z.array(z.string()),
     reason: z.enum(['empty', 'duplicates']),
   }),
 })
-
-// Error argument types (exported for consumers)
-export type InvalidPrecisionScaleErrorArgs = { precision: number; scale: number }
-export type InvalidLengthErrorArgs = { length: number }
-export type InvalidEnumValuesErrorArgs = { values: string[]; reason: 'empty' | 'duplicates' }
 
 // ColumnTypeError union - all possible errors from column type functions
 export type ColumnTypeError =

@@ -11,9 +11,7 @@ permissions:
 
 jobs:
   review:
-    if: |
-      contains(github.event.comment.body, '@martyy-code') ||
-      contains(github.event.comment.body, '@marty-code')
+    if: contains(github.event.comment.body, '@martyy-code review')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

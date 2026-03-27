@@ -47,7 +47,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@deessejs/core": "^0.5.0",
+    "@deessejs/core": "^0.5.3",
     "dotenv": "^16.4.0",
     "drizzle-kit": "^0.31.0",
     "drizzle-orm": "^0.45.0",

@@ -82,14 +82,14 @@ export const integer = (): Success<ColumnType> => ok({ name: 'integer' })
 
 export const numeric = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (!isValidPrecisionScale(precision, scale)) {
-    return err(InvalidPrecisionScaleError({ precision, scale }).error)
+    return err(InvalidPrecisionScaleError({ precision, scale }))
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
 export const decimal = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (!isValidPrecisionScale(precision, scale)) {
-    return err(InvalidPrecisionScaleError({ precision, scale }).error)
+    return err(InvalidPrecisionScaleError({ precision, scale }))
   }
   return ok({ name: 'decimal', precision, scale })
 }
@@ -101,14 +101,14 @@ export const text = (): Success<ColumnType> => ok({ name: 'text' })
 
 export const varchar = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (!isValidLength(length)) {
-    return err(InvalidLengthError({ length }).error)
+    return err(InvalidLengthError({ length }))
   }
   return ok({ name: 'varchar', length })
 }
 
 export const char = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (!isValidLength(length)) {
-    return err(InvalidLengthError({ length }).error)
+    return err(InvalidLengthError({ length }))
   }
   return ok({ name: 'char', length })
 }
@@ -130,10 +130,10 @@ export const uuid = (): Success<ColumnType> => ok({ name: 'uuid' })
 
 export const enum_ = (values: string[]): Result<ColumnType, ExtractError<typeof InvalidEnumValuesError>> => {
   if (!isNonEmptyArray(values)) {
-    return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
+    return err(InvalidEnumValuesError({ values, reason: 'empty' }))
   }
   if (!hasNoDuplicates(values)) {
-    return err(InvalidEnumValuesError({ values, reason: 'duplicates' }).error)
+    return err(InvalidEnumValuesError({ values, reason: 'duplicates' }))
   }
   return ok({ name: 'enum', values })
 }

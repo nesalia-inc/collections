@@ -1,10 +1,10 @@
 // Character column types
 
 import { type Success, ok, err, type Result } from '@deessejs/core'
-import { ColumnType } from './types.js'
+import { ColumnType } from './types'
 import { ExtractError } from '@deessejs/core'
-import { InvalidLengthError } from './errors.js'
-import { isValidLength } from './validation.js'
+import { InvalidLengthError } from './errors'
+import { isValidLength } from './validation'
 
 // No-validation functions
 export const text = (): Success<ColumnType> => ok({ name: 'text' })

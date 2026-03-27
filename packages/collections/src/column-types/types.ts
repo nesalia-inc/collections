@@ -1,7 +1,7 @@
 // Column type definitions and error types
 
 import { type ExtractError } from '@deessejs/core'
-import { InvalidPrecisionScaleError, InvalidLengthError, InvalidEnumValuesError } from './errors.js'
+import { InvalidPrecisionScaleError, InvalidLengthError, InvalidEnumValuesError } from './errors'
 
 // ColumnTypeError union - all possible errors from column type functions
 export type ColumnTypeError =

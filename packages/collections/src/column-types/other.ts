@@ -1,10 +1,10 @@
 // Other column types
 
 import { type Success, ok, err, type Result } from '@deessejs/core'
-import { ColumnType } from './types.js'
+import { ColumnType } from './types'
 import { ExtractError } from '@deessejs/core'
-import { InvalidEnumValuesError } from './errors.js'
-import { isNonEmptyArray, hasNoDuplicates } from './validation.js'
+import { InvalidEnumValuesError } from './errors'
+import { isNonEmptyArray, hasNoDuplicates } from './validation'
 
 export const uuid = (): Success<ColumnType> => ok({ name: 'uuid' })
 export const bool = (): Success<ColumnType> => ok({ name: 'boolean' })

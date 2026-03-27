@@ -1,10 +1,10 @@
 // Numeric column types
 
 import { type Success, ok, type Result, err } from '@deessejs/core'
-import { ColumnType } from './types.js'
+import { ColumnType } from './types'
 import { ExtractError } from '@deessejs/core'
-import { InvalidPrecisionScaleError } from './errors.js'
-import { isValidPrecisionScale } from './validation.js'
+import { InvalidPrecisionScaleError } from './errors'
+import { isValidPrecisionScale } from './validation'
 
 // No-validation functions
 export const serial = (): Success<ColumnType> => ok({ name: 'serial' })

@@ -21,28 +21,41 @@ import type { Field, FieldOptions } from './types'
  *     status: field({
  *       fieldType: f.select(['active', 'inactive']),
  *       defaultValue: 'active'
+ *     }),
+ *     createdAt: field({
+ *       fieldType: f.timestamp(),
+ *       defaultFactory: () => new Date()
  *     })
  *   }
  * })
  * ```
  */
 export function field<T>(options: FieldOptions<T>): Field<T> {
-  const { fieldType, required = false, defaultValue, unique = false, indexed = false } = options
+  const { fieldType, required = false, defaultValue, defaultFactory, unique = false, indexed = false } = options
 
-  // Normalize defaultValue: static values become getter functions
-  // This ensures a consistent interface (() => T) for the internal engine
-  // Note: When typeof defaultValue === 'function', we trust the caller provides () => T
-  // This is a deliberate type coercion since FieldOptions allows both T and () => T
-  const normalizedDefault = defaultValue === undefined
-    ? undefined
-    : typeof defaultValue === 'function'
-      ? (defaultValue as () => T)
-      : () => defaultValue
+  // Runtime validation: ensure defaultValue matches the fieldType schema
+  if (defaultValue !== undefined) {
+    const validation = fieldType.schema.safeParse(defaultValue)
+    if (!validation.success) {
+      throw new Error(
+        `Invalid defaultValue for field type '${fieldType.type}': ${validation.error.message}`
+      )
+    }
+  }
+
+  // Build lazy getter: prefer factory if provided, otherwise wrap static value
+  let lazyDefault: (() => T) | undefined = undefined
+
+  if (defaultFactory !== undefined) {
+    lazyDefault = defaultFactory
+  } else if (defaultValue !== undefined) {
+    lazyDefault = () => defaultValue
+  }
 
   return Object.freeze({
     fieldType,
     required,
-    defaultValue: normalizedDefault,
+    defaultValue: lazyDefault,
     unique,
     indexed,
   })

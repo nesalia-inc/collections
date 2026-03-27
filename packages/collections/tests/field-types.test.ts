@@ -270,10 +270,10 @@ describe('field', () => {
     expect(statusField.defaultValue!()).toBe('active')
   })
 
-  it('creates a field with a function default value', () => {
+  it('creates a field with a defaultFactory', () => {
     const timestampField = field({
       fieldType: f.timestamp(),
-      defaultValue: () => new Date(),
+      defaultFactory: () => new Date(),
     })
 
     expect(timestampField.defaultValue).toBeDefined()

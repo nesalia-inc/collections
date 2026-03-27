@@ -50,8 +50,11 @@ export interface FieldOptions<T> {
   /** Whether the field is required (default: false) */
   readonly required?: boolean
 
-  /** Default value (static or function) */
-  readonly defaultValue?: T | (() => T)
+  /** Static default value */
+  readonly defaultValue?: T
+
+  /** Factory function for dynamic default values */
+  readonly defaultFactory?: () => T
 
   /** Unique constraint */
   readonly unique?: boolean

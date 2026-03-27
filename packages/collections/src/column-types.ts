@@ -1,11 +1,11 @@
 // Column Types
 // Low-level functions that return column type objects used by database providers.
 
-import { type Success, ok, err, type Result, type Error, error } from '@deessejs/core'
+import { type Success, ok, err, type Result, error, type ExtractError, type ErrorBuilder } from '@deessejs/core'
 import { z } from 'zod'
 
 // Error builders using @deessejs/core error system
-const InvalidPrecisionScaleError = error({
+const InvalidPrecisionScaleError: ErrorBuilder<InvalidPrecisionScaleErrorArgs> = error({
   name: 'InvalidPrecisionScale',
   schema: z.object({
     precision: z.number(),
@@ -13,14 +13,14 @@ const InvalidPrecisionScaleError = error({
   }),
 })
 
-const InvalidLengthError = error({
+const InvalidLengthError: ErrorBuilder<InvalidLengthErrorArgs> = error({
   name: 'InvalidLength',
   schema: z.object({
     length: z.number(),
   }),
 })
 
-const InvalidEnumValuesError = error({
+const InvalidEnumValuesError: ErrorBuilder<InvalidEnumValuesErrorArgs> = error({
   name: 'InvalidEnumValues',
   schema: z.object({
     values: z.array(z.string()),
@@ -35,9 +35,9 @@ export type InvalidEnumValuesErrorArgs = { values: string[]; reason: 'empty' | '
 
 // ColumnTypeError union - all possible errors from column type functions
 export type ColumnTypeError =
-  | Error<InvalidPrecisionScaleErrorArgs>
-  | Error<InvalidLengthErrorArgs>
-  | Error<InvalidEnumValuesErrorArgs>
+  | ExtractError<typeof InvalidPrecisionScaleError>
+  | ExtractError<typeof InvalidLengthError>
+  | ExtractError<typeof InvalidEnumValuesError>
 
 // Type guard to check if error is InvalidPrecisionScale
 export const isInvalidPrecisionScaleError = (e: ColumnTypeError): boolean =>
@@ -85,14 +85,14 @@ export type ColumnType =
 export const serial = (): Success<ColumnType> => ok({ name: 'serial' })
 export const integer = (): Success<ColumnType> => ok({ name: 'integer' })
 
-export const numeric = (precision: number, scale: number): Result<ColumnType, Error<InvalidPrecisionScaleErrorArgs>> => {
+export const numeric = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (!isValidPrecisionScale(precision, scale)) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
   return ok({ name: 'numeric', precision, scale })
 }
 
-export const decimal = (precision: number, scale: number): Result<ColumnType, Error<InvalidPrecisionScaleErrorArgs>> => {
+export const decimal = (precision: number, scale: number): Result<ColumnType, ExtractError<typeof InvalidPrecisionScaleError>> => {
   if (!isValidPrecisionScale(precision, scale)) {
     return err(InvalidPrecisionScaleError({ precision, scale }).error)
   }
@@ -104,14 +104,14 @@ export const real = (): Success<ColumnType> => ok({ name: 'real' })
 // Character types
 export const text = (): Success<ColumnType> => ok({ name: 'text' })
 
-export const varchar = (length: number): Result<ColumnType, Error<InvalidLengthErrorArgs>> => {
+export const varchar = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (!isValidLength(length)) {
     return err(InvalidLengthError({ length }).error)
   }
   return ok({ name: 'varchar', length })
 }
 
-export const char = (length: number): Result<ColumnType, Error<InvalidLengthErrorArgs>> => {
+export const char = (length: number): Result<ColumnType, ExtractError<typeof InvalidLengthError>> => {
   if (!isValidLength(length)) {
     return err(InvalidLengthError({ length }).error)
   }
@@ -133,7 +133,7 @@ export const jsonb = (): Success<ColumnType> => ok({ name: 'jsonb' })
 // Other types
 export const uuid = (): Success<ColumnType> => ok({ name: 'uuid' })
 
-export const enum_ = (values: string[]): Result<ColumnType, Error<InvalidEnumValuesErrorArgs>> => {
+export const enum_ = (values: string[]): Result<ColumnType, ExtractError<typeof InvalidEnumValuesError>> => {
   if (!isNonEmptyArray(values)) {
     return err(InvalidEnumValuesError({ values, reason: 'empty' }).error)
   }

@@ -18,6 +18,9 @@ import {
   enum_,
   type ColumnType,
   type ColumnTypeError,
+  isInvalidPrecisionScaleError,
+  isInvalidLengthError,
+  isInvalidEnumValuesError,
 } from '../src/column-types'
 import { isError } from '@deessejs/core'
 
@@ -204,6 +207,44 @@ describe('column-types', () => {
       expect(types[1].name).toBe('integer')
       expect(types[4].name).toBe('varchar')
       expect(types[7].name).toBe('json')
+    })
+  })
+
+  describe('type guards', () => {
+    it('isInvalidPrecisionScaleError returns true for InvalidPrecisionScale error', () => {
+      const result = numeric(0, 2)
+      if (result.ok) return
+      expect(isInvalidPrecisionScaleError(result.error)).toBe(true)
+    })
+
+    it('isInvalidPrecisionScaleError returns false for other errors', () => {
+      const result = varchar(0)
+      if (result.ok) return
+      expect(isInvalidPrecisionScaleError(result.error)).toBe(false)
+    })
+
+    it('isInvalidLengthError returns true for InvalidLength error', () => {
+      const result = varchar(0)
+      if (result.ok) return
+      expect(isInvalidLengthError(result.error)).toBe(true)
+    })
+
+    it('isInvalidLengthError returns false for other errors', () => {
+      const result = numeric(0, 2)
+      if (result.ok) return
+      expect(isInvalidLengthError(result.error)).toBe(false)
+    })
+
+    it('isInvalidEnumValuesError returns true for InvalidEnumValues error', () => {
+      const result = enum_(['a', 'a'])
+      if (result.ok) return
+      expect(isInvalidEnumValuesError(result.error)).toBe(true)
+    })
+
+    it('isInvalidEnumValuesError returns false for other errors', () => {
+      const result = numeric(0, 2)
+      if (result.ok) return
+      expect(isInvalidEnumValuesError(result.error)).toBe(false)
     })
   })
 })

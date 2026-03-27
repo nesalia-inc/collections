@@ -2,12 +2,14 @@
 
 import { z } from 'zod'
 import { fieldType } from './fieldType'
-import type { FieldType, TextFieldOptions } from './types'
-
+import type { FieldType, TextFieldOptions, NumberFieldOptions } from './types'
+import { safeTransformArray } from './transform'
 import {
-  enum_ as columnEnum,
-  type ColumnType,
-} from '../column-types'
+  varchar as createVarchar,
+  simpleColumn as createSimpleColumn,
+  decimal as createDecimalColumn,
+  enumColumn as createEnumColumn,
+} from './columnTypeHelpers'
 
 /**
  * f - Predefined field types factory
@@ -27,21 +29,32 @@ import {
 export const f = {
   /**
    * text - Text/string field type
-   * @param options - Optional configuration (minLength, maxLength, pattern)
+   * @param options - Optional configuration (minLength, maxLength, pattern, extend)
    */
   text: (options: TextFieldOptions = {}): FieldType<string> => {
-    let schema = z.string()
-    if (options.minLength !== undefined) schema = schema.min(options.minLength)
-    if (options.maxLength !== undefined) schema = schema.max(options.maxLength)
-    if (options.pattern !== undefined) schema = schema.regex(new RegExp(options.pattern))
+    let schema: z.ZodType<string> = options.coerce ? z.coerce.string() : z.string()
+
+    if (options.minLength !== undefined) {
+      (schema as z.ZodString).min(options.minLength)
+    }
+    if (options.maxLength !== undefined) {
+      (schema as z.ZodString).max(options.maxLength)
+    }
+    if (options.pattern !== undefined) {
+      try {
+        (schema as z.ZodString).regex(new RegExp(options.pattern))
+      } catch {
+        throw new Error(`Invalid regex pattern provided to f.text(): '${options.pattern}'`)
+      }
+    }
+    if (options.extend) {
+      schema = options.extend(schema as z.ZodString) as z.ZodType<string>
+    }
 
     return fieldType({
       type: 'text',
       schema,
-      columnType: {
-        name: 'varchar',
-        length: options.maxLength ?? 255,
-      } as ColumnType,
+      columnType: createVarchar(options.maxLength ?? 255),
     })
   },
 
@@ -53,7 +66,7 @@ export const f = {
     fieldType({
       type: 'email',
       schema: z.string().email(),
-      columnType: { name: 'varchar', length: 255 } as ColumnType,
+      columnType: createVarchar(255),
       transform: (value: unknown) => {
         if (typeof value === 'string') {
           return value.toLowerCase().trim()
@@ -70,7 +83,7 @@ export const f = {
     fieldType({
       type: 'url',
       schema: z.string().url(),
-      columnType: { name: 'varchar', length: 500 } as ColumnType,
+      columnType: createVarchar(500),
       transform: (value: unknown) => {
         if (typeof value === 'string') {
           return value.trim()
@@ -81,14 +94,27 @@ export const f = {
 
   /**
    * number - Number field type
-   * Uses integer as column type
+   * @param options - Optional configuration (min, max, extend, coerce)
    */
-  number: (): FieldType<number> =>
-    fieldType({
+  number: (options: NumberFieldOptions = {}): FieldType<number> => {
+    let schema: z.ZodType<number> = options.coerce ? z.coerce.number() : z.number()
+
+    if (options.min !== undefined) {
+      (schema as z.ZodNumber).min(options.min)
+    }
+    if (options.max !== undefined) {
+      (schema as z.ZodNumber).max(options.max)
+    }
+    if (options.extend) {
+      schema = options.extend(schema as z.ZodNumber) as z.ZodType<number>
+    }
+
+    return fieldType({
       type: 'number',
-      schema: z.number(),
-      columnType: { name: 'integer' } as ColumnType,
-    }),
+      schema,
+      columnType: createSimpleColumn('integer'),
+    })
+  },
 
   /**
    * decimal - Decimal number field type with precision
@@ -99,11 +125,7 @@ export const f = {
     fieldType({
       type: 'decimal',
       schema: z.number(),
-      columnType: {
-        name: 'decimal' as const,
-        precision,
-        scale,
-      },
+      columnType: createDecimalColumn(precision, scale),
     }),
 
   /**
@@ -113,7 +135,7 @@ export const f = {
     fieldType({
       type: 'boolean',
       schema: z.boolean(),
-      columnType: { name: 'boolean' } as ColumnType,
+      columnType: createSimpleColumn('boolean'),
     }),
 
   /**
@@ -123,7 +145,7 @@ export const f = {
     fieldType({
       type: 'date',
       schema: z.date(),
-      columnType: { name: 'date' } as ColumnType,
+      columnType: createSimpleColumn('date'),
     }),
 
   /**
@@ -133,7 +155,7 @@ export const f = {
     fieldType({
       type: 'timestamp',
       schema: z.date(),
-      columnType: { name: 'timestamp' } as ColumnType,
+      columnType: createSimpleColumn('timestamp'),
     }),
 
   /**
@@ -143,7 +165,7 @@ export const f = {
     fieldType({
       type: 'timestamptz',
       schema: z.date(),
-      columnType: { name: 'timestamptz' } as ColumnType,
+      columnType: createSimpleColumn('timestamptz'),
     }),
 
   /**
@@ -154,7 +176,7 @@ export const f = {
     fieldType({
       type: 'json',
       schema: z.any(),
-      columnType: { name: 'json' } as ColumnType,
+      columnType: createSimpleColumn('json'),
     }),
 
   /**
@@ -164,7 +186,7 @@ export const f = {
     fieldType({
       type: 'jsonb',
       schema: z.any(),
-      columnType: { name: 'jsonb' } as ColumnType,
+      columnType: createSimpleColumn('jsonb'),
     }),
 
   /**
@@ -175,7 +197,7 @@ export const f = {
     fieldType({
       type: 'uuid',
       schema: z.string().uuid(),
-      columnType: { name: 'uuid' } as ColumnType,
+      columnType: createSimpleColumn('uuid'),
     }),
 
   /**
@@ -187,16 +209,12 @@ export const f = {
    * f.select(['draft', 'published', 'archived'])
    * ```
    */
-  select: <Values extends [string, ...string[]]>(values: Values): FieldType<Values[number]> => {
-    const columnResult = columnEnum([...values])
-    const columnType = columnResult.ok ? columnResult.value : { name: 'enum' as const, values: [...values] }
-
-    return fieldType({
+  select: <Values extends [string, ...string[]]>(values: Values): FieldType<Values[number]> =>
+    fieldType({
       type: 'select',
       schema: z.enum(values),
-      columnType,
-    })
-  },
+      columnType: createEnumColumn([...values]),
+    }),
 
   /**
    * relation - Relation field type for linking collections
@@ -211,7 +229,7 @@ export const f = {
     fieldType({
       type: 'relation',
       schema: z.string(),
-      columnType: { name: 'uuid' } as ColumnType,
+      columnType: createSimpleColumn('uuid'),
     }),
 
   /**
@@ -229,12 +247,9 @@ export const f = {
     fieldType({
       type: 'array',
       schema: z.array(itemType.schema),
-      columnType: { name: 'json' } as ColumnType,
-      transform: (value: unknown) => {
-        if (!Array.isArray(value)) return []
-        // Delegate transformation to the child type's transform
-        return value.map(item => itemType.transform(item))
-      },
+      columnType: createSimpleColumn('json'),
+      transform: (value: unknown) =>
+        safeTransformArray(itemType.type, itemType.transform, value),
     }),
 
   /**
@@ -245,7 +260,7 @@ export const f = {
     fieldType({
       type: 'richtext',
       schema: z.string(),
-      columnType: { name: 'text' } as ColumnType,
+      columnType: createSimpleColumn('text'),
     }),
 
   /**
@@ -256,6 +271,6 @@ export const f = {
     fieldType({
       type: 'file',
       schema: z.string().optional(),
-      columnType: { name: 'varchar', length: 500 } as ColumnType,
+      columnType: createVarchar(500),
     }),
 } as const

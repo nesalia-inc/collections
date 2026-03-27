@@ -91,6 +91,10 @@ export interface TextFieldOptions {
   readonly minLength?: number
   readonly maxLength?: number
   readonly pattern?: string
+  /** Escape hatch to extend the Zod schema with custom validations */
+  readonly extend?: (schema: z.ZodString | z.ZodCoercedString) => z.ZodType<string>
+  /** Enable coercion from form data (string to string) */
+  readonly coerce?: boolean
 }
 
 /**
@@ -101,6 +105,10 @@ export interface NumberFieldOptions {
   readonly max?: number
   readonly precision?: number
   readonly scale?: number
+  /** Escape hatch to extend the Zod schema with custom validations */
+  readonly extend?: (schema: z.ZodNumber | z.ZodCoercedNumber) => z.ZodType<number>
+  /** Enable coercion from form data (string to number) */
+  readonly coerce?: boolean
 }
 
 /**

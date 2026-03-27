@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { fieldType } from './fieldType'
-import type { FieldType, RelationFieldOptions } from './types'
+import type { FieldType } from './types'
 
 import {
   enum_ as columnEnum,
@@ -190,15 +190,14 @@ export const f = {
 
   /**
    * relation - Relation field type for linking collections
-   * @param _options - Relation configuration
+   * Stores a UUID reference to another collection
    *
    * @example
    * ```typescript
-   * f.relation({ to: 'users' })
-   * f.relation({ to: 'posts', many: true })
+   * f.relation()
    * ```
    */
-  relation: (_options: RelationFieldOptions): FieldType<string> =>
+  relation: (): FieldType<string> =>
     fieldType({
       type: 'relation',
       schema: z.string(),
@@ -244,8 +243,3 @@ export const f = {
       columnType: { name: 'varchar', length: 500 } as ColumnType,
     }),
 } as const
-
-/**
- * Field type exports
- */
-export type { FieldType, RelationFieldOptions }

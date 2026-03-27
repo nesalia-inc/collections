@@ -194,7 +194,7 @@ describe('f - predefined field types', () => {
 
   describe('relation', () => {
     it('creates a relation field type', () => {
-      const relationField = f.relation({ to: 'users' })
+      const relationField = f.relation()
 
       expect(relationField.type).toBe('relation')
       expect(relationField.columnType).toEqual({ name: 'uuid' })

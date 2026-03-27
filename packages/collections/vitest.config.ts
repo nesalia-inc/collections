@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitest/config'
+import path from 'path'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@deessejs/core': path.resolve(__dirname, '../../node_modules/@deessejs/core')
+    }
+  },
   test: {
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/integration/**'],

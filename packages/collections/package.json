@@ -1,6 +1,6 @@
 {
   "name": "@deessejs/collections",
-  "version": "0.4.3",
+  "version": "0.2.1",
   "description": "High-level abstraction layer built on top of Drizzle ORM",
   "readme": "README.md",
   "files": [
@@ -39,7 +39,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src/",
+    "lint": "eslint src/ --config ../../eslint.config.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -47,11 +47,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@deessejs/core": "^0.5.3",
     "dotenv": "^16.4.0",
     "drizzle-kit": "^0.31.0",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.11.0",
-    "zod": "^3.23.8"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@deessejs/type-testing": "^0.1.5",
@@ -59,16 +60,17 @@
     "@types/node": "^20.14.12",
     "@types/pg": "^8.11.0",
     "@types/react": "^18.3.0",
-    "next": "^14.2.0",
-    "react": "^18.3.0",
     "eslint": "^8.57.0",
     "neon-serverless": "^0.5.3",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
     "tsup": "^8.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   },
   "peerDependencies": {
+    "@deessejs/core": ">=0.1.0",
     "drizzle-orm": ">=0.31.0",
     "next": ">=14",
     "react": ">=18",

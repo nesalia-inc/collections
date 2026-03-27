@@ -1,36 +1,42 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
+
     "allow": [
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(gh issue edit:*)",
-      "Bash(gh issue view:*)",
-      "Bash(gh label list:*)",
-      "Bash(gh label create:*)",
-      "Bash(gh issue list:*)",
-      "Bash(gh issue create --title \"Add soft delete plugin\" --body \"\")",
-      "Bash(gh issue create:*)",
-      "Bash(pnpm test)",
-      "Bash(gh pr view:*)",
-      "Bash(gh pr edit:*)",
-      "Bash(pnpm typecheck)",
-      "Bash(pnpm test:coverage)",
-      "WebSearch",
-      "WebFetch(domain:payloadcms.com)",
-      "Bash(gh search code:*)",
-      "Bash(pnpm:*)",
-      "Bash(npm test:*)",
-      "Bash(npx vitest run tests/hooks.test.ts)",
-      "Bash(npx vitest run:*)",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_gSR40rxYoeac@ep-frosty-violet-aiw2vnhq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx vitest run:*)",
-      "Bash(git checkout:*)",
-      "Bash(npm view:*)",
-      "Bash(gh pr create:*)",
-      "Bash(gh issue comment:*)",
-      "Bash(node -e:*)",
-      "Bash(gh run list:*)",
-      "Bash(npm run typecheck)"
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Bash(*)",
+      "Read(//tmp/**)"
+    ],
+
+    "deny": [
+      "Write(//tmp/**)",
+      "Edit(//tmp/**)",
+      "Bash(rm */tmp/*)",
+
+      "Read(~/**)",
+      "Write(~/**)",
+      "Edit(~/**)",
+      "!Read(./**)",
+      "!Write(./**)",
+      "!Edit(./**)",
+
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(killall *)",
+      "Bash(xargs kill*)",
+      "Bash(taskkill*)",
+
+      "Bash(git rebase *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+
+      "Bash(sudo *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(rm -rf / *)",
+      "Bash(alias *)"
     ]
   }
 }

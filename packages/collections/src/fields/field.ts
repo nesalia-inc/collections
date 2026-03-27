@@ -29,14 +29,20 @@ import type { Field, FieldOptions } from './types'
 export function field<T>(options: FieldOptions<T>): Field<T> {
   const { fieldType, required = false, defaultValue, unique = false, indexed = false } = options
 
+  // Normalize defaultValue: static values become getter functions
+  // This ensures a consistent interface (() => T) for the internal engine
+  // Note: When typeof defaultValue === 'function', we trust the caller provides () => T
+  // This is a deliberate type coercion since FieldOptions allows both T and () => T
+  const normalizedDefault = defaultValue === undefined
+    ? undefined
+    : typeof defaultValue === 'function'
+      ? (defaultValue as () => T)
+      : () => defaultValue
+
   return Object.freeze({
     fieldType,
     required,
-    defaultValue: typeof defaultValue === 'function'
-      ? (defaultValue as () => T)
-      : defaultValue !== undefined
-        ? (() => defaultValue as T)
-        : undefined,
+    defaultValue: normalizedDefault,
     unique,
     indexed,
   })
@@ -46,13 +52,18 @@ export function field<T>(options: FieldOptions<T>): Field<T> {
  * isField - Type guard to check if a value is a Field
  */
 export function isField(value: unknown): value is Field<unknown> {
-  if (value === null || typeof value !== 'object') return false
-  const f = value as Record<string, unknown>
+  if (!value || typeof value !== 'object') return false
+
+  const candidate = value as Record<string, unknown>
+
   return (
-    'fieldType' in f &&
-    typeof f.fieldType === 'object' &&
-    f.fieldType !== null &&
-    'type' in f.fieldType &&
-    typeof f.type === 'string'
+    'fieldType' in candidate &&
+    typeof candidate.fieldType === 'object' &&
+    candidate.fieldType !== null &&
+    'type' in candidate.fieldType &&
+    typeof (candidate.fieldType as Record<string, unknown>).type === 'string' &&
+    'required' in candidate &&
+    'unique' in candidate &&
+    'indexed' in candidate
   )
 }

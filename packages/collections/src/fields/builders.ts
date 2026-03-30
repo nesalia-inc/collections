@@ -157,19 +157,25 @@ export const timestampTz = fieldType({
 
 /**
  * json - JSON field type builder
+ *
+ * Accepts JSON objects and arrays.
+ * Note: Top-level primitives (strings, numbers, booleans, null) are not
+ * valid JSON objects - use z.record(z.string(), z.unknown()) for objects only.
  */
 export const json = fieldType({
   type: 'json',
-  schema: z.any(),
+  schema: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]),
   buildColumnType: () => simpleColumn('json'),
 })
 
 /**
  * jsonb - JSONB field type builder
+ *
+ * Accepts JSON objects and arrays (binary JSON storage).
  */
 export const jsonb = fieldType({
   type: 'jsonb',
-  schema: z.any(),
+  schema: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]),
   buildColumnType: () => simpleColumn('jsonb'),
 })
 
@@ -194,10 +200,24 @@ export const select = <Values extends [string, ...string[]]>(values: Values) =>
 
 /**
  * relation - Relation field type builder
+ *
+ * Creates a UUID field that references another collection's primary key.
+ * The actual relation semantics (belongs-to, has-many, many-to-many) are
+ * determined at the collection level, not at the field level.
+ *
+ * @example
+ * ```typescript
+ * const posts = collection({
+ *   slug: 'posts',
+ *   fields: {
+ *     author: field({ fieldType: f.relation() })
+ *   }
+ * })
+ * ```
  */
 export const relation = fieldType({
   type: 'relation',
-  schema: z.string(),
+  schema: z.string().uuid(),
   buildColumnType: () => simpleColumn('uuid'),
 })
 

@@ -38,4 +38,4 @@ jobs:
         with:
           files: ./coverage/coverage-final.json
           flags: unittests
-          fail_ci_if_error: false
+          fail_ci_if_error: true

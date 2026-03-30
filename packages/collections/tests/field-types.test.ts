@@ -7,8 +7,8 @@ describe('fieldType', () => {
     const textFieldType = fieldType({
       type: 'text',
       schema: z.string(),
-      columnType: { name: 'varchar', length: 255 },
-    })
+      buildColumnType: () => ({ name: 'varchar', length: 255 }),
+    })()
 
     expect(textFieldType.type).toBe('text')
     expect(textFieldType.columnType).toEqual({ name: 'varchar', length: 255 })
@@ -19,9 +19,9 @@ describe('fieldType', () => {
     const emailFieldType = fieldType({
       type: 'email',
       schema: z.string().email(),
-      columnType: { name: 'varchar', length: 255 },
+      buildColumnType: () => ({ name: 'varchar', length: 255 }),
       transform: (value: unknown) => String(value).toLowerCase().trim(),
-    })
+    })()
 
     expect(emailFieldType.transform).toBeDefined()
     expect(emailFieldType.transform!('  TEST@EXAMPLE.COM  ')).toBe('test@example.com')

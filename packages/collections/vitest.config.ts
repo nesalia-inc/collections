@@ -24,6 +24,7 @@ export default defineConfig({
         'src/operations/collection-operations.ts',
         'src/schema.ts',
         'src/fields/f.ts',
+        'src/fields/types.ts',
         'src/next/**',
         'src/config.ts'
       ],

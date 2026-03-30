@@ -11,27 +11,10 @@ export const varchar = (length: number): ColumnType => ({
 })
 
 /**
- * Creates a char column type
- */
-export const char = (length: number): ColumnType => ({
-  name: 'char',
-  length,
-})
-
-/**
  * Creates a decimal column type
  */
 export const decimal = (precision: number, scale: number): ColumnType => ({
   name: 'decimal',
-  precision,
-  scale,
-})
-
-/**
- * Creates a numeric column type
- */
-export const numeric = (precision: number, scale: number): ColumnType => ({
-  name: 'numeric',
   precision,
   scale,
 })

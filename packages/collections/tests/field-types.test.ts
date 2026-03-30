@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { field, fieldType, f } from '../src/fields'
+import { field, fieldType, f, safeTransform, safeTransformArray, TransformError, isField } from '../src/fields'
 import { z } from 'zod'
 
 describe('fieldType', () => {
@@ -43,6 +43,30 @@ describe('f - predefined field types', () => {
       const result = textField.schema.safeParse('hello')
 
       expect(result.success).toBe(true)
+    })
+
+    it('applies minLength and maxLength constraints', () => {
+      const boundedField = f.text({ minLength: 3, maxLength: 10 })
+
+      expect(boundedField.schema.safeParse('hello').success).toBe(true)
+      expect(boundedField.schema.safeParse('hi').success).toBe(false)
+      expect(boundedField.schema.safeParse('this is too long').success).toBe(false)
+    })
+
+    it('applies pattern constraint', () => {
+      const patternedField = f.text({ pattern: '^[A-Z][a-z]+$' })
+
+      expect(patternedField.schema.safeParse('Hello').success).toBe(true)
+      expect(patternedField.schema.safeParse('hello').success).toBe(false)
+    })
+
+    it('applies extend option', () => {
+      const extendedField = f.text({
+        extend: (s) => s.email()
+      })
+
+      expect(extendedField.schema.safeParse('test@example.com').success).toBe(true)
+      expect(extendedField.schema.safeParse('not-an-email').success).toBe(false)
     })
   })
 
@@ -88,6 +112,23 @@ describe('f - predefined field types', () => {
       expect(numberField.columnType).toEqual({ name: 'integer' })
       expect(numberField.schema.safeParse(42).success).toBe(true)
       expect(numberField.schema.safeParse('not a number').success).toBe(false)
+    })
+
+    it('applies min and max constraints', () => {
+      const boundedField = f.number({ min: 0, max: 100 })
+
+      expect(boundedField.schema.safeParse(50).success).toBe(true)
+      expect(boundedField.schema.safeParse(-1).success).toBe(false)
+      expect(boundedField.schema.safeParse(101).success).toBe(false)
+    })
+
+    it('applies extend option', () => {
+      const extendedField = f.number({
+        extend: (s) => s.refine((v) => v > 0, { message: 'must be positive' })
+      })
+
+      expect(extendedField.schema.safeParse(5).success).toBe(true)
+      expect(extendedField.schema.safeParse(-5).success).toBe(false)
     })
   })
 
@@ -291,5 +332,128 @@ describe('field', () => {
 
     expect(Object.isFrozen(nameField)).toBe(true)
     expect(Object.isFrozen(nameField.fieldType)).toBe(true)
+  })
+
+  it('throws when defaultValue does not match fieldType schema', () => {
+    expect(() => {
+      field({
+        fieldType: f.number(),
+        defaultValue: 'not a number' as unknown as number,
+      })
+    }).toThrow()
+  })
+
+  it('throws with descriptive error message for invalid defaultValue', () => {
+    expect(() => {
+      field({
+        fieldType: f.number(),
+        defaultValue: 'not a number' as unknown as number,
+      })
+    }).toThrow(/Invalid defaultValue for field type 'number'/)
+  })
+})
+
+describe('safeTransform', () => {
+  it('returns transformed value on success', () => {
+    const result = safeTransform('text', (v) => String(v).toUpperCase(), 'hello')
+    expect(result).toBe('HELLO')
+  })
+
+  it('throws TransformError on transform failure', () => {
+    expect(() => {
+      safeTransform('text', () => {
+        throw new Error('transform failed')
+      }, 'value')
+    }).toThrow(TransformError)
+  })
+
+  it('TransformError contains fieldType, value, and cause', () => {
+    try {
+      safeTransform('email', () => {
+        throw new Error('invalid')
+      }, 'test')
+      expect.fail('should have thrown')
+    } catch (e) {
+      expect(e).toBeInstanceOf(TransformError)
+      const err = e as TransformError
+      expect(err.fieldType).toBe('email')
+      expect(err.value).toBe('test')
+      expect(err.cause).toBeInstanceOf(Error)
+    }
+  })
+
+  it('handles non-Error thrown values', () => {
+    try {
+      safeTransform('text', () => {
+        throw 'string error'
+      }, 'value')
+      expect.fail('should have thrown')
+    } catch (e) {
+      expect(e).toBeInstanceOf(TransformError)
+      const err = e as TransformError
+      expect(err.message).toContain('string error')
+    }
+  })
+})
+
+describe('safeTransformArray', () => {
+  it('returns empty array for non-array input', () => {
+    const result = safeTransformArray('text', (v) => String(v), null)
+    expect(result).toEqual([])
+  })
+
+  it('transforms each item in array', () => {
+    const result = safeTransformArray('number', (v) => Number(v) * 2, [1, 2, 3])
+    expect(result).toEqual([2, 4, 6])
+  })
+
+  it('throws TransformError when item transform fails', () => {
+    expect(() => {
+      safeTransformArray('text', () => {
+        throw new Error('item transform failed')
+      }, ['a', 'b', 'c'])
+    }).toThrow(TransformError)
+  })
+
+  it('handles non-Error thrown values in array', () => {
+    try {
+      safeTransformArray('text', () => {
+        throw 'string error'
+      }, ['a', 'b', 'c'])
+      expect.fail('should have thrown')
+    } catch (e) {
+      expect(e).toBeInstanceOf(TransformError)
+    }
+  })
+})
+
+describe('isField', () => {
+  it('returns true for valid Field object', () => {
+    const myField = field({ fieldType: f.text() })
+    expect(isField(myField)).toBe(true)
+  })
+
+  it('returns false for non-object values', () => {
+    expect(isField(null)).toBe(false)
+    expect(isField(undefined)).toBe(false)
+    expect(isField('string')).toBe(false)
+    expect(isField(123)).toBe(false)
+    expect(isField([])).toBe(false)
+  })
+
+  it('returns false for object missing required properties', () => {
+    expect(isField({ fieldType: {} })).toBe(false)
+    expect(isField({ fieldType: { type: 'text' } })).toBe(false)
+    expect(isField({ fieldType: {}, required: false })).toBe(false)
+  })
+
+  it('returns true for field-like object with all properties', () => {
+    const obj = {
+      fieldType: { type: 'text' },
+      required: false,
+      unique: false,
+      indexed: false,
+    }
+    expect(isField(obj)).toBe(true)
   })
 })

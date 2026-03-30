@@ -28,14 +28,14 @@ export const text = fieldType({
     let result: z.ZodType<string> = options.coerce ? z.coerce.string() : z.string()
 
     if (options.minLength !== undefined) {
-      (result as z.ZodString).min(options.minLength)
+      result = (result as z.ZodString).min(options.minLength)
     }
     if (options.maxLength !== undefined) {
-      (result as z.ZodString).max(options.maxLength)
+      result = (result as z.ZodString).max(options.maxLength)
     }
     if (options.pattern !== undefined) {
       try {
-        (result as z.ZodString).regex(new RegExp(options.pattern))
+        result = (result as z.ZodString).regex(new RegExp(options.pattern))
       } catch {
         throw new Error(`Invalid regex pattern provided to f.text(): '${options.pattern}'`)
       }
@@ -95,10 +95,10 @@ export const number = fieldType({
     let result: z.ZodType<number> = options.coerce ? z.coerce.number() : z.number()
 
     if (options.min !== undefined) {
-      (result as z.ZodNumber).min(options.min)
+      result = (result as z.ZodNumber).min(options.min)
     }
     if (options.max !== undefined) {
-      (result as z.ZodNumber).max(options.max)
+      result = (result as z.ZodNumber).max(options.max)
     }
     if (options.extend) {
       result = (options.extend as (s: z.ZodNumber) => z.ZodType<number>)(result as z.ZodNumber)

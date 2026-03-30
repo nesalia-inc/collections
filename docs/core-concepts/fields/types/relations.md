@@ -1,86 +1,85 @@
 # Relations
 
-Define relationships between collections.
+Define relationships between collections using `f.relation()`.
 
-## Type Safety
+## Basic Usage
 
-Relations use string-based slugs for flexibility, but type safety is achieved through code generation:
-
-```bash
-# Generate types from your collections
-pnpm collections generate
-```
-
-This generates a `.d.ts` file with collection types:
+`f.relation()` creates a UUID field that references another collection's primary key. The relation semantics (belongs-to, has-many, many-to-many) are determined at the **collection level**, not the field level.
 
 ```typescript
-// collections.d.ts (generated)
+import { collection, field, f } from '@deessejs/collections'
 
-// Union type of all collection slugs - used by f.relation()
-export type CollectionsSlugs = 'users' | 'posts' | 'tags' | ...
-
-// Collection types
-export type UsersCollection = { ... }
-export type PostsCollection = { ... }
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+    author: field({ fieldType: f.relation() })  // Creates author_id UUID column
+  }
+})
 ```
 
-Now `f.relation({ to: 'users' })` becomes type-safe:
+## How It Works
+
+The `f.relation()` field type:
+- Creates a `uuid` column in the database
+- Stores the target collection's primary key as a string
+- The **relation direction** is determined by which collection defines the field
 
 ```typescript
-// to: Accepts only valid collection slugs
-to: CollectionsSlugs
+// In posts collection - this is a "belongs to" relation
+author: field({ fieldType: f.relation() })
 
-// TypeScript errors if invalid slug
-field({ fieldType: f.relation({ to: 'invalid' }) })
-// Error: Type '"invalid"' is not assignable to type 'CollectionsSlugs'
+// The actual "has many" reverse lookup is handled by the collection system
+// based on which collection holds the foreign key
 ```
 
 ## Belongs To (Foreign Key Owner)
+
+When a field with `f.relation()` exists in a collection, that collection **owns the foreign key**:
 
 ```typescript
 const posts = collection({
   slug: 'posts',
   fields: {
     title: field({ fieldType: f.text() }),
-    author: field({
-      fieldType: f.relation({ to: 'users' })
-    })
+    // Physical: creates "author_id" column in posts table
+    author: field({ fieldType: f.relation() })
   }
 })
 ```
 
-Creates a foreign key column `author_id` in the `posts` table.
+## Has Many (Reverse Lookup)
 
-## Has Many (Virtual / Reverse Lookup)
+The reverse "has many" lookup is **virtual** — no column is created. The system automatically provides the reverse relation based on which collection owns the foreign key:
 
 ```typescript
 const users = collection({
   slug: 'users',
   fields: {
-    name: field({ fieldType: f.text() }),
-    posts: field({
-      fieldType: f.relation({ to: 'posts', many: true })
-    })
+    name: field({ fieldType: f.text() })
+    // Virtual: automatically provides reverse lookup to posts
+    // where posts.author references users.id
   }
 })
 ```
 
-Virtual relation - no column created. The system queries `posts` where `author_id` matches.
+Access the related records through the auto-generated relation methods:
+
+```typescript
+const user = await findFirst('users', { where: eq('id', userId) })
+const userPosts = await user.posts.findMany()
+```
 
 ## Many-to-Many (Junction Table)
+
+For many-to-many relationships, create a junction collection explicitly:
 
 ```typescript
 const posts = collection({
   slug: 'posts',
   fields: {
     title: field({ fieldType: f.text() }),
-    tags: field({
-      fieldType: f.relation({
-        to: 'tags',
-        many: true,
-        through: 'post_tags'
-      })
-    })
+    tags: field({ fieldType: f.relation() })
   }
 })
 
@@ -90,246 +89,107 @@ const tags = collection({
     name: field({ fieldType: f.text() })
   }
 })
-```
 
-The system automatically creates a junction table `post_tags` with columns `post_id` and `tag_id`. You do not need to create this collection manually.
-
-To add extra fields to the junction (e.g., `addedAt`), create the junction collection explicitly:
-
-```typescript
-// Create the junction collection manually
+// Junction collection
 const postTags = collection({
   slug: 'post_tags',
   fields: {
-    post: field({ fieldType: f.relation({ to: 'posts' }) }),
-    tag: field({ fieldType: f.relation({ to: 'tags' }) }),
-    addedAt: field({ fieldType: f.timestamp() })
+    post: field({ fieldType: f.relation() }),
+    tag: field({ fieldType: f.relation() })
   }
 })
+```
 
-// Reference it in the relation
+## Optional Relations
+
+Make a relation optional when the foreign key can be null:
+
+```typescript
 const posts = collection({
   slug: 'posts',
   fields: {
-    tags: field({
-      fieldType: f.relation({
-        to: 'tags',
-        many: true,
-        through: 'post_tags'
-      })
+    title: field({ fieldType: f.text() }),
+    // Optional: author can be null
+    author: field({
+      fieldType: f.relation(),
+      required: false
     })
   }
 })
 ```
 
-## One-to-One
+## Relation Field Options
 
-A record in table A is related to exactly one record in table B, and vice versa. Use when you want to split a large table or for organization/security.
+```typescript
+field({
+  fieldType: f.relation(),
+  required?: boolean,      // Whether the relation is required (default: true)
+  defaultValue?: string,  // Default UUID for new records
+  unique?: boolean,       // Unique constraint (for one-to-one)
+  indexed?: boolean       // Index for query performance
+})
+```
 
-One side is **physical** (holds the foreign key column) and one side is **virtual** (reverse lookup).
+## One-to-One Relations
+
+For one-to-one relationships, add a unique constraint:
 
 ```typescript
 const users = collection({
   slug: 'users',
   fields: {
     name: field({ fieldType: f.text() }),
-    // Physical: creates "profile_id" column in users table
     profile: field({
-      fieldType: f.relation({ to: 'profiles', one: true })
-    })
-  }
-})
-
-const profiles = collection({
-  slug: 'profiles',
-  fields: {
-    bio: field({ fieldType: f.text() }),
-    avatar: field({ fieldType: f.file() }),
-    // Virtual: reverse lookup, no column created
-    user: field({
-      fieldType: f.relation({ to: 'users', one: true })
+      fieldType: f.relation(),
+      unique: true  // Ensures one-to-one
     })
   }
 })
 ```
 
-Use `one: true` to explicitly mark a one-to-one relationship.
-
 ## Self-Referencing Relations
 
-A relation that points to the same collection (useful for hierarchies like categories, org charts):
+Create hierarchical data (categories, org charts):
 
 ```typescript
 const categories = collection({
   slug: 'categories',
   fields: {
     name: field({ fieldType: f.text() }),
-    // Category can have a parent category
     parent: field({
-      fieldType: f.relation({ to: 'categories' }).optional()
+      fieldType: f.relation(),
+      required: false  // Root categories have no parent
     })
   }
 })
 ```
 
-## Polymorphic Relations
+## Code Generation for Type Safety
 
-**Not supported.** Polymorphic relations (where a single field can point to multiple different tables) are not implemented.
+For full type safety on relation targets, use code generation:
 
-Instead, use explicit relations:
-
-```typescript
-// Instead of polymorphic (not supported)
-commentable_id: number     // Could be article, product, video
-commentable_type: string   // "articles" | "products" | "videos"
-
-// Use explicit relations
-const comments = collection({
-  slug: 'comments',
-  fields: {
-    article: field({ fieldType: f.relation({ to: 'articles' }).optional() }),
-    product: field({ fieldType: f.relation({ to: 'products' }).optional() }),
-    video: field({ fieldType: f.relation({ to: 'videos' }).optional() })
-  }
-})
+```bash
+pnpm collections generate
 ```
 
-This approach provides type safety and explicit referential integrity.
+This generates a `.d.ts` file with collection types. The relation field itself stores UUIDs as strings — the code generator provides the type safety for which collection is being referenced.
 
-## Relation Options
+## Field Type Reference
 
 ```typescript
+const relationField = f.relation()
+// Returns: FieldTypeBuilder<string>
+
+// With options
 field({
-  fieldType: f.relation({
-    // Required: target collection
-    to: 'users',
-
-    // Optional: many-to-many relationship
-    many?: boolean,
-
-    // Optional: junction table for many-to-many
-    through?: string,
-
-    // Optional: disambiguate when multiple relations exist
-    // Must be a key of the target collection's fields
-    on?: 'author' | 'validator',
-
-    // Optional: foreign key column name in database
-    fieldName?: 'author_id',
-
-    // Optional: referential integrity
-    onDelete?: 'cascade' | 'set null' | 'restrict',
-
-    // Optional: update behavior
-    onUpdate?: 'cascade' | 'restrict'
-  })
+  fieldType: f.relation(),
+  required: false,
+  defaultValue: () => generateUUID()
 })
 ```
 
-## Understanding the `on` Option
-
-The `on` option is a pointer to a field in the target collection that holds the foreign key:
-
-```typescript
-// posts collection has this field:
-author: field({ fieldType: f.relation({ to: 'users' }) })
-
-// users collection uses 'on' to reference that field:
-posts: field({
-  fieldType: f.relation({ to: 'posts', many: true, on: 'author' })
-})
-```
-
-This is equivalent to the SQL query:
-```sql
-SELECT * FROM posts WHERE author_id = [USER_ID];
-```
-
-The `on` value must be a valid field key from the target collection.
-
-## Virtual vs Physical Relations
-
-- **Belongs To** is **physical** - creates a foreign key column in the table
-- **Has Many** is **virtual** - just a view on the other table, no column created
-
-```typescript
-// Physical relation - creates "author_id" column
-author: field({ fieldType: f.relation({ to: 'users' }) })
-
-// Virtual relation - no column created
-posts: field({ fieldType: f.relation({ to: 'posts', many: true }) })
-```
-
-## Disambiguating Relations
-
-When a collection has multiple relations to the same target, use the `on` option:
-
-```typescript
-const posts = collection({
-  slug: 'posts',
-  fields: {
-    // First relation to users (as author)
-    author: field({
-      fieldType: f.relation({ to: 'users', on: 'author' })
-    }),
-
-    // Second relation to users (as validator)
-    validator: field({
-      fieldType: f.relation({ to: 'users', on: 'validator' })
-    })
-  }
-})
-
-const users = collection({
-  slug: 'users',
-  fields: {
-    name: field({ fieldType: f.text() }),
-    // Disambiguate which relation to use
-    authoredPosts: field({
-      fieldType: f.relation({ to: 'posts', many: true, on: 'author' })
-    }),
-    validatedPosts: field({
-      fieldType: f.relation({ to: 'posts', many: true, on: 'validator' })
-    })
-  }
-})
-```
-
-## Referential Integrity
-
-Control what happens when related records are deleted or updated:
-
-```typescript
-const posts = collection({
-  slug: 'posts',
-  fields: {
-    author: field({
-      fieldType: f.relation({
-        to: 'users',
-        onDelete: 'cascade',     // Delete posts when author is deleted
-        onUpdate: 'cascade'     // Update author_id when user ID changes
-      })
-    })
-  }
-})
-```
-
-| Option | Behavior |
-|--------|----------|
-| `cascade` | Automatically delete/update related records |
-| `set null` | Set foreign key to NULL (requires nullable/optional relation) |
-| `restrict` | Prevent deletion/update if related records exist |
-
-To use `set null`, the relation must be optional:
-
-```typescript
-const posts = collection({
-  slug: 'posts',
-  fields: {
-    author: field({
-      fieldType: f.relation({ to: 'users' }).optional(),
-      onDelete: 'set null'  // Sets author to NULL when user is deleted
-    })
-  }
-})
-```
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `'relation'` | Unique identifier |
+| `schema` | `z.string().uuid()` | Validates UUID format |
+| `columnType` | `uuid` | Database column type |

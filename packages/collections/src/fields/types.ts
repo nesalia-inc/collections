@@ -1,25 +1,7 @@
 // Field type definitions
 
 import type { ColumnType } from '../column-types'
-import type { z } from 'zod'
-
-/**
- * FieldTypeOptions - Configuration for creating a field type
- * @typeParam T - The TypeScript type of the field value
- */
-export interface FieldTypeOptions<T> {
-  /** Unique identifier for this field type */
-  readonly type: string
-
-  /** Zod schema for validation */
-  readonly schema: z.ZodType<T>
-
-  /** Column type for database mapping */
-  readonly columnType: ColumnType
-
-  /** Optional transformation function (e.g., toLowerCase for emails). Defaults to identity. */
-  readonly transform?: (value: unknown) => T
-}
+import { z } from 'zod'
 
 /**
  * FieldType<T> - A configured field type ready for use
@@ -82,58 +64,4 @@ export interface Field<T> {
 
   /** Indexed for query performance */
   readonly indexed: boolean
-}
-
-/**
- * TextFieldOptions - Options for text field type
- */
-export interface TextFieldOptions {
-  readonly minLength?: number
-  readonly maxLength?: number
-  readonly pattern?: string
-  /** Escape hatch to extend the Zod schema with custom validations */
-  readonly extend?: (schema: z.ZodString | z.ZodCoercedString) => z.ZodType<string>
-  /** Enable coercion from form data (string to string) */
-  readonly coerce?: boolean
-}
-
-/**
- * NumberFieldOptions - Options for number field type
- */
-export interface NumberFieldOptions {
-  readonly min?: number
-  readonly max?: number
-  readonly precision?: number
-  readonly scale?: number
-  /** Escape hatch to extend the Zod schema with custom validations */
-  readonly extend?: (schema: z.ZodNumber | z.ZodCoercedNumber) => z.ZodType<number>
-  /** Enable coercion from form data (string to number) */
-  readonly coerce?: boolean
-}
-
-/**
- * SelectFieldOptions - Options for select/enum field type
- */
-export interface SelectFieldOptions {
-  readonly values: readonly [string, ...string[]]
-}
-
-/**
- * RelationFieldOptions - Options for relation field type
- */
-export interface RelationFieldOptions {
-  readonly to: string
-  readonly many?: boolean
-  readonly through?: string
-  readonly onDelete?: 'cascade' | 'nullify' | 'error'
-}
-
-/**
- * ArrayFieldOptions - Options for array field type
- * @typeParam T - The TypeScript type of array elements
- */
-export interface ArrayFieldOptions<T> {
-  readonly itemType: FieldType<T>
-  readonly minLength?: number
-  readonly maxLength?: number
 }

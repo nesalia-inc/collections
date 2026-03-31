@@ -1,2 +1,2 @@
-export type { Config } from './types'
+export type { Config, ConfigInput } from './types'
 export { defineConfig } from './builder'

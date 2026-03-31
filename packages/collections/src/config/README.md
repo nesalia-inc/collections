@@ -15,7 +15,7 @@ import { defineConfig } from '@deessejs/collections'
 import { posts } from '@/collections/posts'
 
 const config = defineConfig({
-  collections: { posts },
+  collections: [posts],
 })
 
 // Access by slug
@@ -26,7 +26,8 @@ config.collections.posts
 
 | Type | Description |
 |------|-------------|
-| `Config` | Configuration object with `collections` record |
+| `ConfigInput` | Input config with `collections` as array |
+| `Config` | Output config with `collections` as record |
 
 ## Files
 

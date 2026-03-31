@@ -1,11 +1,11 @@
 # Where Type
 
-Type-safe filtering system with two approaches: **Object** (JSON-like) and **Functional-Fluent** (Proxy-based).
+Type-safe filtering system with two approaches: **Object** (JSON-like) and **Functional-Applicative** (style Drizzle).
 
 ## Public API
 
 ```typescript
-import { where, and, or, not, search } from '@deessejs/collections'
+import { where, and, or, not, eq, gt, contains, search } from '@deessejs/collections'
 ```
 
 ## Object Approach
@@ -16,15 +16,19 @@ JSON-like filtering for serialization:
 { where: { published: true, status: { ne: 'draft' } } }
 ```
 
-## Functional-Fluent Approach (Recommended)
+## Functional-Applicative Approach (Recommended)
 
-Proxy-based DSL with full autocomplete and type-safety. Uses `$` as a terminator to separate path navigation from operator execution (prevents column name collision with operators like `in`, `eq`, `contains`).
+Uses the **Applicative Functor** pattern where:
+- `p.name` is a pure path (via internal Symbol)
+- `eq(p.name, 'John')`, `gt(p.age, 18)` are functions that transform paths into AST nodes
+
+**Zero namespace collision** - you can name columns `in`, `eq`, `contains` without conflict.
 
 ### Basic Usage
 
 ```typescript
-const isPublished = where(p => p.published.$.eq(true))
-const isRecent = where(p => p.createdAt.$.gt(new Date('2024-01-01')))
+const isPublished = where(p => [eq(p.published, true)])
+const isRecent = where(p => [gt(p.createdAt, new Date('2024-01-01'))])
 
 // Compose
 const targetPosts = and(isPublished, isRecent)
@@ -37,42 +41,43 @@ config.db.posts.findMany({ where: targetPosts })
 
 ```typescript
 // Filter by author.name
-const filterByAuthor = where(p => p.author.name.$.eq('John'))
+const filterByAuthor = where(p => [eq(p.author.name, 'John')])
 
 // Filter by nested relations
-const filterByLocation = where(p => p.author.profile.location.$.eq('Paris'))
+const filterByLocation = where(p => [eq(p.author.profile.location, 'Paris')])
 ```
 
-### Type-Safe Operators
+### Operators
 
-Operators are specific to field types:
+**All fields:**
+```typescript
+eq(p.name, 'John')
+ne(p.name, null)
+gt(p.age, 18)
+gte(p.price, 10)
+lt(p.age, 65)
+lte(p.price, 100)
+between(p.price, 10, 100)
+inList(p.status, ['active', 'pending'])
+notInList(p.country, ['US', 'UK'])
+isNull(p.deletedAt)
+isNotNull(p.publishedAt)
+```
 
 **String fields:**
 ```typescript
-where(p => p.title.$.startsWith('Hello'))
-where(p => p.email.$.contains('@gmail.com'))
-where(p => p.slug.$.regex('^[a-z]+$'))
-```
-
-**Number fields:**
-```typescript
-where(p => p.age.$.gt(18))
-where(p => p.price.$.between(10, 100))
+like(p.title, '%hello%')
+contains(p.email, '@gmail.com')
+startsWith(p.slug, 'news-')
+endsWith(p.email, '@company.com')
+regex(p.code, '^[A-Z]{3}$')
 ```
 
 **Array fields:**
 ```typescript
-where(p => p.tags.$.has('typescript'))
-where(p => p.tags.$.hasAny(['js', 'ts']))
-where(p => p.permissions.$.overlaps(['read', 'write']))
-```
-
-**All fields:**
-```typescript
-where(p => p.name.$.eq('John'))
-where(p => p.name.$.ne(null))
-where(p => p.name.$.in(['a', 'b']))
-where(p => p.deletedAt.$.isNull())
+has(p.tags, 'typescript')
+hasAny(p.permissions, ['read', 'write'])
+overlaps(p.features, ['a', 'b'])
 ```
 
 ### Logical Combinators
@@ -113,8 +118,8 @@ const filter = and(
 `and`, `or`, `not` accept both `Predicate<T>` and `WhereNode`:
 
 ```typescript
-const p1 = where(p => p.age.$.gt(20))
-const p2 = where(p => p.active.$.eq(true))
+const p1 = where(p => [gt(p.age, 20)])
+const p2 = where(p => [eq(p.active, true)])
 
 // Works with predicates
 const combined1 = and(p1, p2)
@@ -126,15 +131,34 @@ const combined2 = and(p1.ast, p2.ast)
 const combined3 = and(p1, p2.ast)
 ```
 
-## Why `$` Terminator?
+## Why No `$` Terminator?
 
-Using `$` as a terminator prevents collision with column names:
+The `$` was a "technical shortcut" that leaked implementation details. Instead, we use the **Applicative Functor** pattern:
+
+- `p.name` returns a proxy with the path stored via an **internal Symbol**
+- Operators are **functions** that extract the path and return AST nodes
+- **No namespace pollution** - column names like `in`, `eq`, `contains` are safe
 
 ```typescript
-// Safe: even if you have a column named 'in' or 'eq'
-where<CheckIn>(p => p.in.$.gt(new Date()))
-where<Item>(p => p.in.$.eq('value'))
+// Safe: 'in' is the column, eq is the function
+where<Log>(p => [eq(p.in, '2023-01-01')])
 ```
+
+## Architecture
+
+```
+where(p => [eq(p.author.name, 'John')])
+        │   │   │      │
+        │   │   │      └── Operator function
+        │   │   └───────── Path proxy
+        │   └───────────── Property access (builds path)
+        └───────────────── where() receives PathProxy[]
+```
+
+**Three-tier separation:**
+1. **Path Reifier** - Proxy accumulates path via Symbol
+2. **Operator Terminal** - Functions transform paths to WhereNodes
+3. **Boolean Lattice** - and/or/not combine WhereNodes
 
 ## Types
 
@@ -144,14 +168,9 @@ where<Item>(p => p.in.$.eq('value'))
 | `WhereNode` | AST node union (discriminated union) |
 | `Predicate<T>` | Functional predicate wrapper |
 | `PredicateInput<T>` | Accepts Predicate or WhereNode |
-| `BaseOperators<V>` | Base operators for all types |
-| `ScalarOperators<V>` | Comparison operators (gt, gte, lt, lte, between) |
-| `StringOperators<V>` | String-specific (like, contains, startsWith, endsWith, regex) |
-| `ArrayOperators<V>` | Array-specific (has, hasAny, overlaps) |
-| `search(fields, value)` | Global search across fields |
 
 ## Files
 
 - `index.ts` - Module exports
-- `types.ts` - Type definitions (operators, AST nodes, Where type)
-- `builder.ts` - Functional-fluent implementation (where, and, or, not, search)
+- `types.ts` - Type definitions (AST nodes, Where type)
+- `builder.ts` - Functional-applicative implementation

@@ -1,146 +1,272 @@
-import type {
-  WhereNode,
-  Predicate,
-  PredicateInput,
-} from './types'
+import type { WhereNode, Predicate, PredicateInput } from './types'
 
 // ============================================================================
-// AST Builders (generic for type-safe construction)
+// Path Symbol - Internal Symbol to store path on proxy
 // ============================================================================
 
-const eq = <V>(field: string, value: V | null): WhereNode => ({ _tag: 'Eq', field, value })
-const ne = <V>(field: string, value: V | null): WhereNode => ({ _tag: 'Ne', field, value })
-const gt = <V>(field: string, value: V): WhereNode => ({ _tag: 'Gt', field, value })
-const gte = <V>(field: string, value: V): WhereNode => ({ _tag: 'Gte', field, value })
-const lt = <V>(field: string, value: V): WhereNode => ({ _tag: 'Lt', field, value })
-const lte = <V>(field: string, value: V): WhereNode => ({ _tag: 'Lte', field, value })
-const like = (field: string, value: string): WhereNode => ({ _tag: 'Like', field, value })
-const contains = (field: string, value: string): WhereNode => ({ _tag: 'Contains', field, value })
-const startsWith = (field: string, value: string): WhereNode => ({ _tag: 'StartsWith', field, value })
-const endsWith = (field: string, value: string): WhereNode => ({ _tag: 'EndsWith', field, value })
-const regex = (field: string, value: string): WhereNode => ({ _tag: 'Regex', field, value })
-const inOp = <V>(field: string, values: V[]): WhereNode => ({ _tag: 'In', field, value: values })
-const notIn = <V>(field: string, values: V[]): WhereNode => ({ _tag: 'NotIn', field, value: values })
-const between = <V>(field: string, min: V, max: V): WhereNode => ({ _tag: 'Between', field, value: [min, max] })
-const isNull = (field: string): WhereNode => ({ _tag: 'IsNull', field })
-const isNotNull = (field: string): WhereNode => ({ _tag: 'IsNotNull', field })
-const has = (field: string, value: unknown): WhereNode => ({ _tag: 'Has', field, value })
-const hasAny = (field: string, values: unknown[]): WhereNode => ({ _tag: 'HasAny', field, value: values })
-const overlaps = (field: string, values: unknown[]): WhereNode => ({ _tag: 'Overlaps', field, value: values })
+const PathSymbol = Symbol('Path')
 
+type PathSegment = string | number
+
+// Helper type to access path via Symbol
+interface PathCarrier {
+  [PathSymbol]: PathSegment[]
+}
+
+// ============================================================================
+// Path Proxy - Records field path via internal Symbol
+// ============================================================================
+
+type PathProxy<T> = {
+  [K in keyof T]: PathProxy<T[K]>
+} & {
+  [Symbol.iterator](): Iterator<PathSegment>
+  (value: unknown): WhereNode  // Callable for equality shorthand
+}
+
+// Create a path proxy that stores accumulated path via Symbol
+function createPathProxy<T>(path: PathSegment[] = []): PathProxy<T> {
+  // Create a function that acts as the base proxy target
+  function proxyFunc(this: unknown): WhereNode {
+    // Callable shorthand: p.name(value) === eq(p.name, value)
+    return eqOp(proxyFunc as unknown as PathProxy<T>, undefined as unknown)
+  }
+
+  // Attach Symbol property to store path
+  Object.defineProperty(proxyFunc, PathSymbol, {
+    value: path,
+    writable: false,
+    enumerable: false,
+  })
+
+  // Cast to PathCarrier to access Symbol property
+  const carrier = proxyFunc as unknown as PathCarrier
+
+  // Return proxy that tracks path on property access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new Proxy(carrier as any, {
+    get(_target, prop) {
+      if (prop === Symbol.iterator) {
+        return function* () {
+          const p = carrier[PathSymbol]
+          yield* p
+        }
+      }
+
+      const currentPath = carrier[PathSymbol]
+      const propStr = String(prop)
+
+      // Create new proxy with extended path
+      const newPath = [...currentPath, propStr]
+      return createPathProxy<T>(newPath)
+    },
+  }) as PathProxy<T>
+}
+
+// ============================================================================
+// Operator Functions (Applicative Style - no $)
+// ============================================================================
+
+// Extract path from a PathProxy via internal Symbol
+function extractPath<T>(proxy: PathProxy<T>): PathSegment[] {
+  return (proxy as unknown as PathCarrier)[PathSymbol]
+}
+
+function pathToField(path: PathSegment[]): string {
+  return path.join('.')
+}
+
+// Base comparison operators
+const eqOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Eq',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const neOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Ne',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const gtOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Gt',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const gteOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Gte',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const ltOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Lt',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const lteOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Lte',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const inOpFn = <T>(proxy: PathProxy<T>, values: unknown[]): WhereNode => ({
+  _tag: 'In',
+  field: pathToField(extractPath(proxy)),
+  value: values,
+})
+
+const notInOp = <T>(proxy: PathProxy<T>, values: unknown[]): WhereNode => ({
+  _tag: 'NotIn',
+  field: pathToField(extractPath(proxy)),
+  value: values,
+})
+
+const betweenOp = <T>(proxy: PathProxy<T>, min: unknown, max: unknown): WhereNode => ({
+  _tag: 'Between',
+  field: pathToField(extractPath(proxy)),
+  value: [min, max],
+})
+
+const isNullOp = <T>(proxy: PathProxy<T>): WhereNode => ({
+  _tag: 'IsNull',
+  field: pathToField(extractPath(proxy)),
+})
+
+const isNotNullOp = <T>(proxy: PathProxy<T>): WhereNode => ({
+  _tag: 'IsNotNull',
+  field: pathToField(extractPath(proxy)),
+})
+
+// String-specific operators
+const likeOp = <T>(proxy: PathProxy<T>, value: string): WhereNode => ({
+  _tag: 'Like',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const containsOp = <T>(proxy: PathProxy<T>, value: string): WhereNode => ({
+  _tag: 'Contains',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const startsWithOp = <T>(proxy: PathProxy<T>, value: string): WhereNode => ({
+  _tag: 'StartsWith',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const endsWithOp = <T>(proxy: PathProxy<T>, value: string): WhereNode => ({
+  _tag: 'EndsWith',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const regexOp = <T>(proxy: PathProxy<T>, value: string): WhereNode => ({
+  _tag: 'Regex',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+// Array operators
+const hasOp = <T>(proxy: PathProxy<T>, value: unknown): WhereNode => ({
+  _tag: 'Has',
+  field: pathToField(extractPath(proxy)),
+  value,
+})
+
+const hasAnyOp = <T>(proxy: PathProxy<T>, values: unknown[]): WhereNode => ({
+  _tag: 'HasAny',
+  field: pathToField(extractPath(proxy)),
+  value: values,
+})
+
+const overlapsOp = <T>(proxy: PathProxy<T>, values: unknown[]): WhereNode => ({
+  _tag: 'Overlaps',
+  field: pathToField(extractPath(proxy)),
+  value: values,
+})
+
+// Logical combinators
 const andNode = (nodes: WhereNode[]): WhereNode => ({ _tag: 'And', nodes })
 const orNode = (nodes: WhereNode[]): WhereNode => ({ _tag: 'Or', nodes })
 const notNode = (node: WhereNode): WhereNode => ({ _tag: 'Not', node })
 
 // ============================================================================
-// Operator Terminal Interface
-// ============================================================================
-
-// All operators available on any field (type-checking happens at SQL compilation)
-interface OperatorTerminal {
-  eq: (value: unknown) => WhereNode
-  ne: (value: unknown) => WhereNode
-  gt: (value: unknown) => WhereNode
-  gte: (value: unknown) => WhereNode
-  lt: (value: unknown) => WhereNode
-  lte: (value: unknown) => WhereNode
-  between: (min: unknown, max: unknown) => WhereNode
-  in: (values: unknown[]) => WhereNode
-  notIn: (values: unknown[]) => WhereNode
-  isNull: () => WhereNode
-  isNotNull: () => WhereNode
-  like: (value: string) => WhereNode
-  contains: (value: string) => WhereNode
-  startsWith: (value: string) => WhereNode
-  endsWith: (value: string) => WhereNode
-  regex: (value: string) => WhereNode
-  has: (value: unknown) => WhereNode
-  hasAny: (values: unknown[]) => WhereNode
-  overlaps: (values: unknown[]) => WhereNode
-}
-
-// ============================================================================
-// Proxy Types - Using $ as terminator to avoid column name collision
-// ============================================================================
-
-// Path proxy - records field path
-type PathProxy<T> = {
-  [K in keyof T]: PathProxy<T[K]> & { $: OperatorTerminal }
-}
-
-// ============================================================================
-// Operator Terminal Builder
-// ============================================================================
-
-function createOperatorTerminal(field: string): OperatorTerminal {
-  return {
-    eq: (value) => eq(field, value),
-    ne: (value) => ne(field, value),
-    gt: (value) => gt(field, value),
-    gte: (value) => gte(field, value),
-    lt: (value) => lt(field, value),
-    lte: (value) => lte(field, value),
-    between: (min, max) => between(field, min, max),
-    in: (values) => inOp(field, values),
-    notIn: (values) => notIn(field, values),
-    isNull: () => isNull(field),
-    isNotNull: () => isNotNull(field),
-    like: (value) => like(field, value),
-    contains: (value) => contains(field, value),
-    startsWith: (value) => startsWith(field, value),
-    endsWith: (value) => endsWith(field, value),
-    regex: (value) => regex(field, value),
-    has: (value) => has(field, value),
-    hasAny: (values) => hasAny(field, values),
-    overlaps: (values) => overlaps(field, values),
-  }
-}
-
-// ============================================================================
-// Recursive Path Proxy
-// ============================================================================
-
-function createPathProxy<T>(path: string[] = []): PathProxy<T> {
-  return new Proxy({} as PathProxy<T>, {
-    get(_target, prop) {
-      const propStr = String(prop)
-
-      if (propStr === '$') {
-        // Terminal: switch to operator mode
-        return createOperatorTerminal(path.join('.'))
-      }
-
-      // Continue path
-      return createPathProxy([...path, propStr])
-    },
-  })
-}
-
-// ============================================================================
 // Where Function
 // ============================================================================
 
-export const where = <T>(builder: (p: PathProxy<T>) => WhereNode | WhereNode[]): Predicate<T> => {
+export const where = <T>(builder: (p: PathProxy<T>) => WhereNode[]): Predicate<T> => {
   const p = createPathProxy<T>()
   const result = builder(p)
 
-  if (Array.isArray(result)) {
+  if (result.length === 0) {
     return {
       _tag: 'Predicate',
       _entity: undefined as T,
-      ast: andNode(result),
+      ast: { _tag: 'And', nodes: [] },
+    }
+  }
+
+  if (result.length === 1) {
+    return {
+      _tag: 'Predicate',
+      _entity: undefined as T,
+      ast: result[0],
     }
   }
 
   return {
     _tag: 'Predicate',
     _entity: undefined as T,
-    ast: result,
+    ast: andNode(result),
   }
 }
 
 // ============================================================================
-// Logical Combinators - Accept Predicate or WhereNode
+// Operator Exports (Applicative Style)
+// ============================================================================
+
+// Equality operators
+export const eq = <T>(path: PathProxy<T>, value: unknown): WhereNode => eqOp(path, value)
+export const ne = <T>(path: PathProxy<T>, value: unknown): WhereNode => neOp(path, value)
+
+// Comparison operators
+export const gt = <T>(path: PathProxy<T>, value: unknown): WhereNode => gtOp(path, value)
+export const gte = <T>(path: PathProxy<T>, value: unknown): WhereNode => gteOp(path, value)
+export const lt = <T>(path: PathProxy<T>, value: unknown): WhereNode => ltOp(path, value)
+export const lte = <T>(path: PathProxy<T>, value: unknown): WhereNode => lteOp(path, value)
+
+// Range operators
+export const between = <T>(path: PathProxy<T>, min: unknown, max: unknown): WhereNode =>
+  betweenOp(path, min, max)
+
+// Array membership operators
+export const inList = <T>(path: PathProxy<T>, values: unknown[]): WhereNode => inOpFn(path, values)
+export const notInList = <T>(path: PathProxy<T>, values: unknown[]): WhereNode => notInOp(path, values)
+
+// Null checks
+export const isNull = <T>(path: PathProxy<T>): WhereNode => isNullOp(path)
+export const isNotNull = <T>(path: PathProxy<T>): WhereNode => isNotNullOp(path)
+
+// String operators
+export const like = <T>(path: PathProxy<T>, value: string): WhereNode => likeOp(path, value)
+export const contains = <T>(path: PathProxy<T>, value: string): WhereNode => containsOp(path, value)
+export const startsWith = <T>(path: PathProxy<T>, value: string): WhereNode => startsWithOp(path, value)
+export const endsWith = <T>(path: PathProxy<T>, value: string): WhereNode => endsWithOp(path, value)
+export const regex = <T>(path: PathProxy<T>, value: string): WhereNode => regexOp(path, value)
+
+// Array operators
+export const has = <T>(path: PathProxy<T>, value: unknown): WhereNode => hasOp(path, value)
+export const hasAny = <T>(path: PathProxy<T>, values: unknown[]): WhereNode => hasAnyOp(path, values)
+export const overlaps = <T>(path: PathProxy<T>, values: unknown[]): WhereNode => overlapsOp(path, values)
+
+// ============================================================================
+// Logical Combinators
 // ============================================================================
 
 const toNode = <T>(input: PredicateInput<T>): WhereNode => {
@@ -168,10 +294,3 @@ export const search = (fields: string[], value: string): WhereNode => ({
   fields,
   value,
 })
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-export const eqField = (field: string, value: unknown): WhereNode =>
-  eq(field, value)

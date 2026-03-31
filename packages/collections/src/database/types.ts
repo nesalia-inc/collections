@@ -43,8 +43,10 @@ export type CollectionDbMethods<T extends Collection> = {
   exists: (query: { where: Partial<InferFieldTypes<T['fields']>> }) => Promise<boolean>
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExtractSlug<C> = C extends Collection<infer S, any> ? S : never
 
 export type DbAccess<T extends Collection[]> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K in ExtractSlug<T[number]>]: CollectionDbMethods<Extract<T[number], Collection<K, any>>>
 }

@@ -1,63 +1,6 @@
 // Where Type - Type-safe filtering system
 
 // ============================================================================
-// Operator Names
-// ============================================================================
-
-export const OPERATOR_NAMES = [
-  'eq', 'ne', 'gt', 'gte', 'lt', 'lte',
-  'in', 'notIn', 'between',
-  'like', 'contains', 'startsWith', 'endsWith', 'regex',
-  'isNull', 'isNotNull',
-  'has', 'hasAny', 'overlaps',
-] as const
-
-export type OperatorName = typeof OPERATOR_NAMES[number]
-
-// ============================================================================
-// Operator Types - Type-Specific
-// ============================================================================
-
-export interface BaseOperators<V> {
-  eq: (value: V | null) => WhereNode
-  ne: (value: V | null) => WhereNode
-  in: (values: V[]) => WhereNode
-  notIn: (values: V[]) => WhereNode
-  isNull: () => WhereNode
-  isNotNull: () => WhereNode
-}
-
-export interface ScalarOperators<V> extends BaseOperators<V> {
-  gt: (value: V) => WhereNode
-  gte: (value: V) => WhereNode
-  lt: (value: V) => WhereNode
-  lte: (value: V) => WhereNode
-  between: (min: V, max: V) => WhereNode
-}
-
-export interface StringOperators<V extends string> extends ScalarOperators<V> {
-  like: (value: string) => WhereNode
-  contains: (value: string) => WhereNode
-  startsWith: (value: string) => WhereNode
-  endsWith: (value: string) => WhereNode
-  regex: (value: string) => WhereNode
-}
-
-export interface ArrayOperators<V extends unknown[]> extends BaseOperators<V> {
-  has: (value: V[number]) => WhereNode
-  hasAny: (value: V[number][]) => WhereNode
-  overlaps: (value: V) => WhereNode
-}
-
-// Choose operators based on type
-export type FieldOperators<T> =
-  T extends string ? StringOperators<T> :
-  T extends number | bigint ? ScalarOperators<T> :
-  T extends Date ? ScalarOperators<T> :
-  T extends unknown[] ? ArrayOperators<T> :
-  BaseOperators<T>
-
-// ============================================================================
 // AST Node Types
 // ============================================================================
 
@@ -85,7 +28,6 @@ export type WhereNode =
   | { readonly _tag: 'Or'; readonly nodes: WhereNode[] }
   | { readonly _tag: 'Not'; readonly node: WhereNode }
   | { readonly _tag: 'Search'; readonly fields: string[]; readonly value: string }
-  | { readonly _tag: 'Field'; readonly path: string[] }
 
 // Predicate wrapper
 export type Predicate<T> = {
@@ -168,6 +110,3 @@ export type WhereValue<T> =
 export type Where<T = unknown> = {
   [K in keyof T]?: WhereValue<T[K]>
 } & LogicalOperators<Where<T>> & { _search?: string | string[] }
-
-// Logical combinators
-export type LogicalCombinator = 'AND' | 'OR' | 'NOT'

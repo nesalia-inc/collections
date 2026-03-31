@@ -90,23 +90,58 @@ const posts = collection({
 - `UpdateHookContext` - `collection`, `operation: 'update'`, `data`, `where`, `previousData`
 - `DeleteHookContext` - `collection`, `operation: 'delete'`, `where`, `previousData`
 
+### Early Exit
+
+Hooks support early exit via the `_stop` signal:
+
+```typescript
+hooks: {
+  beforeCreate: async (ctx) => {
+    if (ctx.data.status === 'draft') {
+      return { _stop: true, data: ctx }
+    }
+    return ctx
+  },
+}
+```
+
+When a hook returns `{ _stop: true, data: ctx }`, the operation pipeline stops and returns `{ stopped: true }`.
+
 ### Hook Executor Functions
 
 For internal use or testing:
 
-- `runCreateHooks(hooks, data)` - Returns modified `{ data }`
-- `runReadHooks(hooks, query)` - Returns modified `{ query }`
-- `runUpdateHooks(hooks, data, where, previousData)` - Returns modified context
-- `runDeleteHooks(hooks, where, previousData)` - Returns modified context
+- `runCreateHooks(slug, hooks, data)` - Returns `{ data, stopped }`
+- `runReadHooks(slug, hooks, query)` - Returns `{ query, stopped }`
+- `runUpdateHooks(slug, hooks, data, where, previousData)` - Returns `{ data, where, previousData, stopped }`
+- `runDeleteHooks(slug, hooks, where, previousData)` - Returns `{ where, previousData, stopped }`
+
+The `stopped` flag indicates if a hook returned `{ _stop: true }`.
+
+### Hook Runner Factory
+
+Create a pre-bound runner for a collection:
+
+```typescript
+import { createHookRunner } from '@deessejs/collections'
+
+const runner = createHookRunner('posts', posts.hooks)
+
+const result = await runner.runCreate({ title: 'Hello' })
+if (result.stopped) {
+  // Handle early exit
+}
+```
 
 ## Types
 
 | Type | Description |
 |------|-------------|
-| `Collection<TFields>` | Return type of `collection()` |
-| `CollectionConfig<TFields>` | Config accepted by `collection()` |
-| `CollectionHooks` | Hooks configuration interface |
+| `Collection<TSlug, TFields>` | Return type of `collection()` |
+| `CollectionConfig<TSlug, TFields>` | Config accepted by `collection()` |
+| `CollectionHooks<TSlug, TFields>` | Hooks configuration interface |
 | `HookHandler<T>` | Hook function signature |
+| `HookResult<T>` | Result of running hooks with `stopped` flag |
 | `GetCollectionType<T>` | Extract TypeScript type from a collection |
 
 ## Internal Files
@@ -114,6 +149,7 @@ For internal use or testing:
 - `collection.ts` - `collection()` factory implementation
 - `hooks/` - Hook executor module
   - `index.ts` - Module exports
-  - `builders.ts` - runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks
-  - `types.ts` - executeHook, executeBeforeOperation helpers
-- `types.ts` - Type definitions
+  - `types.ts` - Hook types (HookContext, CollectionHooks, HookHandler)
+  - `internal.ts` - Monadic machinery (HookStatus, lift, pipe)
+  - `runner.ts` - runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks, createHookRunner
+- `types.ts` - Collection type definitions

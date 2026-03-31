@@ -1,5 +1,6 @@
 // Hook executor builders - run*Hooks functions
 
+import type { Field } from '../../fields'
 import type {
   CollectionHooks,
   BaseHookContext,
@@ -8,6 +9,7 @@ import type {
   UpdateHookContext,
   DeleteHookContext,
   HookHandler,
+  InferFieldTypes,
 } from './types'
 
 // ============================================================================
@@ -32,10 +34,13 @@ const executeHook = async <T extends BaseHookContext>(
 /**
  * Execute before operation hooks
  */
-const executeBeforeOperation = async (
-  hooks: CollectionHooks,
-  context: BaseHookContext
-): Promise<BaseHookContext> => {
+const executeBeforeOperation = async <
+  TSlug extends string,
+  TFields extends Record<string, Field<unknown>>,
+>(
+  hooks: CollectionHooks<TSlug, TFields>,
+  context: BaseHookContext<TSlug>
+): Promise<BaseHookContext<TSlug>> => {
   const ctx = await executeHook(hooks.beforeOperation, context)
   return ctx
 }
@@ -47,12 +52,15 @@ const executeBeforeOperation = async (
 /**
  * Run create operation hooks
  */
-export const runCreateHooks = async (
-  hooks: CollectionHooks,
-  data: Record<string, unknown>
-): Promise<{ data: Record<string, unknown> }> => {
-  const baseContext: BaseHookContext = {
-    collection: '', // Set by caller
+export const runCreateHooks = async <
+  TSlug extends string,
+  TFields extends Record<string, Field<unknown>>,
+>(
+  hooks: CollectionHooks<TSlug, TFields>,
+  data: Partial<InferFieldTypes<TFields>>
+): Promise<{ data: Partial<InferFieldTypes<TFields>> }> => {
+  const baseContext: BaseHookContext<TSlug> = {
+    collection: '' as TSlug, // Set by caller
     operation: 'create',
   }
 
@@ -60,7 +68,7 @@ export const runCreateHooks = async (
   const ctx = await executeBeforeOperation(hooks, baseContext)
 
   // Create context
-  const createContext: CreateHookContext = {
+  const createContext: CreateHookContext<TSlug, TFields> = {
     ...ctx,
     operation: 'create',
     data,
@@ -76,12 +84,12 @@ export const runCreateHooks = async (
 /**
  * Run read operation hooks
  */
-export const runReadHooks = async (
-  hooks: CollectionHooks,
+export const runReadHooks = async <TSlug extends string>(
+  hooks: CollectionHooks<TSlug>,
   query: Record<string, unknown>
 ): Promise<{ query: Record<string, unknown> }> => {
-  const baseContext: BaseHookContext = {
-    collection: '',
+  const baseContext: BaseHookContext<TSlug> = {
+    collection: '' as TSlug,
     operation: 'read',
   }
 
@@ -89,7 +97,7 @@ export const runReadHooks = async (
   const ctx = await executeBeforeOperation(hooks, baseContext)
 
   // Read context
-  const readContext: ReadHookContext = {
+  const readContext: ReadHookContext<TSlug> = {
     ...ctx,
     operation: 'read',
     query,
@@ -104,18 +112,21 @@ export const runReadHooks = async (
 /**
  * Run update operation hooks
  */
-export const runUpdateHooks = async (
-  hooks: CollectionHooks,
-  data: Record<string, unknown>,
+export const runUpdateHooks = async <
+  TSlug extends string,
+  TFields extends Record<string, Field<unknown>>,
+>(
+  hooks: CollectionHooks<TSlug, TFields>,
+  data: Partial<InferFieldTypes<TFields>>,
   where: Record<string, unknown>,
-  previousData: Record<string, unknown>
+  previousData: InferFieldTypes<TFields>
 ): Promise<{
-  data: Record<string, unknown>
+  data: Partial<InferFieldTypes<TFields>>
   where: Record<string, unknown>
-  previousData: Record<string, unknown>
+  previousData: InferFieldTypes<TFields>
 }> => {
-  const baseContext: BaseHookContext = {
-    collection: '',
+  const baseContext: BaseHookContext<TSlug> = {
+    collection: '' as TSlug,
     operation: 'update',
   }
 
@@ -123,7 +134,7 @@ export const runUpdateHooks = async (
   const ctx = await executeBeforeOperation(hooks, baseContext)
 
   // Update context
-  const updateContext: UpdateHookContext = {
+  const updateContext: UpdateHookContext<TSlug, TFields> = {
     ...ctx,
     operation: 'update',
     data,
@@ -144,16 +155,19 @@ export const runUpdateHooks = async (
 /**
  * Run delete operation hooks
  */
-export const runDeleteHooks = async (
-  hooks: CollectionHooks,
+export const runDeleteHooks = async <
+  TSlug extends string,
+  TFields extends Record<string, Field<unknown>>,
+>(
+  hooks: CollectionHooks<TSlug, TFields>,
   where: Record<string, unknown>,
-  previousData: Record<string, unknown>
+  previousData: InferFieldTypes<TFields>
 ): Promise<{
   where: Record<string, unknown>
-  previousData: Record<string, unknown>
+  previousData: InferFieldTypes<TFields>
 }> => {
-  const baseContext: BaseHookContext = {
-    collection: '',
+  const baseContext: BaseHookContext<TSlug> = {
+    collection: '' as TSlug,
     operation: 'delete',
   }
 
@@ -161,7 +175,7 @@ export const runDeleteHooks = async (
   const ctx = await executeBeforeOperation(hooks, baseContext)
 
   // Delete context
-  const deleteContext: DeleteHookContext = {
+  const deleteContext: DeleteHookContext<TSlug, TFields> = {
     ...ctx,
     operation: 'delete',
     where,

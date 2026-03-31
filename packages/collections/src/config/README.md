@@ -12,7 +12,7 @@ import { defineConfig } from '@deessejs/collections'
 
 ```typescript
 import { defineConfig } from '@deessejs/collections'
-import { posts } from './collections/posts'
+import { posts } from '@/collections/posts'
 
 const config = defineConfig({
   collections: [posts],

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { collection, field, f, runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks } from '../src'
+import { collection, field, f, runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks, createHookRunner } from '../src'
 
 describe('collection hooks', () => {
   it('stores hooks on the collection object', () => {
@@ -61,9 +61,10 @@ describe('collection hooks', () => {
 describe('runCreateHooks', () => {
   it('returns data unchanged when no hooks', async () => {
     const data = { title: 'Hello' }
-    const result = await runCreateHooks({}, data)
+    const result = await runCreateHooks('posts', {}, data)
 
     expect(result.data).toEqual(data)
+    expect(result.stopped).toBe(false)
   })
 
   it('calls beforeCreate hook', async () => {
@@ -73,7 +74,7 @@ describe('runCreateHooks', () => {
     }
 
     const data = { title: 'Hello' }
-    const result = await runCreateHooks({ beforeCreate }, data)
+    const result = await runCreateHooks('posts', { beforeCreate }, data)
 
     expect(result.data.title).toBe('Modified')
   })
@@ -85,7 +86,7 @@ describe('runCreateHooks', () => {
     }
 
     const data = { title: 'Hello' }
-    const result = await runCreateHooks({ beforeCreate }, data)
+    const result = await runCreateHooks('posts', { beforeCreate }, data)
 
     expect(result.data.slug).toBe('auto-generated-slug')
     expect(result.data.title).toBe('Hello')
@@ -98,18 +99,30 @@ describe('runCreateHooks', () => {
     }
 
     const data = { title: 'Hello' }
-    const result = await runCreateHooks({ beforeCreate }, data)
+    const result = await runCreateHooks('posts', { beforeCreate }, data)
 
     expect(result.data.title).toBe('Sync Modified')
+  })
+
+  it('supports _stop early exit', async () => {
+    const beforeCreate = async (ctx: any) => {
+      return { _stop: true, data: ctx }
+    }
+
+    const data = { title: 'Hello' }
+    const result = await runCreateHooks('posts', { beforeCreate }, data)
+
+    expect(result.stopped).toBe(true)
   })
 })
 
 describe('runReadHooks', () => {
   it('returns query unchanged when no hooks', async () => {
     const query = { where: { published: true } }
-    const result = await runReadHooks({}, query)
+    const result = await runReadHooks('posts', {}, query)
 
     expect(result.query).toEqual(query)
+    expect(result.stopped).toBe(false)
   })
 
   it('calls beforeRead hook', async () => {
@@ -119,7 +132,7 @@ describe('runReadHooks', () => {
     }
 
     const query = { where: { published: true } }
-    const result = await runReadHooks({ beforeRead }, query)
+    const result = await runReadHooks('posts', { beforeRead }, query)
 
     expect(result.query.limit).toBe(10)
   })
@@ -131,9 +144,20 @@ describe('runReadHooks', () => {
     }
 
     const query = { where: { published: true } }
-    const result = await runReadHooks({ beforeRead }, query)
+    const result = await runReadHooks('posts', { beforeRead }, query)
 
     expect(result.query.where.draft).toBe(false)
+  })
+
+  it('supports _stop early exit', async () => {
+    const beforeRead = async (ctx: any) => {
+      return { _stop: true, data: ctx }
+    }
+
+    const query = { where: { published: true } }
+    const result = await runReadHooks('posts', { beforeRead }, query)
+
+    expect(result.stopped).toBe(true)
   })
 })
 
@@ -143,11 +167,12 @@ describe('runUpdateHooks', () => {
     const where = { id: '123' }
     const previousData = { id: '123', title: 'Old Title' }
 
-    const result = await runUpdateHooks({}, data, where, previousData)
+    const result = await runUpdateHooks('posts', {}, data, where, previousData)
 
     expect(result.data).toEqual(data)
     expect(result.where).toEqual(where)
     expect(result.previousData).toEqual(previousData)
+    expect(result.stopped).toBe(false)
   })
 
   it('calls beforeUpdate hook', async () => {
@@ -160,7 +185,7 @@ describe('runUpdateHooks', () => {
     const where = { id: '123' }
     const previousData = { id: '123', title: 'Old Title' }
 
-    const result = await runUpdateHooks({ beforeUpdate }, data, where, previousData)
+    const result = await runUpdateHooks('posts', { beforeUpdate }, data, where, previousData)
 
     expect(result.data.updatedAt).toBeDefined()
   })
@@ -172,9 +197,19 @@ describe('runUpdateHooks', () => {
     }
 
     const data = { title: 'New Title' }
-    const result = await runUpdateHooks({ beforeUpdate }, data, {}, {})
+    const result = await runUpdateHooks('posts', { beforeUpdate }, data, {}, {})
 
     expect(result.data.modifiedBy).toBe('system')
+  })
+
+  it('supports _stop early exit', async () => {
+    const beforeUpdate = async (ctx: any) => {
+      return { _stop: true, data: ctx }
+    }
+
+    const result = await runUpdateHooks('posts', { beforeUpdate }, {}, {}, {})
+
+    expect(result.stopped).toBe(true)
   })
 })
 
@@ -183,10 +218,11 @@ describe('runDeleteHooks', () => {
     const where = { id: '123' }
     const previousData = { id: '123', title: 'To Delete' }
 
-    const result = await runDeleteHooks({}, where, previousData)
+    const result = await runDeleteHooks('posts', {}, where, previousData)
 
     expect(result.where).toEqual(where)
     expect(result.previousData).toEqual(previousData)
+    expect(result.stopped).toBe(false)
   })
 
   it('calls beforeDelete hook', async () => {
@@ -198,7 +234,7 @@ describe('runDeleteHooks', () => {
     const where = { id: '123' }
     const previousData = { id: '123', title: 'To Delete' }
 
-    const result = await runDeleteHooks({ beforeDelete }, where, previousData)
+    const result = await runDeleteHooks('posts', { beforeDelete }, where, previousData)
 
     expect(result.previousData.deletedAt).toBeDefined()
   })
@@ -213,9 +249,53 @@ describe('runDeleteHooks', () => {
     const where = { id: '123' }
     const previousData = { id: '123', title: 'To Delete' }
 
-    const result = await runDeleteHooks({ beforeDelete }, where, previousData)
+    const result = await runDeleteHooks('posts', { beforeDelete }, where, previousData)
 
     expect(result.where.archived).toBe(true)
     expect(result.previousData.wasDeleted).toBe(true)
+  })
+
+  it('supports _stop early exit', async () => {
+    const beforeDelete = async (ctx: any) => {
+      return { _stop: true, data: ctx }
+    }
+
+    const result = await runDeleteHooks('posts', { beforeDelete }, {}, {})
+
+    expect(result.stopped).toBe(true)
+  })
+})
+
+describe('createHookRunner', () => {
+  it('creates a runner bound to a slug', async () => {
+    const runner = createHookRunner('posts', {})
+
+    const result = await runner.runCreate({ title: 'Hello' })
+
+    expect(result.data.title).toBe('Hello')
+    expect(result.stopped).toBe(false)
+  })
+
+  it('runner executes beforeCreate from hooks', async () => {
+    const beforeCreate = async (ctx: any) => {
+      ctx.data.processed = true
+      return ctx
+    }
+
+    const runner = createHookRunner('posts', { beforeCreate })
+
+    const result = await runner.runCreate({ title: 'Hello' })
+
+    expect(result.data.processed).toBe(true)
+  })
+
+  it('runner supports all operations', async () => {
+    const runner = createHookRunner('posts', {})
+
+    const createResult = await runner.runCreate({ title: 'Test' })
+    expect(createResult.data.title).toBe('Test')
+
+    const readResult = await runner.runRead({ limit: 10 })
+    expect(readResult.query.limit).toBe(10)
   })
 })

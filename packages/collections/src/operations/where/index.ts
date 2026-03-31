@@ -3,6 +3,7 @@ export type {
   WhereValue,
   WhereNode,
   Predicate,
+  PredicateInput,
   StringOperator,
   NumberOperator,
   DateOperator,
@@ -11,6 +12,7 @@ export type {
   LogicalOperators,
   GlobalSearchOperator,
   LogicalCombinator,
+  OperatorName,
 } from './types'
 
-export { where, and, or, not, eqField } from './builder'
+export { where, and, or, not, eqField, search } from './builder'

@@ -5,8 +5,8 @@
 // ============================================================================
 
 export interface StringOperator {
-  eq?: string
-  ne?: string
+  eq?: string | null
+  ne?: string | null
   in?: string[]
   notIn?: string[]
   like?: string
@@ -18,8 +18,8 @@ export interface StringOperator {
 }
 
 export interface NumberOperator {
-  eq?: number
-  ne?: number
+  eq?: number | null
+  ne?: number | null
   in?: number[]
   notIn?: number[]
   gt?: number
@@ -30,8 +30,8 @@ export interface NumberOperator {
 }
 
 export interface DateOperator {
-  eq?: Date | string
-  ne?: Date | string
+  eq?: Date | string | null
+  ne?: Date | string | null
   gt?: Date | string
   gte?: Date | string
   lt?: Date | string
@@ -58,11 +58,12 @@ export interface LogicalOperators<T> {
   NOT?: T
 }
 
+// Meta operators (using underscore prefix to avoid column name collision)
 export interface GlobalSearchOperator {
-  _search?: string
+  _search?: string | string[]
 }
 
-// Value types for where
+// Value types for where (Object approach)
 export type WhereValue<T> =
   | T
   | (T extends string ? StringOperator : never)
@@ -71,10 +72,10 @@ export type WhereValue<T> =
   | (T extends unknown[] ? ArrayOperator<T> : never)
   | NullOperator
 
-// Main Where type
+// Main Where type (Object approach)
 export type Where<T = unknown> = {
   [K in keyof T]?: WhereValue<T[K]>
-} & LogicalOperators<Where<T>> & GlobalSearchOperator
+} & LogicalOperators<Where<T>>
 
 // ============================================================================
 // Functional-Fluent Types (AST)
@@ -106,8 +107,21 @@ export type WhereNode =
   | { readonly _tag: 'And'; readonly nodes: WhereNode[] }
   | { readonly _tag: 'Or'; readonly nodes: WhereNode[] }
   | { readonly _tag: 'Not'; readonly node: WhereNode }
-  | { readonly _tag: 'Search'; readonly value: string }
+  | { readonly _tag: 'Search'; readonly fields: string[]; readonly value: string }
   | { readonly _tag: 'Field'; readonly path: string[] }
+
+// Predicate input - accepts both Predicate and raw WhereNode
+export type PredicateInput<T> = Predicate<T> | WhereNode
 
 // Logical combinators
 export type LogicalCombinator = 'AND' | 'OR' | 'NOT'
+
+// Operator names for proxy detection
+export const OPERATOR_NAMES = [
+  'eq', 'ne', 'gt', 'gte', 'lt', 'lte',
+  'in', 'notIn', 'between',
+  'isNull', 'isNotNull',
+  'like', 'contains', 'startsWith', 'endsWith', 'regex',
+] as const
+
+export type OperatorName = typeof OPERATOR_NAMES[number]

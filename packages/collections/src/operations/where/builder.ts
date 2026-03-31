@@ -1,4 +1,5 @@
-import type { WhereNode, Predicate } from './types'
+import type { WhereNode, Predicate, PredicateInput, OperatorName } from './types'
+import { OPERATOR_NAMES } from './types'
 
 // ============================================================================
 // AST Builders
@@ -26,16 +27,49 @@ const orNode = (nodes: WhereNode[]): WhereNode => ({ _tag: 'Or', nodes })
 const notNode = (node: WhereNode): WhereNode => ({ _tag: 'Not', node })
 
 // ============================================================================
-// Field Proxy Types
+// Operator Dispatch
+// ============================================================================
+
+type OperatorFn = (field: string, value: unknown) => WhereNode
+
+const operatorFns: Record<OperatorName, OperatorFn> = {
+  eq: (field, value) => eq(field, value),
+  ne: (field, value) => ne(field, value),
+  gt: (field, value) => gt(field, value),
+  gte: (field, value) => gte(field, value),
+  lt: (field, value) => lt(field, value),
+  lte: (field, value) => lte(field, value),
+  like: (field, value) => like(field, String(value)),
+  contains: (field, value) => contains(field, String(value)),
+  startsWith: (field, value) => startsWith(field, String(value)),
+  endsWith: (field, value) => endsWith(field, String(value)),
+  regex: (field, value) => regex(field, String(value)),
+  in: (field, value) => inOp(field, value as unknown[]),
+  notIn: (field, value) => notIn(field, value as unknown[]),
+  between: (field, value) => between(field, value as [unknown, unknown]),
+  isNull: (field) => isNull(field),
+  isNotNull: (field) => isNotNull(field),
+}
+
+// ============================================================================
+// Recursive Field Proxy
 // ============================================================================
 
 type FieldProxy<T> = {
-  [K in keyof T]: FieldValue<T[K]>
+  [K in keyof T]: T[K] extends object
+    ? FieldValue<T[K]> & NestedFieldProxy<T[K]>
+    : FieldValue<T[K]>
+}
+
+type NestedFieldProxy<T> = {
+  [K in keyof T]?: T[K] extends object
+    ? FieldValue<T[K]> & NestedFieldProxy<T[K]>
+    : FieldValue<T[K]>
 }
 
 type FieldValue<T> = {
-  eq: (value: T) => WhereNode
-  ne: (value: T) => WhereNode
+  eq: (value: T | null) => WhereNode
+  ne: (value: T | null) => WhereNode
   gt: (value: T) => WhereNode
   gte: (value: T) => WhereNode
   lt: (value: T) => WhereNode
@@ -52,28 +86,25 @@ type FieldValue<T> = {
   regex: (value: string) => WhereNode
 }
 
-function createFieldProxy<T>(): FieldProxy<T> {
+// Check if property is an operator name
+function isOperator(prop: string): prop is OperatorName {
+  return OPERATOR_NAMES.includes(prop as OperatorName)
+}
+
+// Create recursive field proxy with path tracking
+function createFieldProxy<T>(path: string[] = []): FieldProxy<T> {
   return new Proxy({} as FieldProxy<T>, {
     get(_target, prop) {
-      const field = String(prop)
-      return {
-        eq: (value: T) => eq(field, value),
-        ne: (value: T) => ne(field, value),
-        gt: (value: T) => gt(field, value),
-        gte: (value: T) => gte(field, value),
-        lt: (value: T) => lt(field, value),
-        lte: (value: T) => lte(field, value),
-        between: (min: T, max: T) => between(field, [min, max]),
-        in: (values: T[]) => inOp(field, values),
-        notIn: (values: T[]) => notIn(field, values),
-        isNull: () => isNull(field),
-        isNotNull: () => isNotNull(field),
-        like: (value: string) => like(field, value),
-        contains: (value: string) => contains(field, value),
-        startsWith: (value: string) => startsWith(field, value),
-        endsWith: (value: string) => endsWith(field, value),
-        regex: (value: string) => regex(field, value),
+      const propStr = String(prop)
+
+      if (isOperator(propStr)) {
+        const operatorFn = operatorFns[propStr]
+        const field = path.join('.')
+        return (value: unknown) => operatorFn(field, value)
       }
+
+      // Nested path access - recurse with extended path
+      return createFieldProxy([...path, propStr])
     },
   })
 }
@@ -102,12 +133,36 @@ export const where = <T>(builder: (p: FieldProxy<T>) => WhereNode | WhereNode[])
 }
 
 // ============================================================================
-// Logical Combinators
+// Logical Combinators - Accept Predicate or WhereNode
 // ============================================================================
 
-export const and = (...predicates: WhereNode[]): WhereNode => andNode(predicates)
-export const or = (...predicates: WhereNode[]): WhereNode => orNode(predicates)
-export const not = (predicate: WhereNode): WhereNode => notNode(predicate)
+// Extract WhereNode from PredicateInput
+const toNode = <T>(input: PredicateInput<T>): WhereNode => {
+  if ('_tag' in input && input._tag === 'Predicate') {
+    return input.ast
+  }
+  return input as WhereNode
+}
+
+export const and = <T>(...inputs: PredicateInput<T>[]): WhereNode =>
+  andNode(inputs.map(toNode))
+
+export const or = <T>(...inputs: PredicateInput<T>[]): WhereNode =>
+  orNode(inputs.map(toNode))
+
+export const not = <T>(input: PredicateInput<T>): WhereNode =>
+  notNode(toNode(input))
+
+// ============================================================================
+// Search Operator (global search across text fields)
+// ============================================================================
+
+// Create a search node - requires explicit text fields list
+export const search = (fields: string[], value: string): WhereNode => ({
+  _tag: 'Search',
+  fields,
+  value,
+})
 
 // ============================================================================
 // Helper Functions (for convenience)

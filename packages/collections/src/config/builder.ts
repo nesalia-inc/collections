@@ -6,5 +6,6 @@ export const defineConfig = <T extends Collection[]>(input: ConfigInput<T>): Con
   for (const collection of input.collections) {
     collections[collection.slug] = collection
   }
-  return { collections } as Config<T>
+  const db = {} as Config<T>['db']
+  return { collections, db } as Config<T>
 }

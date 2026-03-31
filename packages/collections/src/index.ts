@@ -9,3 +9,6 @@ export * from './collections'
 
 // Config - Top-level configuration
 export * from './config'
+
+// Database - Database access types
+export * from './database'

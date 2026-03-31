@@ -92,20 +92,24 @@ const posts = collection({
 
 ### Early Exit
 
-Hooks support early exit via the `_stop` signal:
+Hooks support early exit via the `stop()` helper:
 
 ```typescript
+import { stop } from '@deessejs/collections'
+
 hooks: {
   beforeCreate: async (ctx) => {
     if (ctx.data.status === 'draft') {
-      return { _stop: true, data: ctx }
+      return stop(ctx)
     }
     return ctx
   },
 }
 ```
 
-When a hook returns `{ _stop: true, data: ctx }`, the operation pipeline stops and returns `{ stopped: true }`.
+When a hook returns `stop(ctx)`, the operation pipeline stops and returns `{ stopped: true }`.
+
+You can also return `{ _stop: true, data: ctx }` directly for the same effect.
 
 ### Hook Executor Functions
 

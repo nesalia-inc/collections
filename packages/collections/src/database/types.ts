@@ -13,11 +13,28 @@ export interface WhereById {
   id: string
 }
 
+export type CreateOperation<T> = {
+  data: Partial<T>
+}
+
+export type CreateManyOperation<T> = {
+  data: Partial<T>[]
+}
+
+export interface CreateError {
+  code: 'ALREADY_EXISTS' | 'INCOMPLETE_DATA' | 'UNKNOWN'
+  message: string
+  fields?: string[]
+}
+
+export type Counted<T> = T & { count: number }
+
 export type CollectionDbMethods<T extends Collection> = {
   findMany: (query?: FindManyQuery<InferFieldTypes<T['fields']>>) => Promise<GetCollectionType<T>[]>
   findUnique: (query: { where: WhereById }) => Promise<GetCollectionType<T> | null>
   findFirst: (query?: { where: Partial<InferFieldTypes<T['fields']>>; orderBy?: keyof T['fields'] }) => Promise<GetCollectionType<T> | null>
-  create: (input: { data: Partial<InferFieldTypes<T['fields']>> }) => Promise<GetCollectionType<T>>
+  create: (input: CreateOperation<InferFieldTypes<T['fields']>>) => Promise<GetCollectionType<T>>
+  createMany: (input: CreateManyOperation<InferFieldTypes<T['fields']>>) => Promise<Counted<GetCollectionType<T>[]>>
   update: (input: { where: WhereById; data: Partial<InferFieldTypes<T['fields']>> }) => Promise<GetCollectionType<T>>
   delete: (input: { where: WhereById }) => Promise<GetCollectionType<T>>
   count: (query?: { where?: Partial<InferFieldTypes<T['fields']>> }) => Promise<number>

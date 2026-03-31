@@ -2,7 +2,6 @@
 
 import type {
   CollectionHooks,
-  HookHandler,
   BaseHookContext,
   CreateHookContext,
   ReadHookContext,
@@ -10,35 +9,7 @@ import type {
   DeleteHookContext,
 } from './types'
 
-/**
- * Execute a hook handler, allowing both sync and async return
- */
-const executeHook = async <T extends BaseHookContext>(
-  handler: HookHandler<T> | undefined,
-  context: T
-): Promise<T> => {
-  if (!handler) return context
-
-  const result = handler(context)
-
-  // Support both Promise and sync return
-  return result instanceof Promise ? result : result
-}
-
-/**
- * Execute before operation hooks
- */
-const executeBeforeOperation = async (
-  hooks: CollectionHooks,
-  context: BaseHookContext
-): Promise<BaseHookContext> => {
-  let ctx = context
-
-  // beforeOperation runs first
-  ctx = await executeHook(hooks.beforeOperation, ctx)
-
-  return ctx
-}
+import { executeHook, executeBeforeOperation } from './hooks-types'
 
 /**
  * Run create operation hooks

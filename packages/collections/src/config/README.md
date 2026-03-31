@@ -20,6 +20,18 @@ const config = defineConfig({
 
 // Access by slug
 config.collections.posts
+
+// JSON output:
+// {
+//   "collections": {
+//     "posts": {
+//       "slug": "posts",
+//       "name": "Posts",
+//       "fields": { ... },
+//       "hooks": { ... }
+//     }
+//   }
+// }
 ```
 
 ## Types

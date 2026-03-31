@@ -36,7 +36,9 @@ export type CollectionDbMethods<T extends Collection> = {
   create: (input: CreateOperation<InferFieldTypes<T['fields']>>) => Promise<GetCollectionType<T>>
   createMany: (input: CreateManyOperation<InferFieldTypes<T['fields']>>) => Promise<Counted<GetCollectionType<T>[]>>
   update: (input: { where: WhereById; data: Partial<InferFieldTypes<T['fields']>> }) => Promise<GetCollectionType<T>>
+  updateById: (id: string, data: Partial<InferFieldTypes<T['fields']>>) => Promise<GetCollectionType<T>>
   delete: (input: { where: WhereById }) => Promise<GetCollectionType<T>>
+  deleteById: (id: string) => Promise<GetCollectionType<T>>
   count: (query?: { where?: Partial<InferFieldTypes<T['fields']>> }) => Promise<number>
   exists: (query: { where: Partial<InferFieldTypes<T['fields']>> }) => Promise<boolean>
 }

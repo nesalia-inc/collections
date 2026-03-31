@@ -1,11 +1,11 @@
 # Collections Module
 
-DSL for defining collections.
+DSL for defining collections with fields and lifecycle hooks.
 
 ## Public API
 
 ```typescript
-import { collection, field, f } from '@deessejs/collections'
+import { collection, field, f, runCreateHooks } from '@deessejs/collections'
 ```
 
 ## Usage
@@ -44,15 +44,73 @@ const posts = collection({
 })
 ```
 
+## Hooks
+
+Lifecycle hooks for running code before/after operations. All hooks run within the same transaction as the operation.
+
+```typescript
+const posts = collection({
+  slug: 'posts',
+  fields: {
+    title: field({ fieldType: f.text() }),
+  },
+  hooks: {
+    beforeCreate: async (ctx) => {
+      ctx.data.createdAt = new Date()
+      return ctx
+    },
+    beforeRead: async (ctx) => {
+      ctx.query.limit = 10
+      return ctx
+    },
+  },
+})
+```
+
+### Hook Types
+
+| Hook | When | Context |
+|------|------|---------|
+| `beforeOperation` | Before any operation | `collection`, `operation` |
+| `afterOperation` | After any operation | `collection`, `operation` |
+| `beforeCreate` | Before creating | `collection`, `operation: 'create'`, `data` |
+| `afterCreate` | After creating | `collection`, `operation: 'create'`, `data`, `result` |
+| `beforeUpdate` | Before updating | `collection`, `operation: 'update'`, `data`, `where`, `previousData` |
+| `afterUpdate` | After updating | `collection`, `operation: 'update'`, `data`, `where`, `previousData`, `result` |
+| `beforeDelete` | Before deleting | `collection`, `operation: 'delete'`, `where`, `previousData` |
+| `afterDelete` | After deleting | `collection`, `operation: 'delete'`, `where`, `previousData`, `result` |
+| `beforeRead` | Before reading | `collection`, `operation: 'read'`, `query` |
+| `afterRead` | After reading | `collection`, `operation: 'read'`, `query`, `result` |
+
+### Hook Context Types
+
+- `BaseHookContext` - `collection`, `operation`
+- `CreateHookContext` - `collection`, `operation: 'create'`, `data`
+- `ReadHookContext` - `collection`, `operation: 'read'`, `query`
+- `UpdateHookContext` - `collection`, `operation: 'update'`, `data`, `where`, `previousData`
+- `DeleteHookContext` - `collection`, `operation: 'delete'`, `where`, `previousData`
+
+### Hook Executor Functions
+
+For internal use or testing:
+
+- `runCreateHooks(hooks, data)` - Returns modified `{ data }`
+- `runReadHooks(hooks, query)` - Returns modified `{ query }`
+- `runUpdateHooks(hooks, data, where, previousData)` - Returns modified context
+- `runDeleteHooks(hooks, where, previousData)` - Returns modified context
+
 ## Types
 
 | Type | Description |
 |------|-------------|
 | `Collection<TFields>` | Return type of `collection()` |
 | `CollectionConfig<TFields>` | Config accepted by `collection()` |
+| `CollectionHooks` | Hooks configuration interface |
+| `HookHandler<T>` | Hook function signature |
 | `GetCollectionType<T>` | Extract TypeScript type from a collection |
 
 ## Internal Files
 
 - `collection.ts` - `collection()` factory implementation
+- `hooks.ts` - Hook executor functions
 - `types.ts` - Type definitions

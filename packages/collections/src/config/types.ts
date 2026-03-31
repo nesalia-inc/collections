@@ -1,5 +1,5 @@
 import type { Collection } from '../collections'
 
 export interface Config {
-  readonly collections: Collection[]
+  readonly collections: Record<string, Collection>
 }

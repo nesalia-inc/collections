@@ -150,6 +150,29 @@ if (result.stopped) {
 - `hooks/` - Hook executor module
   - `index.ts` - Module exports
   - `types.ts` - Hook types (HookContext, CollectionHooks, HookHandler)
-  - `internal.ts` - Monadic machinery (HookStatus, lift, pipe)
+  - `internal.ts` - Monadic machinery
   - `runner.ts` - runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks, createHookRunner
 - `types.ts` - Collection type definitions
+
+### Internal Hook Machinery
+
+The hooks module uses a monadic pipeline internally:
+
+```typescript
+// HookStatus monad
+type HookStatus<T> =
+  | { _tag: 'Continue'; context: T }
+  | { _tag: 'Stop'; context: T }
+  | { _tag: 'Error'; error: Error }
+
+// Constructors (for advanced use)
+continueWith<T>(context: T): HookStatus<T>
+stop<T>(context: T): HookStatus<T>
+error<E extends Error>(error: E): HookStatus<never>
+
+// Internal helpers
+pipe<T>(...hooks: InternalHook<T>[]): InternalHook<T>
+lift<T>(handler): InternalHook<T>
+```
+
+These are internal helpers for hook composition. Use `continueWith`, `stop`, and `error` for advanced hook patterns.

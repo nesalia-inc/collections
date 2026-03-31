@@ -1,15 +1,15 @@
-// Hook executor types and helpers
+// Hook executor helper functions
 
 import type {
   CollectionHooks,
   HookHandler,
   BaseHookContext,
-} from './types'
+} from '../types'
 
 /**
  * Execute a hook handler, allowing both sync and async return
  */
-const executeHook = async <T extends BaseHookContext>(
+export const executeHook = async <T extends BaseHookContext>(
   handler: HookHandler<T> | undefined,
   context: T
 ): Promise<T> => {
@@ -24,12 +24,10 @@ const executeHook = async <T extends BaseHookContext>(
 /**
  * Execute before operation hooks
  */
-const executeBeforeOperation = async (
+export const executeBeforeOperation = async (
   hooks: CollectionHooks,
   context: BaseHookContext
 ): Promise<BaseHookContext> => {
   const ctx = await executeHook(hooks.beforeOperation, context)
   return ctx
 }
-
-export { executeHook, executeBeforeOperation }

@@ -1,4 +1,4 @@
-// Hook executor - runs hooks in sequence within operations
+// Hook executor builders - run*Hooks functions
 
 import type {
   CollectionHooks,
@@ -7,9 +7,9 @@ import type {
   ReadHookContext,
   UpdateHookContext,
   DeleteHookContext,
-} from './types'
+} from '../types'
 
-import { executeHook, executeBeforeOperation } from './hooks-types'
+import { executeHook, executeBeforeOperation } from './types'
 
 /**
  * Run create operation hooks

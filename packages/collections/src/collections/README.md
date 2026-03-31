@@ -112,6 +112,8 @@ For internal use or testing:
 ## Internal Files
 
 - `collection.ts` - `collection()` factory implementation
-- `hooks.ts` - Hook executor functions (runCreateHooks, etc.)
-- `hooks-types.ts` - Hook executor helper functions
+- `hooks/` - Hook executor module
+  - `index.ts` - Module exports
+  - `builders.ts` - runCreateHooks, runReadHooks, runUpdateHooks, runDeleteHooks
+  - `types.ts` - executeHook, executeBeforeOperation helpers
 - `types.ts` - Type definitions

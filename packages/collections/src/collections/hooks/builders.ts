@@ -7,9 +7,42 @@ import type {
   ReadHookContext,
   UpdateHookContext,
   DeleteHookContext,
-} from '../types'
+  HookHandler,
+} from './types'
 
-import { executeHook, executeBeforeOperation } from './types'
+// ============================================================================
+// Hook Executors
+// ============================================================================
+
+/**
+ * Execute a hook handler, allowing both sync and async return
+ */
+const executeHook = async <T extends BaseHookContext>(
+  handler: HookHandler<T> | undefined,
+  context: T
+): Promise<T> => {
+  if (!handler) return context
+
+  const result = handler(context)
+
+  // Support both Promise and sync return
+  return result instanceof Promise ? result : result
+}
+
+/**
+ * Execute before operation hooks
+ */
+const executeBeforeOperation = async (
+  hooks: CollectionHooks,
+  context: BaseHookContext
+): Promise<BaseHookContext> => {
+  const ctx = await executeHook(hooks.beforeOperation, context)
+  return ctx
+}
+
+// ============================================================================
+// Run*Hooks Functions
+// ============================================================================
 
 /**
  * Run create operation hooks

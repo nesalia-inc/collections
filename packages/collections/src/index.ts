@@ -6,3 +6,6 @@ export * from './fields'
 
 // Collections - DSL for defining collections
 export * from './collections'
+
+// Config - Top-level configuration
+export * from './config'

@@ -2,3 +2,4 @@
 
 export * from './types'
 export { collection } from './collection'
+export * from './hooks'

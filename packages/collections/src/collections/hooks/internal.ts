@@ -24,6 +24,34 @@ export type HookStatus<T> =
 type InternalHook<T> = (ctx: T) => Promise<HookStatus<T>>
 
 // ============================================================================
+// Constructors
+// ============================================================================
+
+/**
+ * Continue with the given context
+ */
+export const continueWith = <T>(context: T): HookStatus<T> => ({
+  _tag: 'Continue',
+  context,
+})
+
+/**
+ * Stop (early exit) with the given context
+ */
+export const stop = <T>(context: T): HookStatus<T> => ({
+  _tag: 'Stop',
+  context,
+})
+
+/**
+ * Error with the given error
+ */
+export const error = <E extends Error>(e: E): HookStatus<never> => ({
+  _tag: 'Error',
+  error: e,
+})
+
+// ============================================================================
 // Lift: User function -> Internal Hook
 // ============================================================================
 

@@ -141,14 +141,17 @@ where<Item>(p => p.in.$.eq('value'))
 | Type | Description |
 |------|-------------|
 | `Where<T>` | Object approach type |
-| `WhereNode` | AST node union |
+| `WhereNode` | AST node union (discriminated union) |
 | `Predicate<T>` | Functional predicate wrapper |
 | `PredicateInput<T>` | Accepts Predicate or WhereNode |
-| `FieldOperators<T>` | Type-specific operators |
+| `BaseOperators<V>` | Base operators for all types |
+| `ScalarOperators<V>` | Comparison operators (gt, gte, lt, lte, between) |
+| `StringOperators<V>` | String-specific (like, contains, startsWith, endsWith, regex) |
+| `ArrayOperators<V>` | Array-specific (has, hasAny, overlaps) |
 | `search(fields, value)` | Global search across fields |
 
 ## Files
 
 - `index.ts` - Module exports
-- `types.ts` - Type definitions
-- `builder.ts` - Functional-fluent implementation
+- `types.ts` - Type definitions (operators, AST nodes, Where type)
+- `builder.ts` - Functional-fluent implementation (where, and, or, not, search)

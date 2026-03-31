@@ -1,0 +1,113 @@
+// Where Type - Type-safe filtering system
+
+// ============================================================================
+// Operator Types
+// ============================================================================
+
+export interface StringOperator {
+  eq?: string
+  ne?: string
+  in?: string[]
+  notIn?: string[]
+  like?: string
+  contains?: string
+  startsWith?: string
+  endsWith?: string
+  regex?: string
+  mode?: 'default' | 'insensitive'
+}
+
+export interface NumberOperator {
+  eq?: number
+  ne?: number
+  in?: number[]
+  notIn?: number[]
+  gt?: number
+  gte?: number
+  lt?: number
+  lte?: number
+  between?: [number, number]
+}
+
+export interface DateOperator {
+  eq?: Date | string
+  ne?: Date | string
+  gt?: Date | string
+  gte?: Date | string
+  lt?: Date | string
+  lte?: Date | string
+  between?: [Date | string, Date | string]
+}
+
+export interface ArrayOperator<T extends unknown[]> {
+  contains?: T[number]
+  has?: T[number]
+  hasAny?: T[number][]
+  containsAny?: T[number][]
+  overlaps?: T
+}
+
+export interface NullOperator {
+  isNull?: boolean
+  isNotNull?: boolean
+}
+
+export interface LogicalOperators<T> {
+  AND?: T[]
+  OR?: T[]
+  NOT?: T
+}
+
+export interface GlobalSearchOperator {
+  _search?: string
+}
+
+// Value types for where
+export type WhereValue<T> =
+  | T
+  | (T extends string ? StringOperator : never)
+  | (T extends number ? NumberOperator : never)
+  | (T extends Date | string ? DateOperator : never)
+  | (T extends unknown[] ? ArrayOperator<T> : never)
+  | NullOperator
+
+// Main Where type
+export type Where<T = unknown> = {
+  [K in keyof T]?: WhereValue<T[K]>
+} & LogicalOperators<Where<T>> & GlobalSearchOperator
+
+// ============================================================================
+// Functional-Fluent Types (AST)
+// ============================================================================
+
+export type Predicate<T> = {
+  readonly _tag: 'Predicate'
+  readonly _entity: T
+  readonly ast: WhereNode
+}
+
+export type WhereNode =
+  | { readonly _tag: 'Eq'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Ne'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Gt'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Gte'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Lt'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Lte'; readonly field: string; readonly value: unknown }
+  | { readonly _tag: 'Like'; readonly field: string; readonly value: string }
+  | { readonly _tag: 'Contains'; readonly field: string; readonly value: string }
+  | { readonly _tag: 'StartsWith'; readonly field: string; readonly value: string }
+  | { readonly _tag: 'EndsWith'; readonly field: string; readonly value: string }
+  | { readonly _tag: 'Regex'; readonly field: string; readonly value: string }
+  | { readonly _tag: 'In'; readonly field: string; readonly value: unknown[] }
+  | { readonly _tag: 'NotIn'; readonly field: string; readonly value: unknown[] }
+  | { readonly _tag: 'Between'; readonly field: string; readonly value: [unknown, unknown] }
+  | { readonly _tag: 'IsNull'; readonly field: string }
+  | { readonly _tag: 'IsNotNull'; readonly field: string }
+  | { readonly _tag: 'And'; readonly nodes: WhereNode[] }
+  | { readonly _tag: 'Or'; readonly nodes: WhereNode[] }
+  | { readonly _tag: 'Not'; readonly node: WhereNode }
+  | { readonly _tag: 'Search'; readonly value: string }
+  | { readonly _tag: 'Field'; readonly path: string[] }
+
+// Logical combinators
+export type LogicalCombinator = 'AND' | 'OR' | 'NOT'

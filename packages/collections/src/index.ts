@@ -12,3 +12,6 @@ export * from './config'
 
 // Database - Database access types
 export * from './database'
+
+// Operations - Query operations
+export * from './operations'

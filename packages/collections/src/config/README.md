@@ -11,18 +11,11 @@ import { defineConfig } from '@deessejs/collections'
 ## Usage
 
 ```typescript
-import { defineConfig, collection, field, f } from '@deessejs/collections'
+import { defineConfig } from '@deessejs/collections'
+import { posts } from './collections/posts'
 
 const config = defineConfig({
-  collections: [
-    collection({
-      slug: 'posts',
-      name: 'Blog Posts',
-      fields: {
-        title: field({ fieldType: f.text() }),
-      },
-    }),
-  ],
+  collections: [posts],
 })
 ```
 

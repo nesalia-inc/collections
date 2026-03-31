@@ -1,9 +1,13 @@
 import type { Collection } from '../collections'
 
-export interface ConfigInput {
-  readonly collections: Collection[]
+export interface ConfigInput<T extends Collection[]> {
+  readonly collections: T
 }
 
-export interface Config {
-  readonly collections: Record<string, Collection>
+type CollectionsRecord<T extends Collection[]> = {
+  [K in T[number] as K extends Collection<infer S> ? S : never]: K
+}
+
+export type Config<T extends Collection[]> = {
+  readonly collections: CollectionsRecord<T>
 }

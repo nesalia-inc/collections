@@ -18,15 +18,15 @@ JSON-like filtering for serialization:
 
 ## Functional-Fluent Approach (Recommended)
 
-Proxy-based DSL for type-safe, composable filters with full autocomplete.
+Proxy-based DSL with full autocomplete and type-safety. Uses `$` as a terminator to separate path navigation from operator execution (prevents column name collision with operators like `in`, `eq`, `contains`).
 
 ### Basic Usage
 
 ```typescript
-const isPublished = where(p => p.published.eq(true))
-const isRecent = where(p => p.createdAt.gt(new Date('2024-01-01')))
+const isPublished = where(p => p.published.$.eq(true))
+const isRecent = where(p => p.createdAt.$.gt(new Date('2024-01-01')))
 
-// Compose - predicates can be passed directly
+// Compose
 const targetPosts = and(isPublished, isRecent)
 
 // Usage
@@ -35,50 +35,59 @@ config.db.posts.findMany({ where: targetPosts })
 
 ### Nested Path Filtering (Relations)
 
-The Proxy supports nested paths for relation filtering:
-
 ```typescript
 // Filter by author.name
-const filterByAuthor = where(p => p.author.name.eq('John'))
+const filterByAuthor = where(p => p.author.name.$.eq('John'))
 
 // Filter by nested relations
-const filterByLocation = where(p => p.author.profile.location.eq('Paris'))
+const filterByLocation = where(p => p.author.profile.location.$.eq('Paris'))
 ```
 
-### Operators
+### Type-Safe Operators
 
+Operators are specific to field types:
+
+**String fields:**
 ```typescript
-where(p => p.field.eq(value))        // Equal (supports null)
-where(p => p.field.ne(value))        // Not equal (supports null)
-where(p => p.field.gt(value))        // Greater than
-where(p => p.field.gte(value))       // Greater than or equal
-where(p => p.field.lt(value))        // Less than
-where(p => p.field.lte(value))       // Less than or equal
-where(p => p.field.between(min, max)) // Between
-where(p => p.field.in([a, b]))       // In array
-where(p => p.field.notIn([a, b]))    // Not in array
-where(p => p.field.isNull())         // Is null
-where(p => p.field.isNotNull())      // Is not null
-where(p => p.field.contains(value))   // String contains
-where(p => p.field.startsWith(value)) // String starts with
-where(p => p.field.endsWith(value))   // String ends with
-where(p => p.field.like(value))      // SQL LIKE pattern
-where(p => p.field.regex(value))     // Regular expression
+where(p => p.title.$.startsWith('Hello'))
+where(p => p.email.$.contains('@gmail.com'))
+where(p => p.slug.$.regex('^[a-z]+$'))
+```
+
+**Number fields:**
+```typescript
+where(p => p.age.$.gt(18))
+where(p => p.price.$.between(10, 100))
+```
+
+**Array fields:**
+```typescript
+where(p => p.tags.$.has('typescript'))
+where(p => p.tags.$.hasAny(['js', 'ts']))
+where(p => p.permissions.$.overlaps(['read', 'write']))
+```
+
+**All fields:**
+```typescript
+where(p => p.name.$.eq('John'))
+where(p => p.name.$.ne(null))
+where(p => p.name.$.in(['a', 'b']))
+where(p => p.deletedAt.$.isNull())
 ```
 
 ### Logical Combinators
 
 ```typescript
-// AND - combine multiple predicates
+// AND
 const filter = and(predicate1, predicate2, predicate3)
 
-// OR - alternative conditions
+// OR
 const filter = or(predicate1, predicate2)
 
-// NOT - negate a predicate
+// NOT
 const filter = not(predicate1)
 
-// Mixed composition
+// Mixed
 const filter = and(
   isPublished,
   or(isRecent, isFeatured)
@@ -90,10 +99,9 @@ const filter = and(
 Search across multiple text fields:
 
 ```typescript
-// Explicit fields list (avoids column name collision)
 const filter = search(['title', 'content', 'description'], 'typescript')
 
-// Combine with other predicates
+// Combine with predicates
 const filter = and(
   isPublished,
   search(['title', 'content'], 'react')
@@ -102,11 +110,11 @@ const filter = and(
 
 ## Type Composition
 
-The `and`, `or`, `not` functions accept both `Predicate<T>` and `WhereNode`:
+`and`, `or`, `not` accept both `Predicate<T>` and `WhereNode`:
 
 ```typescript
-const p1 = where(p => p.age.gt(20))
-const p2 = where(p => p.active.eq(true))
+const p1 = where(p => p.age.$.gt(20))
+const p2 = where(p => p.active.$.eq(true))
 
 // Works with predicates
 const combined1 = and(p1, p2)
@@ -118,14 +126,25 @@ const combined2 = and(p1.ast, p2.ast)
 const combined3 = and(p1, p2.ast)
 ```
 
+## Why `$` Terminator?
+
+Using `$` as a terminator prevents collision with column names:
+
+```typescript
+// Safe: even if you have a column named 'in' or 'eq'
+where<CheckIn>(p => p.in.$.gt(new Date()))
+where<Item>(p => p.in.$.eq('value'))
+```
+
 ## Types
 
 | Type | Description |
 |------|-------------|
 | `Where<T>` | Object approach type |
-| `WhereNode` | AST node type |
+| `WhereNode` | AST node union |
 | `Predicate<T>` | Functional predicate wrapper |
 | `PredicateInput<T>` | Accepts Predicate or WhereNode |
+| `FieldOperators<T>` | Type-specific operators |
 | `search(fields, value)` | Global search across fields |
 
 ## Files

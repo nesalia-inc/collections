@@ -10,9 +10,13 @@ export type {
   ArrayOperator,
   NullOperator,
   LogicalOperators,
-  GlobalSearchOperator,
   LogicalCombinator,
   OperatorName,
+  FieldOperators,
+  BaseOperators,
+  ScalarOperators,
+  StringOperators,
+  ArrayOperators,
 } from './types'
 
 export { where, and, or, not, eqField, search } from './builder'

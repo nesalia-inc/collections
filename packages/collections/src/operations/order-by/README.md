@@ -58,6 +58,19 @@ Unlike simple object-based ordering like `{ status: 'asc', createdAt: 'desc' }`,
 3. **Nested paths** - `p.author.name` works seamlessly via PathProxy
 4. **Validation** - Runtime error if you forget `asc()` or `desc()`
 
+## Reusable Sort Definitions
+
+You can create reusable sort specifications:
+
+```typescript
+// Reusable sort definition
+const byRecent = <T extends { createdAt: Date }>(p: PathProxy<T>) => desc(p.createdAt)
+const byName = <T extends { name: string }>(p: PathProxy<T>) => asc(p.name)
+
+// Usage
+orderBy<Post>(p => [byRecent(p), byName(p)])
+```
+
 ## Types
 
 ```typescript

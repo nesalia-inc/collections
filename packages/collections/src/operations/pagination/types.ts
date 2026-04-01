@@ -1,6 +1,8 @@
 // Pagination Types - Offset and Cursor-based pagination
 
 import type { PathProxy } from '../path'
+import type { Predicate } from '../where'
+import type { OrderBy } from '../order-by'
 import type { ValidSelectValue } from '../select'
 
 // ============================================================================
@@ -44,30 +46,29 @@ export type PaginationInput = OffsetPaginationInput | CursorPaginationInput
 
 /**
  * Paginated result with data and navigation
- * Immutable - next() and previous() return new instances
+ * Note: This object contains methods and is not JSON-serializable.
+ * For API responses, extract data via current.data and compute pagination manually.
  */
 export interface Paginated<T> {
   /** Current page data */
   readonly current: {
     /** Array of items in current page */
     readonly data: T[]
-    /** Total count of all records (undefined if includeTotal: false) */
-    readonly total?: number
+    /** Total count of all records */
+    readonly total: number | null
     /** Max items per page */
     readonly limit: number
     /** Number of items skipped */
     readonly offset: number
   }
-  /** Check if there is a next page */
-  hasNext(): boolean
-  /** Check if there is a previous page */
-  hasPrevious(): boolean
+  /** Whether there is a next page (determined by fetching limit+1) */
+  readonly hasNext: boolean
+  /** Whether there is a previous page */
+  readonly hasPrevious: boolean
   /** Navigate to next page (preserves original query) */
   next(): Promise<Paginated<T> | null>
   /** Navigate to previous page (preserves original query) */
   previous(): Promise<Paginated<T> | null>
-  /** Get total count as Promise (lazy evaluation) */
-  getTotal(): Promise<number | undefined>
 }
 
 // ============================================================================
@@ -76,7 +77,7 @@ export interface Paginated<T> {
 
 /**
  * Cursor value from a record
- * Internal representation before base64 encoding
+ * Internal representation before encoding
  */
 export interface CursorValue {
   /** OrderBy field values at the cursor position */
@@ -86,10 +87,46 @@ export interface CursorValue {
 }
 
 /**
+ * Serialize a value for cursor encoding
+ * Handles Date objects specially since JSON.stringify converts them to strings
+ */
+function serializeValue(value: unknown): string {
+  if (value instanceof Date) {
+    return `__date:${value.toISOString()}`
+  }
+  if (typeof value === 'object' && value !== null) {
+    return `__json:${JSON.stringify(value)}`
+  }
+  return String(value)
+}
+
+/**
+ * Deserialize a value from cursor decoding
+ */
+function deserializeValue(value: string): unknown {
+  if (value.startsWith('__date:')) {
+    return new Date(value.slice(7))
+  }
+  if (value.startsWith('__json:')) {
+    return JSON.parse(value.slice(7))
+  }
+  return value
+}
+
+/**
  * Encode cursor value to opaque string for external use
+ * Uses btoa/atob for universal (isomorphic) compatibility - works in Node.js, Browser, Deno, Edge
  */
 export function encodeCursor(value: CursorValue): string {
-  return Buffer.from(JSON.stringify(value)).toString('base64')
+  const serialized = {
+    values: Object.fromEntries(
+      Object.entries(value.values).map(([k, v]) => [k, serializeValue(v)])
+    ),
+    orderBy: value.orderBy,
+  }
+  const json = JSON.stringify(serialized)
+  // btoa works in browsers and modern Node.js (v16+)
+  return btoa(json)
 }
 
 /**
@@ -97,8 +134,17 @@ export function encodeCursor(value: CursorValue): string {
  */
 export function decodeCursor(encoded: string): CursorValue | null {
   try {
-    const decoded = Buffer.from(encoded, 'base64').toString('utf-8')
-    return JSON.parse(decoded) as CursorValue
+    const json = atob(encoded)
+    const parsed = JSON.parse(json) as {
+      values: Record<string, string>
+      orderBy: readonly string[]
+    }
+    return {
+      values: Object.fromEntries(
+        Object.entries(parsed.values).map(([k, v]) => [k, deserializeValue(v)])
+      ),
+      orderBy: parsed.orderBy,
+    }
   } catch {
     return null
   }
@@ -123,10 +169,10 @@ export type PaginationSelectInput<T> = <TResult extends Record<string, ValidSele
  * Frozen snapshot of a query for navigation
  * Used by next()/previous() to replay exact query with modified cursor/offset
  */
-export interface QuerySnapshot<TSelect> {
-  readonly where?: unknown // Predicate<TData>
+export interface QuerySnapshot<TData, TSelect> {
+  readonly where?: Predicate<TData>
   readonly select?: TSelect
-  readonly orderBy?: unknown // OrderBy<TData>
+  readonly orderBy?: OrderBy<TData>
   readonly pagination: PaginationInput
 }
 
@@ -135,9 +181,9 @@ export interface QuerySnapshot<TSelect> {
  */
 export interface QuerySnapshotBuilder<TData, TSelect> {
   (p: PathProxy<TData>): {
-    where?: unknown
+    where?: Predicate<TData>
     select?: TSelect
-    orderBy?: unknown
+    orderBy?: OrderBy<TData>
     pagination: PaginationInput
   }
 }

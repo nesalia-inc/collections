@@ -88,14 +88,16 @@ export interface CursorValue {
 
 /**
  * Tagged union for serialized cursor values
- * Avoids string prefix collisions (unlike __date: approach)
+ * Uses explicit type tags to avoid collisions with user data
  */
 type SerializedValue =
   | { t: 'd'; v: string }   // Date - ISO string
-  | { t: 'j'; v: string }  // JSON object
-  | { t: 'n'; v: null }    // null
+  | { t: 'j'; v: string }   // JSON object
+  | { t: 'nl'; v: null }   // null
   | { t: 'b'; v: boolean } // boolean
-  | { t: 'u'; v: undefined } // undefined (shouldn't happen but safety)
+  | { t: 'n'; v: number }  // number (preserves numeric type for correct sorting)
+  | { t: 'bi'; v: string } // BigInt (serialized as string to survive JSON)
+  | { t: 'u'; v: undefined } // undefined
   | { t: 's'; v: string }  // string
 
 /**
@@ -106,17 +108,23 @@ function serializeValue(value: unknown): SerializedValue {
   if (value instanceof Date) {
     return { t: 'd', v: value.toISOString() }
   }
-  if (typeof value === 'object' && value !== null) {
-    return { t: 'j', v: JSON.stringify(value) }
+  if (typeof value === 'bigint') {
+    return { t: 'bi', v: value.toString() }
+  }
+  if (typeof value === 'number') {
+    return { t: 'n', v: value }
   }
   if (value === null) {
-    return { t: 'n', v: null }
+    return { t: 'nl', v: null }
   }
   if (typeof value === 'boolean') {
     return { t: 'b', v: value }
   }
   if (typeof value === 'undefined') {
     return { t: 'u', v: undefined }
+  }
+  if (typeof value === 'object' && value !== null) {
+    return { t: 'j', v: JSON.stringify(value) }
   }
   return { t: 's', v: String(value) }
 }
@@ -128,14 +136,18 @@ function deserializeValue(value: SerializedValue): unknown {
   switch (value.t) {
     case 'd':
       return new Date(value.v)
-    case 'j':
-      return JSON.parse(value.v)
+    case 'bi':
+      return BigInt(value.v)
     case 'n':
+      return value.v
+    case 'nl':
       return null
     case 'b':
       return value.v
     case 'u':
       return undefined
+    case 'j':
+      return JSON.parse(value.v)
     case 's':
       return value.v
   }

@@ -8,8 +8,9 @@ import type { PathSegment } from '../path'
 
 export interface SelectNode {
   readonly _tag: 'SelectNode'
-  readonly path: string[]      // ex: ['author', 'profile', 'name']
-  readonly field: string       // Flat field name: 'author.profile.name'
+  readonly path: string[]       // ex: ['author', 'profile', 'name']
+  readonly field: string        // Flat field name: 'author.profile.name'
+  readonly alias?: string       // Alias if different from field (for nested paths)
   readonly isRelation: boolean  // Indicates if path traverses a relation
   readonly isCollection: boolean // Indicates if path traverses an array (1:N)
 }

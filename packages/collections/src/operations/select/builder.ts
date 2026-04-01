@@ -6,49 +6,47 @@ import type { SelectNode, Selection } from './types'
 // ============================================================================
 
 /**
- * Build a selection AST
- * Usage: select<User>()(p => [p.id, p.email, p.author.name])
+ * Build a selection AST using an object-based API
+ * Usage: select<User>()(p => ({ id: p.id, name: p.name, author: p.author.name }))
  *
- * Note: This implementation does NOT automatically infer the return type.
- * The result must be typed manually or through schema integration.
- *
- * Limitations:
- * - Return type (TResult) must be provided manually or defaults to unknown
- * - For automatic DeepPick inference, consider object-based select syntax
+ * This approach allows TypeScript to infer the return type from the object keys.
+ * Each property value must be a PathProxy (from field access).
  */
 export const select = <TEntity>() => {
-  return <TResult = unknown>(
-    builder: (p: PathProxy<TEntity>) => PathProxy<unknown>[]
+  return <TResult extends Record<string, unknown>>(
+    builder: (p: PathProxy<TEntity>) => TResult
   ): Selection<TEntity, TResult> => {
     const p = createPathProxy<TEntity>()
     const result = builder(p)
 
-    if (!Array.isArray(result)) {
+    if (typeof result !== 'object' || result === null) {
       throw new Error(
-        `select: expected array of paths, got ${typeof result}. ` +
-        `Usage: select<User>()(p => [p.id, p.name])`
+        `select: expected object with field accesses, got ${typeof result}. ` +
+        `Usage: select<User>()(p => ({ id: p.id, name: p.name }))`
       )
     }
 
     const nodes: SelectNode[] = []
+    const entries = Object.entries(result as Record<string, unknown>)
 
-    for (const item of result) {
-      if (!isPathProxy(item)) {
+    for (const [alias, value] of entries) {
+      if (!isPathProxy(value)) {
         throw new Error(
-          `select: expected PathProxy from field access, got ${typeof item}. ` +
-          `Did you forget to access a field? Usage: select<User>()(p => [p.id, p.name])`
+          `select: expected PathProxy for field access, got ${typeof value} for key "${alias}". ` +
+          `Usage: select<User>()(p => ({ ${alias}: p.${alias} }))`
         )
       }
 
-      const path = extractPath(item)
+      const path = extractPath(value)
       const pathStrings = path.map(segment => String(segment))
 
       nodes.push({
         _tag: 'SelectNode',
         path: pathStrings,
         field: pathToField(pathStrings),
-        isRelation: false, // Requires schema integration to detect
-        isCollection: false, // Requires schema integration to detect
+        alias: pathStrings.length > 1 ? alias : undefined, // Use alias only if different from field
+        isRelation: false,
+        isCollection: false,
       })
     }
 
@@ -69,11 +67,12 @@ export function isPathProxy(value: unknown): value is PathProxy<unknown> {
 /**
  * Create a SelectNode from a path array
  */
-export function createSelectNode(path: string[]): SelectNode {
+export function createSelectNode(path: string[], alias?: string): SelectNode {
   return {
     _tag: 'SelectNode',
     path,
     field: path.join('.'),
+    alias,
     isRelation: false,
     isCollection: false,
   }

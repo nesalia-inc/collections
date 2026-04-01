@@ -1,5 +1,5 @@
 import type { Collection } from '../collections'
-import type { DbAccess } from '../database'
+import type { DbAccess } from '../operations/database'
 
 export interface ConfigInput<T extends Collection[]> {
   readonly collections: T

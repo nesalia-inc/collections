@@ -1,6 +1,6 @@
-import type { Collection } from '../collections'
-import type { InferFieldTypes } from '../collections/hooks/types'
-import type { GetCollectionType } from '../collections/types'
+import type { Collection } from '../../collections'
+import type { InferFieldTypes } from '../../collections/hooks/types'
+import type { GetCollectionType } from '../../collections/types'
 
 export interface FindManyQuery<TData> {
   where?: Partial<TData>

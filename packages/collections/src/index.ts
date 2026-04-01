@@ -10,8 +10,8 @@ export * from './collections'
 // Config - Top-level configuration
 export * from './config'
 
-// Database - Database access types
-export * from './database'
+// Database - Database access types (under operations/)
+export * from './operations/database'
 
 // Operations - Query operations
 export * from './operations'

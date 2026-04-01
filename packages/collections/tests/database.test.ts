@@ -8,7 +8,7 @@ import type {
   CreateManyOperation,
   CreateError,
   Counted,
-} from '../src/database/types'
+} from '../src/operations/database/types'
 
 describe('database/types', () => {
   describe('FindManyQuery', () => {

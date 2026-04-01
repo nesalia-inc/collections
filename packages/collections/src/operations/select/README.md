@@ -1,6 +1,6 @@
 # Select
 
-Type-safe field selection AST builder.
+Type-safe field selection AST builder using an object-based API.
 
 ## Public API
 
@@ -13,11 +13,28 @@ import { select } from '@deessejs/collections'
 ```typescript
 import { select } from '@deessejs/collections'
 
-// Build a selection AST (AST is properly built, return type must be inferred by driver)
-const fields = select<User>()(p => [p.id, p.email, p.name])
+// Simple field selection
+const fields = select<User>()(p => ({
+  id: p.id,
+  name: p.name,
+  email: p.email,
+}))
 
-// Nested paths work
-const withRelation = select<Post>()(p => [p.title, p.author.name])
+// Nested paths with aliases
+const withRelation = select<Post>()(p => ({
+  id: p.id,
+  title: p.title,
+  authorName: p.author.name,
+}))
+
+// Deep nested objects
+const nested = select<User>()(p => ({
+  id: p.id,
+  profile: {
+    bio: p.profile.bio,
+    avatar: p.profile.avatar,
+  },
+}))
 ```
 
 ## Integration with Database
@@ -25,12 +42,17 @@ const withRelation = select<Post>()(p => [p.title, p.author.name])
 ```typescript
 import { where, eq, select, orderBy, asc, desc } from '@deessejs/collections'
 
-// Usage in findMany - driver interprets the AST
+// Full query with select
 const posts = await config.db.posts.findMany({
   where: where(p => [eq(p.published, true)]),
-  select: select<Post>()(p => [p.id, p.title, p.author.name]),
+  select: select<Post>()(p => ({
+    id: p.id,
+    title: p.title,
+    authorName: p.author.name,
+    createdAt: p.createdAt,
+  })),
   orderBy: orderBy(p => [desc(p.createdAt)]),
-  limit: 10
+  limit: 10,
 })
 ```
 
@@ -40,94 +62,93 @@ const posts = await config.db.posts.findMany({
 // Single selection node
 interface SelectNode {
   readonly _tag: 'SelectNode'
-  readonly path: string[]        // ['author', 'profile', 'name']
-  readonly field: string         // 'author.profile.name'
-  readonly isRelation: boolean    // Driver detects if path traverses a relation
-  readonly isCollection: boolean  // Driver detects if path traverses an array (1:N)
+  readonly path: readonly string[]  // ['author', 'profile', 'name']
+  readonly field: string           // 'author.profile.name' (DB column)
+  readonly alias: string          // 'author.name' (key in result object)
+  readonly isRelation: boolean     // Driver detects via schema
+  readonly isCollection: boolean   // Driver detects via schema
 }
 
-// Selection wrapper
+// Selection wrapper with phantom types
 interface Selection<TEntity, TResult> {
   readonly _tag: 'Selection'
   readonly _entity?: TEntity
-  readonly _result?: TResult  // Must be provided manually or by schema
+  readonly _result?: Unwrap<TResult>  // Unwrapped primitive types
   readonly ast: SelectNode[]
 }
+
+// Type utilities
+type Unwrap<T> = T extends PathProxy<infer V> ? V : T
+type ValidSelectValue = PathProxy<unknown> | ValidSelectObject
 ```
+
+## Type Safety
+
+The API uses `ValidSelectValue` constraint for compile-time validation:
+
+```typescript
+// Valid - compile-time OK
+select<User>()(p => ({ id: p.id, name: p.name }))
+
+// Invalid - compile-time error
+select<User>()(p => ({ age: 42 }))  // Error: number is not ValidSelectValue
+```
+
+## Nested Objects
+
+Nested objects are supported recursively. The alias always contains the full path from the root:
+
+```typescript
+select<User>()(p => ({
+  profile: {
+    bio: p.profile.bio,
+  },
+}))
+
+// Results in AST node:
+// { field: 'profile.bio', alias: 'profile.bio', ... }
+```
+
+This allows the driver to correctly reconstruct nested objects from flat SQL results.
 
 ## Architecture
 
 ```
-select<User>()(p => [p.id, p.author.name])
+select<User>()(p => ({
+  id: p.id,
+  author: {
+    name: p.author.name,
+  },
+}))
         │       │   │         │
-        │       │   │         └── Terminal: path accumulation via Proxy
-        │       │   └────────── PathProxy: p.author
+        │       │   │         └── PathProxy for author.name
+        │       │   └────────── PathProxy for author
         │       └────────────── Parameterized builder
         └────────────────────── Curried factory for entity type
+
+AST generated:
+[
+  { field: 'id', alias: 'id', ... },
+  { field: 'author.name', alias: 'author.name', ... },
+]
 ```
 
 **Three-tier separation:**
 1. **Path Reifier** - Proxy accumulates path via Symbol (shared with `where`, `order-by`)
-2. **Select Terminal** - Implicit (field access returns Proxy, no terminal function needed)
-3. **Selection Wrapper** - `select()` combines nodes into Selection AST
+2. **ValidSelectValue** - Type constraint ensures compile-time validation
+3. **collectNodes** - Recursive collection with full-path aliases for nested objects
 
 ## Limitations
 
-### Type Inference
-
-This implementation does **NOT** automatically infer the return type as a DeepPick of the selected fields.
-
-```typescript
-// What you write:
-const result = select<User>()(p => [p.id, p.name])
-
-// What you get (NOT what you might expect):
-// Selection<User, unknown> - TResult defaults to unknown
-
-// What you would need for proper inference:
-const result = select<User, { id: string; name: string }>()(p => [p.id, p.name])
-```
-
-For automatic DeepPick type inference, TypeScript would need to:
-1. Track all property accesses through the Proxy
-2. Reconstruct the object shape from those paths
-3. This is not possible with current TypeScript generics + Proxy pattern
-
-### Alternative Approaches
-
-For better type inference with relations, consider:
-
-**Object-based select (Prisma/Drizzle style):**
-```typescript
-// More verbose but fully typed
-db.posts.findMany({
-  select: {
-    id: true,
-    title: true,
-    author: {
-      select: { name: true }
-    }
-  }
-})
-```
-
-**Manual typing:**
-```typescript
-const result = select<User, Pick<User, 'id' | 'name'>>()(p => [p.id, p.name])
-```
-
-### Schema Integration Required
-
-The following features require integration with Collection schema:
+The following require schema integration:
 
 - `isRelation: true` - Detecting when a path crosses a relation boundary
 - `isCollection: true` - Detecting 1:N relationships (arrays)
-- Automatic JOIN planning based on selection depth
 
 Currently all paths are marked as `isRelation: false` and `isCollection: false`.
 
 ## Files
 
 - `index.ts` - Module exports
-- `types.ts` - Type definitions
-- `builder.ts` - Builder implementation with validation
+- `types.ts` - Type definitions including Unwrap and ValidSelectValue
+- `builder.ts` - Builder implementation with recursive node collection

@@ -5,13 +5,13 @@ import type { OrderNode, OrderBy } from './types'
 // Order Terminals - asc/desc operators
 // ============================================================================
 
-export const asc = <T>(path: PathProxy<T>): OrderNode => ({
+export const asc = <T>(path: PathProxy<T>): OrderNode<T> => ({
   _tag: 'OrderNode',
   field: pathToField(extractPath(path)),
   direction: 'asc',
 })
 
-export const desc = <T>(path: PathProxy<T>): OrderNode => ({
+export const desc = <T>(path: PathProxy<T>): OrderNode<T> => ({
   _tag: 'OrderNode',
   field: pathToField(extractPath(path)),
   direction: 'desc',
@@ -26,12 +26,12 @@ export const desc = <T>(path: PathProxy<T>): OrderNode => ({
  * Usage: orderBy<User>(p => [asc(p.lastName), desc(p.createdAt)])
  */
 export const orderBy = <T>(
-  builder: (p: PathProxy<T>) => OrderNode | OrderNode[]
+  builder: (p: PathProxy<T>) => OrderNode<T> | OrderNode<T>[]
 ): OrderBy<T> => {
   const p = createPathProxy<T>()
   const result = builder(p)
 
-  const nodes: OrderNode[] = Array.isArray(result) ? result : [result]
+  const nodes: OrderNode<T>[] = Array.isArray(result) ? result : [result]
 
   // Validate each node has the expected structure
   for (const node of nodes) {
@@ -51,15 +51,10 @@ export const orderBy = <T>(
 }
 
 // Type guard for OrderNode
-function isOrderNode(value: unknown): value is OrderNode {
+function isOrderNode(value: unknown): value is OrderNode<unknown> {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    '_tag' in value &&
-    (value as Record<string, unknown>)['_tag'] === 'OrderNode' &&
-    'field' in value &&
-    'direction' in value &&
-    ((value as { direction: unknown })['direction'] === 'asc' ||
-      (value as { direction: unknown })['direction'] === 'desc')
+    value != null &&
+    (value as { _tag?: string })._tag === 'OrderNode' &&
+    (value as { direction?: string }).direction !== undefined
   )
 }

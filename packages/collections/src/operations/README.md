@@ -6,7 +6,8 @@ Query and data manipulation operations for collections.
 
 ```
 operations/
-├── database/   # Database operation types (findMany, create, update, delete...)
+├── database/    # Database operation types (findMany, create, update, delete...)
+├── order-by/   # Type-safe ordering with asc/desc terminals
 └── where/      # Type-safe filtering with PathProxy (recommended)
 ```
 
@@ -15,7 +16,7 @@ operations/
 Types for collection data access. Used via `config.db.<collection>`.
 
 ```typescript
-import { defineConfig, where, eq } from '@deessejs/collections'
+import { defineConfig, where, eq, orderBy, asc, desc } from '@deessejs/collections'
 ```
 
 ### Query Types
@@ -24,7 +25,7 @@ import { defineConfig, where, eq } from '@deessejs/collections'
 // FindManyQuery - supports ordering, pagination, and field selection
 config.db.posts.findMany({
   where: where(p => [eq(p.published, true)]),
-  orderBy: { createdAt: 'desc' },
+  orderBy: orderBy(p => [desc(p.createdAt)]),
   select: ['id', 'title', 'createdAt'],
   limit: 10,
   offset: 0
@@ -33,7 +34,7 @@ config.db.posts.findMany({
 // findFirst - find one matching record
 config.db.users.findFirst({
   where: where(p => [eq(p.email, 'john@example.com')]),
-  orderBy: { createdAt: 'asc' }
+  orderBy: orderBy(p => [asc(p.createdAt)])
 })
 
 // count - count matching records
@@ -143,8 +144,36 @@ or(predicate1, predicate2, ...)
 not(predicate)
 ```
 
+## Order-by Operations
+
+Type-safe ordering using the **Functional-Applicative** pattern. See [order-by/README.md](./order-by/README.md) for full documentation.
+
+### Quick Example
+
+```typescript
+import { orderBy, asc, desc } from '@deessejs/collections'
+
+// Single field
+const byDate = orderBy(p => [desc(p.createdAt)])
+
+// Multi-criteria
+const byStatusAndDate = orderBy(p => [
+  asc(p.status),
+  desc(p.createdAt)
+])
+```
+
+### Operators
+
+| Operator | Description |
+|----------|-------------|
+| `asc` | Sort in ascending order |
+| `desc` | Sort in descending order |
+
 ## Files
 
-- `index.ts` - Module exports (where + database)
+- `index.ts` - Module exports (where + order-by + database)
+- `path.ts` - Shared PathProxy implementation
 - `database/types.ts` - Database operation types
+- `order-by/` - Ordering system
 - `where/` - Filtering system

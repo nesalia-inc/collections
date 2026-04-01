@@ -5,6 +5,7 @@ import type { InferFieldTypes } from '../../collections/hooks/types'
 import type { GetCollectionType } from '../../collections/types'
 import type { Field } from '../../fields'
 import type { Predicate } from '../where'
+import type { OrderBy } from '../order-by'
 
 // ============================================================================
 // Type Helpers
@@ -31,18 +32,6 @@ export type InferCreateType<TFields extends Record<string, Field<unknown>>> = {
 export type InferUpdateType<TFields extends Record<string, Field<unknown>>> = {
   [K in keyof TFields]?: TFields[K] extends Field<infer T> ? T : never
 }
-
-/**
- * OrderByItem - Single field ordering
- */
-export type OrderByItem<T> = {
-  [K in keyof T]?: 'asc' | 'desc'
-}
-
-/**
- * OrderByInput - Multi-criteria ordering
- */
-export type OrderByInput<T> = OrderByItem<T> | (keyof T)[]
 
 /**
  * SelectInput - Fields to include in response (field masking)
@@ -82,7 +71,7 @@ export interface FindManyQuery<TData> {
   /** Filter predicate (uses type-safe WhereNode AST) */
   where?: Predicate<TData>
   /** Order by specification (multi-criteria supported) */
-  orderBy?: OrderByInput<TData>
+  orderBy?: OrderBy<TData>
   /** Maximum records to return */
   limit?: number
   /** Records to skip */
@@ -98,7 +87,7 @@ export interface FindFirstQuery<TData> {
   /** Filter predicate */
   where?: Predicate<TData>
   /** Order by specification */
-  orderBy?: OrderByInput<TData>
+  orderBy?: OrderBy<TData>
   /** Field selection */
   select?: SelectInput<TData>
 }

@@ -1,10 +1,10 @@
-// Path - Shared PathProxy implementation for where and order-by
+// Path - Shared PathProxy implementation for where, order-by, and select
 
 // ============================================================================
 // Path Symbol - Internal Symbol to store path on proxy
 // ============================================================================
 
-const PathSymbol = Symbol('Path')
+export const PathSymbol = Symbol('Path')
 
 export type PathSegment = string | number
 

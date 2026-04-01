@@ -8,6 +8,7 @@ Query and data manipulation operations for collections.
 operations/
 ├── database/    # Database operation types (findMany, create, update, delete...)
 ├── order-by/   # Type-safe ordering with asc/desc terminals
+├── select/     # Type-safe field selection via PathProxy
 └── where/      # Type-safe filtering with PathProxy (recommended)
 ```
 
@@ -170,10 +171,24 @@ const byStatusAndDate = orderBy(p => [
 | `asc` | Sort in ascending order |
 | `desc` | Sort in descending order |
 
+## Select Operations
+
+Type-safe field selection using the **Functional-Applicative** pattern. See [select/README.md](./select/README.md) for full documentation.
+
+### Quick Example
+
+```typescript
+import { select } from '@deessejs/collections'
+
+// Field selection with nested paths
+const fields = select<Post>()(p => [p.id, p.title, p.author.name])
+```
+
 ## Files
 
-- `index.ts` - Module exports (where + order-by + database)
+- `index.ts` - Module exports (where + order-by + select + database)
 - `path.ts` - Shared PathProxy implementation
 - `database/types.ts` - Database operation types
 - `order-by/` - Ordering system
+- `select/` - Field selection system
 - `where/` - Filtering system

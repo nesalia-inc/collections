@@ -51,9 +51,10 @@ export const orderBy = <T>(
 }
 
 // Type guard for OrderNode
-function isOrderNode(value: any): value is OrderNode<unknown> {
+function isOrderNode(value: unknown): value is OrderNode<unknown> {
   return (
-    value?._tag === 'OrderNode' &&
-    (value.direction === 'asc' || value.direction === 'desc')
+    value != null &&
+    (value as { _tag?: string })._tag === 'OrderNode' &&
+    ((value as { direction?: string }).direction === 'asc' || (value as { direction?: string }).direction === 'desc')
   )
 }

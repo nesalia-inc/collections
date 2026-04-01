@@ -6,11 +6,11 @@ import type { SelectNode, Selection } from './types'
 // ============================================================================
 
 /**
- * Construit un AST de sélection
+ * Build a selection AST
  * Usage: select<User>()(p => [p.id, p.email, p.author.name])
  *
- * Note: Pour les relations 1:N (tableaux), le type de retour sera un tableau.
- * L'implémentation actuelle gère les chemins plats et imbriqués.
+ * Note: For 1:N relations (arrays), the return type will be an array.
+ * Current implementation handles flat and nested paths.
  */
 export const select = <TEntity>() => {
   return <TResult extends Record<string, unknown>>(

@@ -1,6 +1,6 @@
 # Select
 
-Type-safe field selection using the **Functional-Applicative** pattern.
+Type-safe field selection AST builder.
 
 ## Public API
 
@@ -13,16 +13,11 @@ import { select } from '@deessejs/collections'
 ```typescript
 import { select } from '@deessejs/collections'
 
-// Simple field selection
+// Build a selection AST (AST is properly built, return type must be inferred by driver)
 const fields = select<User>()(p => [p.id, p.email, p.name])
 
-// Nested path selection
+// Nested paths work
 const withRelation = select<Post>()(p => [p.title, p.author.name])
-
-// Usage in findMany
-const posts = await config.db.posts.findMany({
-  select: select<Post>()(p => [p.id, p.title, p.author.name])
-})
 ```
 
 ## Integration with Database
@@ -30,7 +25,7 @@ const posts = await config.db.posts.findMany({
 ```typescript
 import { where, eq, select, orderBy, asc, desc } from '@deessejs/collections'
 
-// Full query with select
+// Usage in findMany - driver interprets the AST
 const posts = await config.db.posts.findMany({
   where: where(p => [eq(p.published, true)]),
   select: select<Post>()(p => [p.id, p.title, p.author.name]),
@@ -51,53 +46,88 @@ interface SelectNode {
   readonly isCollection: boolean  // Driver detects if path traverses an array (1:N)
 }
 
-// Selection wrapper with phantom types
+// Selection wrapper
 interface Selection<TEntity, TResult> {
   readonly _tag: 'Selection'
   readonly _entity?: TEntity
-  readonly _result?: TResult  // Phantom type for return type inference
+  readonly _result?: TResult  // Must be provided manually or by schema
   readonly ast: SelectNode[]
 }
-
-// Type utility to extract result type
-type InferSelection<T> = T extends Selection<unknown, infer R> ? R : never
 ```
-
-## Why a Builder Pattern for Select?
-
-1. **Type-safe paths** - Refactoring a field name causes TypeScript error
-2. **Nested paths** - `p.author.profile.name` works seamlessly via PathProxy
-3. **Driver optimization** - AST allows driver to detect JOINs needed
-4. **Future extensibility** - Can add computed fields, aliases, aggregations
 
 ## Architecture
 
 ```
-select<User>()(p => [p.author.name])
-        │       │   │        │
-        │       │   │        └── Terminal: path accumulation
+select<User>()(p => [p.id, p.author.name])
+        │       │   │         │
+        │       │   │         └── Terminal: path accumulation via Proxy
         │       │   └────────── PathProxy: p.author
         │       └────────────── Parameterized builder
-        └────────────────────── Curried factory for type inference
+        └────────────────────── Curried factory for entity type
 ```
 
 **Three-tier separation:**
 1. **Path Reifier** - Proxy accumulates path via Symbol (shared with `where`, `order-by`)
-2. **Select Terminal** - Implicit (no terminal function, just path access)
-3. **Selection Wrapper** - `select()` combines nodes into Selection with phantom type
+2. **Select Terminal** - Implicit (field access returns Proxy, no terminal function needed)
+3. **Selection Wrapper** - `select()` combines nodes into Selection AST
 
 ## Limitations
 
-The current implementation:
+### Type Inference
 
-1. **No automatic 1:N detection** - `isCollection` is `false` until driver schema inspection
-2. **No computed fields** - Only path-based selection supported
-3. **No aliases** - `p.firstName + p.lastName as fullName` not yet supported
+This implementation does **NOT** automatically infer the return type as a DeepPick of the selected fields.
 
-These require integration with the Collection schema to detect relations.
+```typescript
+// What you write:
+const result = select<User>()(p => [p.id, p.name])
+
+// What you get (NOT what you might expect):
+// Selection<User, unknown> - TResult defaults to unknown
+
+// What you would need for proper inference:
+const result = select<User, { id: string; name: string }>()(p => [p.id, p.name])
+```
+
+For automatic DeepPick type inference, TypeScript would need to:
+1. Track all property accesses through the Proxy
+2. Reconstruct the object shape from those paths
+3. This is not possible with current TypeScript generics + Proxy pattern
+
+### Alternative Approaches
+
+For better type inference with relations, consider:
+
+**Object-based select (Prisma/Drizzle style):**
+```typescript
+// More verbose but fully typed
+db.posts.findMany({
+  select: {
+    id: true,
+    title: true,
+    author: {
+      select: { name: true }
+    }
+  }
+})
+```
+
+**Manual typing:**
+```typescript
+const result = select<User, Pick<User, 'id' | 'name'>>()(p => [p.id, p.name])
+```
+
+### Schema Integration Required
+
+The following features require integration with Collection schema:
+
+- `isRelation: true` - Detecting when a path crosses a relation boundary
+- `isCollection: true` - Detecting 1:N relationships (arrays)
+- Automatic JOIN planning based on selection depth
+
+Currently all paths are marked as `isRelation: false` and `isCollection: false`.
 
 ## Files
 
 - `index.ts` - Module exports
 - `types.ts` - Type definitions
-- `builder.ts` - Functional-applicative implementation
+- `builder.ts` - Builder implementation with validation

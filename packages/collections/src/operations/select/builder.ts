@@ -1,5 +1,5 @@
 import { createPathProxy, extractPath, PathSymbol, pathToField, type PathProxy } from '../path'
-import type { SelectNode, Selection } from './types'
+import type { SelectNode, Selection, ValidSelectValue } from './types'
 
 // ============================================================================
 // Select Builder Function
@@ -11,9 +11,12 @@ import type { SelectNode, Selection } from './types'
  *
  * This approach allows TypeScript to infer the return type from the object keys.
  * Nested objects are supported recursively.
+ *
+ * Type-safe: TResult is constrained to ValidSelectValue, so invalid inputs
+ * like { age: 42 } will cause a compile-time error.
  */
 export const select = <TEntity>() => {
-  return <TResult extends Record<string, unknown>>(
+  return <TResult extends Record<string, ValidSelectValue>>(
     builder: (p: PathProxy<TEntity>) => TResult
   ): Selection<TEntity, TResult> => {
     const p = createPathProxy<TEntity>()
@@ -26,7 +29,7 @@ export const select = <TEntity>() => {
       )
     }
 
-    const nodes = collectNodes(result as Record<string, unknown>)
+    const nodes = collectNodes(result as Record<string, ValidSelectValue>)
 
     return {
       _tag: 'Selection',
@@ -38,35 +41,37 @@ export const select = <TEntity>() => {
 /**
  * Recursively collect SelectNodes from an object structure
  * Supports nested objects like { author: { name: p.author.name } }
+ *
+ * Alias is the FULL path in the result object, enabling the driver to
+ * correctly reconstruct nested objects from flat SQL results.
  */
-function collectNodes(obj: Record<string, unknown>, prefix: string[] = []): SelectNode[] {
+function collectNodes(obj: Record<string, ValidSelectValue>, prefix: string[] = []): SelectNode[] {
   const nodes: SelectNode[] = []
 
   for (const [key, value] of Object.entries(obj)) {
+    const currentPath = [...prefix, key]
+
     if (isPathProxy(value)) {
-      // Direct field access - extract path and use key as alias
+      // Direct field access
       const path = extractPath(value)
       const pathStrings = path.map(segment => String(segment))
       const field = pathToField(pathStrings)
+      const alias = currentPath.join('.')
 
       nodes.push({
         _tag: 'SelectNode',
         path: pathStrings,
         field,
-        alias: key !== field ? key : undefined, // Alias if key differs from field
+        alias, // Always present - complete path in result object
         isRelation: false, // Requires schema integration
         isCollection: false, // Requires schema integration
       })
     } else if (typeof value === 'object' && value !== null) {
-      // Nested object - recurse with prefix
-      const nestedNodes = collectNodes(value as Record<string, unknown>, [...prefix, key])
+      // Nested object - recurse
+      const nestedNodes = collectNodes(value as Record<string, ValidSelectValue>, currentPath)
       nodes.push(...nestedNodes)
-    } else {
-      throw new Error(
-        `select: expected PathProxy or nested object for key "${key}", got ${typeof value}. ` +
-        `Usage: select<User>()(p => ({ ${key}: p.${key} }))`
-      )
     }
+    // ValidSelectValue ensures we never reach here for invalid inputs
   }
 
   return nodes
@@ -82,7 +87,7 @@ export function isPathProxy(value: unknown): value is PathProxy<unknown> {
 /**
  * Create a SelectNode from a path array
  */
-export function createSelectNode(path: string[], alias?: string): SelectNode {
+export function createSelectNode(path: string[], alias: string): SelectNode {
   return {
     _tag: 'SelectNode',
     path,

@@ -7,10 +7,10 @@ import type { SelectNode, Selection } from './types'
 
 /**
  * Build a selection AST using an object-based API
- * Usage: select<User>()(p => ({ id: p.id, name: p.name, author: p.author.name }))
+ * Usage: select<User>()(p => ({ id: p.id, name: p.name, author: { name: p.author.name } }))
  *
  * This approach allows TypeScript to infer the return type from the object keys.
- * Each property value must be a PathProxy (from field access).
+ * Nested objects are supported recursively.
  */
 export const select = <TEntity>() => {
   return <TResult extends Record<string, unknown>>(
@@ -26,35 +26,50 @@ export const select = <TEntity>() => {
       )
     }
 
-    const nodes: SelectNode[] = []
-    const entries = Object.entries(result as Record<string, unknown>)
-
-    for (const [alias, value] of entries) {
-      if (!isPathProxy(value)) {
-        throw new Error(
-          `select: expected PathProxy for field access, got ${typeof value} for key "${alias}". ` +
-          `Usage: select<User>()(p => ({ ${alias}: p.${alias} }))`
-        )
-      }
-
-      const path = extractPath(value)
-      const pathStrings = path.map(segment => String(segment))
-
-      nodes.push({
-        _tag: 'SelectNode',
-        path: pathStrings,
-        field: pathToField(pathStrings),
-        alias: pathStrings.length > 1 ? alias : undefined, // Use alias only if different from field
-        isRelation: false,
-        isCollection: false,
-      })
-    }
+    const nodes = collectNodes(result as Record<string, unknown>)
 
     return {
       _tag: 'Selection',
       ast: nodes,
     } as Selection<TEntity, TResult>
   }
+}
+
+/**
+ * Recursively collect SelectNodes from an object structure
+ * Supports nested objects like { author: { name: p.author.name } }
+ */
+function collectNodes(obj: Record<string, unknown>, prefix: string[] = []): SelectNode[] {
+  const nodes: SelectNode[] = []
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (isPathProxy(value)) {
+      // Direct field access - extract path and use key as alias
+      const path = extractPath(value)
+      const pathStrings = path.map(segment => String(segment))
+      const field = pathToField(pathStrings)
+
+      nodes.push({
+        _tag: 'SelectNode',
+        path: pathStrings,
+        field,
+        alias: key !== field ? key : undefined, // Alias if key differs from field
+        isRelation: false, // Requires schema integration
+        isCollection: false, // Requires schema integration
+      })
+    } else if (typeof value === 'object' && value !== null) {
+      // Nested object - recurse with prefix
+      const nestedNodes = collectNodes(value as Record<string, unknown>, [...prefix, key])
+      nodes.push(...nestedNodes)
+    } else {
+      throw new Error(
+        `select: expected PathProxy or nested object for key "${key}", got ${typeof value}. ` +
+        `Usage: select<User>()(p => ({ ${key}: p.${key} }))`
+      )
+    }
+  }
+
+  return nodes
 }
 
 /**

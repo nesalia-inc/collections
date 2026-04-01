@@ -1,6 +1,21 @@
 // Select Types - Type-safe field selection with AST
 
-import type { PathSegment } from '../path'
+import type { PathSegment, PathProxy } from '../path'
+
+// ============================================================================
+// Type Utilities
+// ============================================================================
+
+/**
+ * Unwrap PathProxy to get the underlying type
+ * PathProxy<number> -> number
+ * PathProxy<string> -> string
+ */
+export type Unwrap<T> = T extends PathProxy<infer V>
+  ? V
+  : T extends object
+    ? { [K in keyof T]: Unwrap<T[K]> }
+    : T
 
 // ============================================================================
 // Select Node - Single field selection with path information
@@ -9,9 +24,9 @@ import type { PathSegment } from '../path'
 export interface SelectNode {
   readonly _tag: 'SelectNode'
   readonly path: string[]       // ex: ['author', 'profile', 'name']
-  readonly field: string        // Flat field name: 'author.profile.name'
-  readonly alias?: string       // Alias if different from field (for nested paths)
-  readonly isRelation: boolean  // Indicates if path traverses a relation
+  readonly field: string       // Flat field name: 'author.profile.name'
+  readonly alias?: string      // Alias if different from field (from object key)
+  readonly isRelation: boolean // Indicates if path traverses a relation
   readonly isCollection: boolean // Indicates if path traverses an array (1:N)
 }
 
@@ -22,7 +37,7 @@ export interface SelectNode {
 export interface Selection<TEntity, TResult> {
   readonly _tag: 'Selection'
   readonly _entity?: TEntity
-  readonly _result?: TResult // Phantom type for inference
+  readonly _result?: Unwrap<TResult> // Unwrapped result type
   readonly ast: SelectNode[]
 }
 

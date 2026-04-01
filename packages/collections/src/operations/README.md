@@ -8,6 +8,7 @@ Query and data manipulation operations for collections.
 operations/
 ├── database/    # Database operation types (findMany, create, update, delete...)
 ├── order-by/   # Type-safe ordering with asc/desc terminals
+├── pagination/ # Offset and cursor-based pagination
 ├── select/     # Type-safe field selection via PathProxy
 └── where/      # Type-safe filtering with PathProxy (recommended)
 ```
@@ -23,13 +24,21 @@ import { defineConfig, where, eq, orderBy, asc, desc } from '@deessejs/collectio
 ### Query Types
 
 ```typescript
-// FindManyQuery - supports ordering, pagination, and field selection
+// FindManyQuery - supports ordering and field selection
 config.db.posts.findMany({
   where: where(p => [eq(p.published, true)]),
   orderBy: orderBy(p => [desc(p.createdAt)]),
-  select: ['id', 'title', 'createdAt'],
+  select: (p) => ({ id: p.id, title: p.title }),
   limit: 10,
   offset: 0
+})
+
+// find - paginated query returning Paginated<T>
+config.db.posts.find({
+  where: where(p => [eq(p.published, true)]),
+  select: (p) => ({ id: p.id, title: p.title }),
+  orderBy: orderBy(p => [desc(p.createdAt)]),
+  pagination: cursor(10)  // or offset(10, 0)
 })
 
 // findFirst - find one matching record
@@ -184,11 +193,36 @@ import { select } from '@deessejs/collections'
 const fields = select<Post>()(p => [p.id, p.title, p.author.name])
 ```
 
+## Pagination Operations
+
+Type-safe pagination with offset and cursor-based navigation. See [pagination/README.md](./pagination/README.md) for full documentation.
+
+### Quick Example
+
+```typescript
+import { offset, cursor, page, orderBy, desc } from '@deessejs/collections'
+
+// Offset pagination
+const result = await config.db.posts.find({
+  pagination: page(1, 10),
+  orderBy: orderBy(p => [desc(p.createdAt)])
+})
+// result.current.data, result.hasNext(), await result.next()
+
+// Cursor pagination (recommended for large datasets)
+const cursorResult = await config.db.posts.find({
+  pagination: cursor(10),
+  orderBy: orderBy(p => [desc(p.createdAt)])
+})
+// More performant, no COUNT(*) needed
+```
+
 ## Files
 
-- `index.ts` - Module exports (where + order-by + select + database)
+- `index.ts` - Module exports (where + order-by + select + pagination + database)
 - `path.ts` - Shared PathProxy implementation
 - `database/types.ts` - Database operation types
 - `order-by/` - Ordering system
+- `pagination/` - Pagination system
 - `select/` - Field selection system
 - `where/` - Filtering system

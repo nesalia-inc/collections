@@ -40,21 +40,23 @@ const nested = select<User>()(p => ({
 ## Integration with Database
 
 ```typescript
-import { where, eq, select, orderBy, asc, desc } from '@deessejs/collections'
+import { where, eq, orderBy, asc, desc } from '@deessejs/collections'
 
-// Full query with select
+// Full query with select - T is naturally inferred from the collection
 const posts = await config.db.posts.findMany({
   where: where(p => [eq(p.published, true)]),
-  select: select<Post>()(p => ({
+  select: (p) => ({
     id: p.id,
     title: p.title,
     authorName: p.author.name,
     createdAt: p.createdAt,
-  })),
+  }),
   orderBy: orderBy(p => [desc(p.createdAt)]),
   limit: 10,
 })
 ```
+
+Note: The `select` option in `findMany` receives `PathProxy<Post>` directly - no need for `select<Post>()` redundancy.
 
 ## Types
 

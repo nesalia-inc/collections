@@ -4,8 +4,11 @@ import type { Collection } from '../../collections'
 import type { InferFieldTypes } from '../../collections/hooks/types'
 import type { GetCollectionType } from '../../collections/types'
 import type { Field } from '../../fields'
+import type { PathProxy } from '../path'
 import type { Predicate } from '../where'
 import type { OrderBy } from '../order-by'
+import type { ValidSelectValue } from '../select'
+import type { PaginationInput, Paginated } from '../pagination'
 
 // ============================================================================
 // Type Helpers
@@ -34,9 +37,12 @@ export type InferUpdateType<TFields extends Record<string, Field<unknown>>> = {
 }
 
 /**
- * SelectInput - Fields to include in response (field masking)
+ * SelectInput - Function that receives PathProxy and returns selection object
+ * Usage: select: (p) => ({ id: p.id, title: p.title })
  */
-export type SelectInput<T> = (keyof T)[]
+export type SelectInput<T> = <TResult extends Record<string, ValidSelectValue>>(
+  p: PathProxy<T>
+) => TResult
 
 // ============================================================================
 // Query Context
@@ -88,8 +94,23 @@ export interface FindFirstQuery<TData> {
   where?: Predicate<TData>
   /** Order by specification */
   orderBy?: OrderBy<TData>
+  /** Field selection - receives PathProxy<TData> */
+  select?: SelectInput<TData>
+}
+
+/**
+ * FindQuery - Query parameters for paginated find
+ * Supports both offset and cursor pagination
+ */
+export interface FindQuery<TData> {
+  /** Filter predicate */
+  where?: Predicate<TData>
+  /** Order by specification (required for cursor pagination) */
+  orderBy?: OrderBy<TData>
   /** Field selection */
   select?: SelectInput<TData>
+  /** Pagination specification (offset or cursor) */
+  pagination: PaginationInput
 }
 
 // ============================================================================
@@ -208,6 +229,14 @@ export type CollectionDbMethods<T extends Collection> = {
     query?: FindManyQuery<InferFieldTypes<T['fields']>>,
     ctx?: QueryContext
   ) => Promise<GetCollectionType<T>[]>
+
+  /**
+   * Find records with pagination (returns Paginated<T>)
+   */
+  find: (
+    query: FindQuery<InferFieldTypes<T['fields']>>,
+    ctx?: QueryContext
+  ) => Promise<Paginated<GetCollectionType<T>>>
 
   /**
    * Find a single record by unique constraint

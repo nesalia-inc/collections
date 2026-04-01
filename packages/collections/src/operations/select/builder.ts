@@ -45,7 +45,7 @@ export const select = <TEntity>() => {
  * Alias is the FULL path in the result object, enabling the driver to
  * correctly reconstruct nested objects from flat SQL results.
  */
-function collectNodes(obj: Record<string, ValidSelectValue>, prefix: string[] = []): SelectNode[] {
+export function collectNodes(obj: Record<string, ValidSelectValue>, prefix: string[] = []): SelectNode[] {
   const nodes: SelectNode[] = []
 
   for (const [key, value] of Object.entries(obj)) {

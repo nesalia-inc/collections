@@ -124,7 +124,7 @@ const page2 = await page1.next()
 
 - **Offset Pagination**: Returns total which requires a COUNT(*) query. Can be slow on tables with millions of rows.
 - **Cursor Pagination**: More performant for large datasets as it doesn't need to count all records.
-- **hasNext/hasPrevious**: Determined via `limit + 1` strategy - no extra query needed.
+- **hasNext/hasPrevious**: Determined via `limit + 1` strategy. The driver fetches `limit + 1` rows, returns only `limit` to the user, and uses the extra row to determine if there are more results. This is done in a single query, no extra round-trip.
 - Use `includeTotal: false` in cursor pagination to skip the count query when you don't need the total.
 
 ```typescript

@@ -1,6 +1,6 @@
 // Pagination Builder - Factory functions for pagination input
 
-import type { CursorPaginationInput, OffsetPaginationInput, PaginationInput } from './types'
+import { encodeCursor, type CursorPaginationInput, type OffsetPaginationInput, type PaginationInput, type CursorValue } from './types'
 
 // ============================================================================
 // Offset Pagination
@@ -66,16 +66,18 @@ export const cursor = (
 /**
  * Create cursor pagination with manual value
  * @param limit - Maximum items per page
- * @param value - The cursor value to use
+ * @param value - The cursor value to use (will be encoded)
+ * @param orderBy - The orderBy fields used for cursor encoding
  * @param includeTotal - Whether to include total count
  */
 export const cursorWithValue = (
   limit: number,
   value: Record<string, unknown>,
+  orderBy: readonly string[],
   includeTotal: boolean = false
 ): CursorPaginationInput => {
-  // Encode the value to base64
-  const encoded = Buffer.from(JSON.stringify(value)).toString('base64')
+  const cursorValue: CursorValue = { values: value, orderBy }
+  const encoded = encodeCursor(cursorValue)
   return cursor(limit, encoded, includeTotal)
 }
 

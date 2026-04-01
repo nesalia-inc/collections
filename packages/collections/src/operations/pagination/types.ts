@@ -87,35 +87,63 @@ export interface CursorValue {
 }
 
 /**
- * Serialize a value for cursor encoding
- * Handles Date objects specially since JSON.stringify converts them to strings
+ * Tagged union for serialized cursor values
+ * Avoids string prefix collisions (unlike __date: approach)
  */
-function serializeValue(value: unknown): string {
+type SerializedValue =
+  | { t: 'd'; v: string }   // Date - ISO string
+  | { t: 'j'; v: string }  // JSON object
+  | { t: 'n'; v: null }    // null
+  | { t: 'b'; v: boolean } // boolean
+  | { t: 'u'; v: undefined } // undefined (shouldn't happen but safety)
+  | { t: 's'; v: string }  // string
+
+/**
+ * Serialize a value for cursor encoding
+ * Uses tagged object to avoid string prefix collisions
+ */
+function serializeValue(value: unknown): SerializedValue {
   if (value instanceof Date) {
-    return `__date:${value.toISOString()}`
+    return { t: 'd', v: value.toISOString() }
   }
   if (typeof value === 'object' && value !== null) {
-    return `__json:${JSON.stringify(value)}`
+    return { t: 'j', v: JSON.stringify(value) }
   }
-  return String(value)
+  if (value === null) {
+    return { t: 'n', v: null }
+  }
+  if (typeof value === 'boolean') {
+    return { t: 'b', v: value }
+  }
+  if (typeof value === 'undefined') {
+    return { t: 'u', v: undefined }
+  }
+  return { t: 's', v: String(value) }
 }
 
 /**
  * Deserialize a value from cursor decoding
  */
-function deserializeValue(value: string): unknown {
-  if (value.startsWith('__date:')) {
-    return new Date(value.slice(7))
+function deserializeValue(value: SerializedValue): unknown {
+  switch (value.t) {
+    case 'd':
+      return new Date(value.v)
+    case 'j':
+      return JSON.parse(value.v)
+    case 'n':
+      return null
+    case 'b':
+      return value.v
+    case 'u':
+      return undefined
+    case 's':
+      return value.v
   }
-  if (value.startsWith('__json:')) {
-    return JSON.parse(value.slice(7))
-  }
-  return value
 }
 
 /**
  * Encode cursor value to opaque string for external use
- * Uses btoa/atob for universal (isomorphic) compatibility - works in Node.js, Browser, Deno, Edge
+ * Uses btoa with UTF-8 safe encoding - works in Node.js, Browser, Deno, Edge
  */
 export function encodeCursor(value: CursorValue): string {
   const serialized = {
@@ -125,8 +153,11 @@ export function encodeCursor(value: CursorValue): string {
     orderBy: value.orderBy,
   }
   const json = JSON.stringify(serialized)
-  // btoa works in browsers and modern Node.js (v16+)
-  return btoa(json)
+  // UTF-8 safe encoding using encodeURIComponent
+  // This handles unicode characters (accented chars, CJK, etc.)
+  return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+    String.fromCharCode(parseInt(p1, 16))
+  ))
 }
 
 /**
@@ -134,9 +165,15 @@ export function encodeCursor(value: CursorValue): string {
  */
 export function decodeCursor(encoded: string): CursorValue | null {
   try {
-    const json = atob(encoded)
+    // UTF-8 safe decoding
+    const json = decodeURIComponent(
+      atob(encoded)
+        .split('')
+        .map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+        .join('')
+    )
     const parsed = JSON.parse(json) as {
-      values: Record<string, string>
+      values: Record<string, SerializedValue>
       orderBy: readonly string[]
     }
     return {

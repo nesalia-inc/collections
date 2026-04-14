@@ -19,7 +19,9 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "turbo build && changeset publish",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "example": "turbo run dev --filter=./examples/apps/*",
+    "example:todos": "pnpm --filter @deessejs/examples-todos dev"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",

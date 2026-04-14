@@ -18,5 +18,3 @@ The `column-types/` layer wraps Drizzle ORM column types with additional validat
 ### Layer 2: `fields/` (Public API - High-Level Abstraction)
 
 `@packages/collections/src/fields/` exposes the public `fieldType`, `field`, and `f` API. FieldTypes are what collections use — they wrap column-types and add Zod validation, transforms, and options handling.
-
-**Rule:** Never export `column-types/` directly in the package's public API (`src/index.ts`). The column-types layer is an implementation detail.

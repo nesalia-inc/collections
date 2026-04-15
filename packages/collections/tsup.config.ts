@@ -19,5 +19,20 @@ export default defineConfig([
     sourcemap: true,
     outDir: './dist',
     external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
+  },
+  // Adapter modules
+  {
+    entry: [
+      'src/adapter/core/index.ts',
+      'src/adapter/postgresql/index.ts',
+      'src/adapter/sqlite/index.ts',
+      'src/adapter/crud/index.ts',
+    ],
+    format: ['cjs', 'esm'],
+    dts: true,
+    splitting: false,
+    sourcemap: true,
+    outDir: './dist/adapter',
+    external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
   }
 ])

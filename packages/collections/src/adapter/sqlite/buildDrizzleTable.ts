@@ -210,8 +210,9 @@ export const buildDrizzleTable = (
 
       case 'uuid': {
         // SQLite doesn't have native UUID, use text()
-        // Note: SQLite doesn't support defaultRandom() - UUIDs must be generated at application level
+        // Use $defaultFn to generate UUIDs automatically for auto-generated fields
         let c = text(column.name)
+        if (column.defaultRandom) c = c.$defaultFn(() => globalThis.crypto.randomUUID())
         if (column.notNull) c = c.notNull()
         if (column.primaryKey) c = c.primaryKey()
         col = c
@@ -249,18 +250,12 @@ export const buildDrizzleTable = (
         throw new Error(`Unsupported column type: ${(column as RawColumn).type}`)
     }
 
-    // Apply foreign key reference (done after all other constraints)
-    if (column.reference) {
-      const ref = column.reference
-      col.references(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () => ({} as any),
-        {
-          onDelete: ref.onDelete,
-          onUpdate: ref.onUpdate,
-        },
-      )
-    }
+    // NOTE: Foreign key references for SQLite are handled at the table level via rawTable.foreignKeys,
+    // not at the column level. Column-level .references() is not used because:
+    // 1. SQLite does not enforce foreign key constraints at runtime by default (requires PRAGMA foreign_keys=ON)
+    // 2. The actual FK constraints are properly defined via table-level foreignKey() in the table config callback
+    // 3. We don't have access to referenced tables at column definition time (_tables param is reserved for future use)
+    // See lines 284-297 for the proper table-level foreignKey() handling.
 
     columns[key] = col
   }

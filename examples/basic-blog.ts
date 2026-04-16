@@ -7,21 +7,22 @@
  * It shows:
  * - How to define a collection with various field types
  * - How to generate database schemas for PostgreSQL and SQLite
- * - How CRUD operations work (mock/demo, not actually executing)
+ * - How to set up an in-memory SQLite database
+ * - How to execute CRUD operations with createCollections
  */
 
 // =============================================================================
 // Step 1: Import from the collections library
 // =============================================================================
 
-import { collection, field, f } from '@deessejs/collections'
+import { collection, field, f, where, eq, createCollections, sqlite } from '@deessejs/collections'
+import { isOk, isErr } from '@deessejs/core'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import Database from 'better-sqlite3'
 
 // Database adapters for schema generation
 import { createPostgresSchema } from '@deessejs/collections/adapter/postgresql'
 import { createSqliteSchema } from '@deessejs/collections/adapter/sqlite'
-
-// CRUD operations for database manipulation
-import { create, findOne, findMany, update, remove } from '@deessejs/collections/adapter/crud'
 
 // =============================================================================
 // Step 2: Define a Collection (Blog Post)
@@ -44,6 +45,16 @@ const posts = collection({
   },
 })
 
+// Entity type for Where clause builder
+interface PostEntity {
+  id: string
+  title: string
+  content?: string
+  published: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
 // =============================================================================
 // Step 3: Generate Database Schemas
 // =============================================================================
@@ -61,132 +72,184 @@ const sqliteSchema = createSqliteSchema([posts])
 // to drizzle(connection, { schema: pgSchema }) to get a typed DB instance.
 
 // =============================================================================
-// Step 4: CRUD Operations (Conceptual Examples)
+// Step 4: Set up SQLite In-Memory Database
 // =============================================================================
 
-// The CRUD functions work with any Drizzle-compatible database connection.
-// Below are conceptual examples showing how they would be used.
+// Create an in-memory SQLite database using better-sqlite3
+const sqliteDb = new Database(':memory:')
+const dbInstance = drizzle(sqliteDb, { schema: sqliteSchema })
 
-// -----------------------------------------------------------------------------
-// Create (Insert a new post)
-// -----------------------------------------------------------------------------
+// Create type-safe collections using the SQLite database
+const collectionsResult = createCollections({
+  collections: [posts],
+  db: sqlite(sqliteDb),
+})
 
-// const db = drizzle(connection, { schema: pgSchema })
+if (isErr(collectionsResult)) {
+  console.error('Failed to create collections:', collectionsResult.error)
+  process.exit(1)
+}
 
-// Creating a new post with required fields:
-// const newPost = await create(db, pgSchema.posts, {
-//   title: 'Hello World',
-//   content: 'This is my first blog post!',
-//   published: true,
-// })
-
-// newPost.id will contain the generated UUID
-// newPost.createdAt will contain the timestamp
-
-// -----------------------------------------------------------------------------
-// Find One (Get a single post by ID)
-// -----------------------------------------------------------------------------
-
-// Find a post by its ID:
-// const post = await findOne(db, pgSchema.posts, {
-//   where: eq(pgSchema.posts.id, 'some-uuid'),
-// })
-
-// post?.title // 'Hello World'
-// post?.published // true
-
-// -----------------------------------------------------------------------------
-// Find Many (Get multiple posts with filtering and pagination)
-// -----------------------------------------------------------------------------
-
-// Find all published posts, ordered by creation date:
-// const publishedPosts = await findMany(db, pgSchema.posts, {
-//   where: eq(pgSchema.posts.published, true),
-//   orderBy: desc(pgSchema.posts.createdAt),
-//   limit: 10,
-//   offset: 0,
-// })
-
-// -----------------------------------------------------------------------------
-// Update (Modify an existing post)
-// -----------------------------------------------------------------------------
-
-// Update a post's title and published status:
-// const updatedPost = await update(db, pgSchema.posts, {
-//   where: eq(pgSchema.posts.id, 'some-uuid'),
-//   data: {
-//     title: 'Updated Title',
-//     published: false,
-//   },
-// })
-
-// -----------------------------------------------------------------------------
-// Remove (Delete a post)
-// -----------------------------------------------------------------------------
-
-// Delete a post by ID:
-// await remove(db, pgSchema.posts, {
-//   where: eq(pgSchema.posts.id, 'some-uuid'),
-// })
+const { db } = collectionsResult.value
 
 // =============================================================================
-// Step 5: Console Output (Schema Visualization)
+// Step 5: Execute CRUD Operations
 // =============================================================================
 
-// This shows the structure of the generated schemas.
-// The actual schema objects contain Drizzle column definitions.
+async function main() {
+  // Push schema to create tables before running queries
+  await db.$push()
 
-console.log('PostgreSQL schema keys:', Object.keys(pgSchema))
-// Output: ['posts']
+  console.log('\n=== Basic Blog Example - SQLite In-Memory ===\n')
 
-console.log('SQLite schema keys:', Object.keys(sqliteSchema))
-// Output: ['posts']
+  // -------------------------------------------------------------------------
+  // Schema Visualization
+  // -------------------------------------------------------------------------
+  console.log('--- Schema Structure ---')
+  console.log('PostgreSQL schema keys:', Object.keys(pgSchema))
+  console.log('SQLite schema keys:', Object.keys(sqliteSchema))
+  console.log('')
+  console.log('SQLite posts table columns:')
+  const postsTable = sqliteSchema.posts
+  console.log('  Available columns on table:', Object.keys(postsTable))
+  console.log('')
 
-// Each schema entry (e.g., pgSchema.posts) is a Drizzle table definition
-// with columns for: id (UUID primary key), title, content, published,
-// createdAt, updatedAt, and other system fields.
+  // -------------------------------------------------------------------------
+  // Create - Insert a new post
+  // -------------------------------------------------------------------------
+  console.log('--- Create ---')
 
-// Note: Drizzle tables don't expose columns as a simple object.
-// To see the schema structure, use drizzle-inspector or check migration files.
+  const createResult = await db.posts.create({
+    data: {
+      title: 'Hello World',
+      content: 'This is my first blog post!',
+      published: true,
+    },
+  })
 
-// PostgreSQL posts table uses:
-// - uuid() for id with defaultRandom()
-// - varchar() for title, content
-// - boolean() for published
-// - timestamp() for createdAt, updatedAt
+  if (isOk(createResult)) {
+    console.log('Created post:', createResult.value)
+  } else {
+    console.error('Failed to create post:', createResult.error)
+  }
 
-console.log('\nPostgreSQL posts table structure:')
-console.log('  id: uuid (primary key, auto-generated UUID)')
-console.log('  title: varchar (required)')
-console.log('  content: text (optional)')
-console.log('  published: boolean (default: false)')
-console.log('  created_at: timestamp (auto-set on create)')
-console.log('  updated_at: timestamp (auto-set on create)')
+  // -------------------------------------------------------------------------
+  // Create another post (unpublished)
+  // -------------------------------------------------------------------------
+  const createResult2 = await db.posts.create({
+    data: {
+      title: 'Draft Post',
+      content: 'This is a draft',
+      published: false,
+    },
+  })
 
-console.log('\nSQLite posts table structure:')
-console.log('  id: text (primary key, auto-generated UUID as text)')
-console.log('  title: text (required)')
-console.log('  content: text (optional)')
-console.log('  published: integer 0/1 (default: 0)')
-console.log('  created_at: integer (Unix timestamp)')
-console.log('  updated_at: integer (Unix timestamp)')
+  if (isOk(createResult2)) {
+    console.log('Created draft:', createResult2.value)
+  } else {
+    console.error('Failed to create draft:', createResult2.error)
+  }
 
-// =============================================================================
-// Schema Differences Between PostgreSQL and SQLite
-// =============================================================================
+  // -------------------------------------------------------------------------
+  // Find Many - Get all posts
+  // -------------------------------------------------------------------------
+  console.log('\n--- Find Many (All Posts) ---')
 
-// PostgreSQL-specific types:
-// - UUID for identifiers (better for distributed systems)
-// - TIMESTAMP WITH TIME ZONE for timestamps
-// - JSONB for JSON fields (rich indexing support)
+  const allPosts = await db.posts.findMany()
+  console.log('All posts:', allPosts)
 
-// SQLite-specific types:
-// - TEXT for identifiers (simpler, but less performant for joins)
-// - TEXT for timestamps (ISO 8601 format)
-// - TEXT for JSON fields (simpler storage)
+  // -------------------------------------------------------------------------
+  // Find Many with filtering - Get published posts only
+  // -------------------------------------------------------------------------
+  console.log('\n--- Find Many (Published Posts) ---')
 
-// Both schemas provide the same data model - you choose the database
-// that fits your infrastructure requirements.
+  const publishedPosts = await db.posts.findMany({
+    where: where<PostEntity>((p) => [eq(p.published, true)]),
+  })
+  console.log('Published posts:', publishedPosts)
 
-console.log('\nBasic Blog Example Complete!')
-console.log('See the comments in this file for detailed CRUD operation examples.')
+  // -------------------------------------------------------------------------
+  // Find Unique - Get a post by ID
+  // -------------------------------------------------------------------------
+  console.log('\n--- Find Unique ---')
+
+  if (isOk(createResult) && createResult.value.id) {
+    const postId = createResult.value.id as string
+    const uniquePost = await db.posts.findUnique({ where: { id: postId } })
+    console.log('Found by ID:', uniquePost)
+  }
+
+  // -------------------------------------------------------------------------
+  // Count - Get number of records
+  // -------------------------------------------------------------------------
+  console.log('\n--- Count ---')
+
+  const totalCount = await db.posts.count()
+  console.log('Total posts count:', totalCount)
+
+  // -------------------------------------------------------------------------
+  // Update - Modify a post
+  // -------------------------------------------------------------------------
+  console.log('\n--- Update ---')
+
+  if (isOk(createResult2) && createResult2.value.id) {
+    const draftId = createResult2.value.id as string
+
+    // Update using the predicate-based where clause
+    const updateResult = await db.posts.update({
+      where: where<PostEntity>((p) => [eq(p.id, draftId)]),
+      data: {
+        title: 'Updated Draft Title',
+        published: true,
+      },
+    })
+
+    if (isOk(updateResult)) {
+      console.log('Updated records:', updateResult.value.records)
+    } else {
+      console.error('Failed to update:', updateResult.error)
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Find First - Get the first post
+  // -------------------------------------------------------------------------
+  console.log('\n--- Find First ---')
+
+  const firstPost = await db.posts.findFirst()
+  console.log('First post:', firstPost)
+
+  // -------------------------------------------------------------------------
+  // Delete - Remove a post
+  // -------------------------------------------------------------------------
+  console.log('\n--- Delete ---')
+
+  if (isOk(createResult2) && createResult2.value.id) {
+    const draftId = createResult2.value.id as string
+
+    const deleteResult = await db.posts.delete({
+      where: where<PostEntity>((p) => [eq(p.id, draftId)]),
+    })
+
+    if (isOk(deleteResult)) {
+      console.log('Deleted records:', deleteResult.value.records)
+    } else {
+      console.error('Failed to delete:', deleteResult.error)
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Final state - Verify changes
+  // -------------------------------------------------------------------------
+  console.log('\n--- Final State ---')
+
+  const finalPosts = await db.posts.findMany()
+  console.log('Final posts:', finalPosts)
+
+  const finalCount = await db.posts.count()
+  console.log('Final count:', finalCount)
+
+  console.log('\n=== Basic Blog Example Complete ===\n')
+}
+
+main().catch(console.error)

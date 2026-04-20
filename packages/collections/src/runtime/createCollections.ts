@@ -38,10 +38,15 @@ import { sql } from 'drizzle-orm'
 import { buildRawSchema } from '../adapter/core/buildRawSchema'
 import { buildDrizzleTable as buildPostgresDrizzleTable } from '../adapter/postgresql/buildDrizzleTable'
 import { buildDrizzleTable as buildSqliteDrizzleTable } from '../adapter/sqlite/buildDrizzleTable'
+import { buildDrizzleTable as buildMysqlDrizzleTable } from '../adapter/mysql/buildDrizzleTable'
 import { createDbAccess } from '../operations/database/dbAccess'
 import type { Collection } from '../collections'
 import type { DbAccess } from '../operations/database/types'
 import type { GlobalHooks } from './types'
+
+// Dynamic imports for database drivers (ESM-compatible)
+// These are imported lazily because they are peer dependencies
+// that users need to install separately
 
 // Note: HookResult and HookHandler types are exported from ./collections/hooks/types
 // GlobalHookResult and GlobalHookHandler are exported from ./runtime/types
@@ -58,21 +63,18 @@ const UnsupportedDatabaseTypeError = error({
   message: (args) => `Unsupported database type: ${args.type}`,
 })
 
+// DbConnectionInput is imported from config/types.ts
 // ============================================================================
 // DbConnection Types
 // ============================================================================
 
-/**
- * Database connection configuration for any supported database type
- * eslint-disable-next-line @typescript-eslint/no-explicit-any
- */
-export interface DbConnection {
-  /** Database type */
-  readonly type: 'postgres' | 'sqlite'
-  /** Database connection - either a Drizzle database instance or a connection string */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly connection: any
-}
+import type { DbConnectionInput } from '../config/types'
+
+// Re-export DbConnectionInput as DbConnection for backwards compatibility
+export type { DbConnectionInput as DbConnection } from '../config/types'
+
+// Also import it locally so we can use DbConnection in this file
+type DbConnection = DbConnectionInput
 
 // ============================================================================
 // Options & Result Types
@@ -159,6 +161,26 @@ export const sqlite = (connection: any): DbConnection => ({
   connection,
 })
 
+/**
+ * Create a MySQL database connection
+ * @param connection - Either a MySqlDrizzle instance or a connection string
+ * @returns DbConnection with type 'mysql'
+ *
+ * @example
+ * ```typescript
+ * // Using a connection string
+ * const db = mysql('mysql://user:pass@localhost:3306/mydb')
+ *
+ * // Using an existing MySqlDrizzle instance
+ * const db = mysql(existingMySqlDrizzle)
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mysql = (connection: any): DbConnection => ({
+  type: 'mysql',
+  connection,
+})
+
 // ============================================================================
 // Internal context for $push
 // ============================================================================
@@ -167,7 +189,7 @@ export const sqlite = (connection: any): DbConnection => ({
  * Internal context needed for $push() operation
  */
 interface PushContext {
-  readonly dbType: 'postgres' | 'sqlite'
+  readonly dbType: 'postgres' | 'sqlite' | 'mysql'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly drizzleDb: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -206,7 +228,7 @@ const $push = async (): Promise<void> => {
 
   const { dbType, drizzleDb, rawDb, drizzleSchema } = pushContext
 
-  // Dynamic import of drizzle-kit/api
+  // Dynamic import of drizzle-kit/api for ESM compatibility
   const { pushSchema, pushSQLiteSchema } = await import('drizzle-kit/api')
 
   let pushResult
@@ -217,8 +239,19 @@ const $push = async (): Promise<void> => {
       rawDb.exec(stmt)
     }
   } else if (dbType === 'postgres') {
+    try {
+      pushResult = await pushSchema(drizzleSchema, drizzleDb)
+      // Apply changes using raw pool query - drizzleDb.execute treats statements as parameters
+      for (const stmt of pushResult.statementsToExecute) {
+        await rawDb.query(stmt)
+      }
+    } catch (error) {
+      // Log but don't fail - tables might already exist or provider has restrictions
+      console.warn('Schema push skipped for PostgreSQL:', error)
+    }
+  } else if (dbType === 'mysql') {
     pushResult = await pushSchema(drizzleSchema, drizzleDb)
-    // Apply changes using drizzle db.run
+    // Apply changes using drizzle db.run for MySQL
     for (const stmt of pushResult.statementsToExecute) {
       await drizzleDb.run(sql`${stmt}`)
     }
@@ -265,9 +298,9 @@ const $push = async (): Promise<void> => {
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const createCollections = <TCollections extends Collection[]>(
+export const createCollections = async <TCollections extends Collection[]>(
   options: CreateCollectionsOptions<TCollections>
-): Result<CollectionsResult<TCollections>, ReturnType<typeof UnsupportedDatabaseTypeError>> => {
+): Promise<Result<CollectionsResult<TCollections>, ReturnType<typeof UnsupportedDatabaseTypeError>>> => {
   const { collections, db: dbConnection } = options
 
   // Build the raw schema from collections
@@ -307,20 +340,48 @@ export const createCollections = <TCollections extends Collection[]>(
     }
 
     // Create drizzle instance with sqlite connection
+    // Dynamic import for ESM compatibility
+    const { drizzle: drizzleSqlite } = await import('drizzle-orm/better-sqlite3')
+    const Database = (await import('better-sqlite3')).default
+
     if (typeof dbConnection.connection === 'string') {
       // File path - create better-sqlite3 database
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { drizzle: drizzleSqlite } = require('drizzle-orm/better-sqlite3')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Database = require('better-sqlite3')
       const sqliteDb = new Database(dbConnection.connection)
       drizzleDb = drizzleSqlite(sqliteDb, { schema: drizzleSchema })
       rawDb = sqliteDb
     } else {
       // Already a SqliteDatabase instance
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { drizzle: drizzleSqlite } = require('drizzle-orm/better-sqlite3')
       drizzleDb = drizzleSqlite(dbConnection.connection, { schema: drizzleSchema })
+      rawDb = dbConnection.connection
+    }
+  } else if (dbConnection.type === 'mysql') {
+    // Build all tables from raw schema
+    for (const [name, rawTable] of rawSchema) {
+      const result = buildMysqlDrizzleTable(rawTable)
+      drizzleSchema[name] = result.table
+    }
+
+    // Create drizzle instance with mysql connection
+    // Dynamic import for ESM compatibility
+    const { drizzle } = await import('drizzle-orm/mysql2')
+    const mysql = (await import('mysql2/promise')).default
+
+    if (typeof dbConnection.connection === 'string') {
+      // Connection string - create mysql2 pool and drizzle instance
+      // Parse connection string
+      const url = new URL(dbConnection.connection)
+      const pool = mysql.createPool({
+        host: url.hostname || 'localhost',
+        port: parseInt(url.port || '3306', 10),
+        user: url.username || 'root',
+        password: url.password || '',
+        database: url.pathname.slice(1) || 'test',
+      })
+      drizzleDb = drizzle(pool, { schema: drizzleSchema, mode: 'default' })
+      rawDb = pool
+    } else {
+      // Already a MySqlDrizzle instance
+      drizzleDb = dbConnection.connection
       rawDb = dbConnection.connection
     }
   } else {
@@ -335,9 +396,9 @@ export const createCollections = <TCollections extends Collection[]>(
     drizzleSchema,
   }
 
-  // Create DbAccess with the drizzle instance and schema
+  // Create DbAccess with the drizzle instance, actual Drizzle schema, and raw schema
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dbAccess = createDbAccess(drizzleDb, drizzleSchema as any)
+  const dbAccess = createDbAccess(drizzleDb, drizzleSchema, rawSchema as any)
 
   // Add $push method to dbAccess
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

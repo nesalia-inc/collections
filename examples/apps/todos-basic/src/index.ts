@@ -6,268 +6,290 @@
  * - Defining a collection with f.text(), f.boolean(), f.select()
  * - Using lifecycle hooks (beforeCreate, afterCreate, etc.)
  * - Basic CRUD operations via the collection's database methods
- *
- * Note: This is an in-memory demonstration. The actual database operations
- * would require a Drizzle schema setup. Here we demonstrate the collection
- * definition and hook system.
+ * - Setting up SQLite in-memory database with createCollections
  */
 
-import { where, eq, or } from '@deessejs/collections'
-import { todos, type TodoRecord, type TodosStatus } from './collections'
-import { config } from './config'
+import { collection, field, f, where, eq, createCollections, sqlite } from '@deessejs/collections'
+import { isOk, isErr } from '@deessejs/core'
+import Database from 'better-sqlite3'
 
-// Re-export for convenience
-export { todos, config }
-export type { TodoRecord, TodosStatus }
+// =============================================================================
+// Collection Definition
+// =============================================================================
+
+const todos = collection({
+  slug: 'todos',
+  name: 'Todos',
+  admin: {
+    description: 'Simple todo items with status tracking',
+    icon: 'checklist',
+  },
+  fields: {
+    title: field({
+      fieldType: f.text({ minLength: 1, maxLength: 200 }),
+      required: true,
+    }),
+    completed: field({
+      fieldType: f.boolean(),
+      defaultValue: false,
+    }),
+    status: field({
+      fieldType: f.select(['pending', 'in_progress', 'completed']),
+      defaultValue: 'pending',
+    }),
+  },
+  hooks: {
+    beforeCreate: async (ctx) => {
+      console.log(`[Hook] beforeCreate: Creating todo "${ctx.data.title}"`)
+      // Ensure title is trimmed
+      if (typeof ctx.data.title === 'string') {
+        ctx.data.title = ctx.data.title.trim()
+      }
+      return ctx
+    },
+    afterCreate: async (ctx) => {
+      console.log(`[Hook] afterCreate: Created todo with id`)
+      return ctx
+    },
+    beforeUpdate: async (ctx) => {
+      console.log(`[Hook] beforeUpdate: Updating todo`)
+      return ctx
+    },
+    afterUpdate: async (ctx) => {
+      console.log(`[Hook] afterUpdate: Updated todo`)
+      return ctx
+    },
+    beforeDelete: async (ctx) => {
+      console.log(`[Hook] beforeDelete: Deleting todo`)
+      return ctx
+    },
+    afterDelete: async (ctx) => {
+      console.log(`[Hook] afterDelete: Deleted todo`)
+      return ctx
+    },
+  },
+})
+
+// Type representing a todo record
+type TodoRecord = {
+  id: string
+  title: string
+  completed: boolean
+  status: 'pending' | 'in_progress' | 'completed'
+  createdAt: Date
+  updatedAt: Date
+}
+
+// =============================================================================
+// SQLite Setup
+// =============================================================================
+
+// Create in-memory SQLite database (better-sqlite3 instance)
+// Using ':memory:' creates a temporary in-memory database
+const sqliteDb = new Database(':memory:')
+
+// Create collections with database access
+const result = await createCollections({
+  collections: [todos],
+  db: sqlite(sqliteDb),
+})
+
+if (isErr(result)) {
+  console.error('Failed to create collections:', result.error)
+  process.exit(1)
+}
+
+const { db } = result.value
 
 console.log('='.repeat(60))
 console.log('@deessejs/collections - Todos Basic Example')
 console.log('='.repeat(60))
 
-/**
- * Demonstrate collection structure
- */
-function demonstrateCollectionStructure() {
-  console.log('\n--- Collection Structure ---\n')
+// =============================================================================
+// Main Demo
+// =============================================================================
 
-  const collection = todos
+async function main() {
+  // Push schema to create tables: npx @deessejs/collections push
+  // db.$push() is no longer available
 
-  console.log(`Collection slug: ${collection.slug}`)
-  console.log(`Collection name: ${collection.name}`)
-  console.log(`Admin description: ${collection.admin?.description ?? 'N/A'}`)
-  console.log(`\nFields:`)
-  for (const [fieldName, field] of Object.entries(collection.fields)) {
-    const fieldType = (field as { fieldType: { type: string } }).fieldType
-    const isRequired = (field as { required: boolean }).required
-    const hasDefault = (field as { defaultValue?: unknown }).defaultValue !== undefined
-    console.log(`  - ${fieldName}:`)
-    console.log(`      type: ${fieldType.type}`)
-    console.log(`      required: ${isRequired}`)
-    console.log(`      hasDefault: ${hasDefault}`)
-  }
-}
+  console.log('\nRunning CRUD demos...\n')
 
-/**
- * Demonstrate field types
- */
-function demonstrateFieldTypes() {
-  console.log('\n--- Field Types Demo ---\n')
+  // =============================================================================
+  // CREATE - Insert a new todo
+  // =============================================================================
+  console.log('--- CREATE Operation ---\n')
 
-  const titleField = todos.fields.title
-  const completedField = todos.fields.completed
-  const statusField = todos.fields.status
-
-  console.log('Title field (f.text):')
-  console.log(`  Schema valid for "Buy groceries": ${titleField.fieldType.schema.safeParse('Buy groceries').success}`)
-  console.log(`  Schema valid for "": ${titleField.fieldType.schema.safeParse('').success}`)
-  console.log(`  Schema valid for "A".repeat(300): ${titleField.fieldType.schema.safeParse('A'.repeat(300)).success}`)
-
-  console.log('\nCompleted field (f.boolean):')
-  console.log(`  Schema valid for true: ${completedField.fieldType.schema.safeParse(true).success}`)
-  console.log(`  Schema valid for false: ${completedField.fieldType.schema.safeParse(false).success}`)
-  console.log(`  Schema valid for "true": ${completedField.fieldType.schema.safeParse('true').success}`)
-
-  console.log('\nStatus field (f.select):')
-  console.log(`  Schema valid for "pending": ${statusField.fieldType.schema.safeParse('pending').success}`)
-  console.log(`  Schema valid for "completed": ${statusField.fieldType.schema.safeParse('completed').success}`)
-  console.log(`  Schema valid for "invalid": ${statusField.fieldType.schema.safeParse('invalid').success}`)
-}
-
-/**
- * Demonstrate where predicates
- */
-function demonstrateWherePredicates() {
-  console.log('\n--- Where Predicates Demo ---\n')
-
-  // Create a todo record for type inference
-  const mockTodo = {
-    title: 'Test todo',
-    completed: false,
-    status: 'pending' as const,
-    id: '123',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-
-  // Simple equality
-  const predicate1 = where((p) => [eq(p.title, 'Buy groceries')])
-  console.log('Predicate: title == "Buy groceries"')
-  console.log(`  AST:`, JSON.stringify(predicate1.ast, null, 2))
-
-  // OR predicate
-  const predicate2 = where((p) => [
-    or(
-      eq(p.status, 'pending'),
-      eq(p.status, 'in_progress')
-    )
-  ])
-  console.log('\nPredicate: status == "pending" OR status == "in_progress"')
-  console.log(`  AST:`, JSON.stringify(predicate2.ast, null, 2))
-
-  // Complex predicate
-  const predicate3 = where((p) => [
-    eq(p.completed, false),
-    or(
-      eq(p.status, 'pending'),
-      eq(p.status, 'in_progress')
-    )
-  ])
-  console.log('\nPredicate: completed == false AND (status == "pending" OR status == "in_progress")')
-  console.log(`  AST:`, JSON.stringify(predicate3.ast, null, 2))
-}
-
-/**
- * Demonstrate hooks
- */
-function demonstrateHooks() {
-  console.log('\n--- Lifecycle Hooks Demo ---\n')
-
-  const hooks = todos.hooks
-
-  console.log('Available hooks:')
-  console.log(`  beforeCreate: ${hooks.beforeCreate ? 'defined' : 'not defined'}`)
-  console.log(`  afterCreate: ${hooks.afterCreate ? 'defined' : 'not defined'}`)
-  console.log(`  beforeUpdate: ${hooks.beforeUpdate ? 'defined' : 'not defined'}`)
-  console.log(`  afterUpdate: ${hooks.afterUpdate ? 'defined' : 'not defined'}`)
-  console.log(`  beforeDelete: ${hooks.beforeDelete ? 'defined' : 'not defined'}`)
-  console.log(`  afterDelete: ${hooks.afterDelete ? 'defined' : 'not defined'}`)
-  console.log(`  beforeRead: ${hooks.beforeRead ? 'defined' : 'not defined'}`)
-  console.log(`  afterRead: ${hooks.afterRead ? 'defined' : 'not defined'}`)
-}
-
-/**
- * Demonstrate CRUD operations structure
- *
- * Note: The database methods (db.todos.findMany, etc.) are only available
- * when a database adapter is configured. Here we show the TypeScript types
- * that would be used.
- */
-function demonstrateCrudOperations() {
-  console.log('\n--- CRUD Operations Demo ---\n')
-
-  // The config.db type includes todosDb with all CRUD methods
-  // At runtime, these methods exist only when a database adapter is configured
-  console.log('todosDb methods (from config.db type):')
-  console.log('  findMany(query?: FindManyQuery): Promise<TodoRecord[]>')
-  console.log('  find(query: FindQuery): Promise<Paginated<TodoRecord>>')
-  console.log('  findUnique(query: { where }): Promise<TodoRecord | null>')
-  console.log('  findFirst(query?: FindFirstQuery): Promise<TodoRecord | null>')
-  console.log('  create(input: { data }): Promise<TodoRecord>')
-  console.log('  createMany(input: { data[] }): Promise<CreateManyResult>')
-  console.log('  update(input: { where, data }): Promise<UpdateResult>')
-  console.log('  delete(query: { where }): Promise<DeleteResult>')
-  console.log('  count(query?: { where? }): Promise<number>')
-  console.log('  exists(query: { where }): Promise<boolean>')
-
-  console.log('\nNote: Database methods require a database adapter (e.g., pgAdapter)')
-  console.log('See @deessejs/collections documentation for database setup.')
-}
-
-/**
- * Demonstrate create operation structure
- */
-async function demonstrateCreateOperation() {
-  console.log('\n--- Create Operation Demo ---\n')
-
-  // Simulate what a create operation would look like
-  const createInput = {
+  const createResult1 = await db.todos.create({
     data: {
-      title: 'Learn @deessejs/collections',
+      title: 'Buy groceries',
       completed: false,
-      status: 'pending' as const,
+      status: 'pending',
     },
+  })
+  if (isErr(createResult1)) {
+    console.error('Failed to create todo:', createResult1.error)
+    return
   }
+  const newTodo = createResult1.value
+  console.log('Created todo:', newTodo)
 
-  console.log('Create input:')
-  console.log(JSON.stringify(createInput, null, 2))
-
-  // Simulate hook execution
-  if (todos.hooks.beforeCreate) {
-    const ctx = {
-      collection: 'todos',
-      operation: 'create' as const,
-      data: { ...createInput.data },
-    }
-    const result = await todos.hooks.beforeCreate(ctx)
-    console.log('\nAfter beforeCreate hook (title trimmed):')
-    console.log(`  title: "${result.data.title}"`)
+  // Create another todo
+  const createResult2 = await db.todos.create({
+    data: {
+      title: 'Learn TypeScript',
+      completed: false,
+      status: 'in_progress',
+    },
+  })
+  if (isErr(createResult2)) {
+    console.error('Failed to create todo 2:', createResult2.error)
+    return
   }
+  const newTodo2 = createResult2.value
+  console.log('Created todo:', newTodo2)
 
-  console.log('\nNote: Actual database create requires a Drizzle schema setup.')
-}
+  // =============================================================================
+  // READ - Find many todos
+  // =============================================================================
+  console.log('\n--- READ Operations (findMany) ---\n')
 
-/**
- * Demonstrate update operation structure
- */
-async function demonstrateUpdateOperation() {
-  console.log('\n--- Update Operation Demo ---\n')
+  const allTodos = await db.todos.findMany()
+  console.log('All todos:', allTodos)
 
-  const updateInput = {
-    where: where((p) => [eq(p.id, 'todo-123')]),
+  // Find with where clause
+  const pendingTodos = await db.todos.findMany({
+    where: where((p) => [eq(p.status, 'pending')]),
+  })
+  console.log('\nPending todos:', pendingTodos)
+
+  // Find with AND condition
+  const pendingIncompleteTodos = await db.todos.findMany({
+    where: where((p) => [eq(p.status, 'pending'), eq(p.completed, false)]),
+  })
+  console.log('Pending incomplete todos:', pendingIncompleteTodos)
+
+  // =============================================================================
+  // READ - Find unique by ID
+  // =============================================================================
+  console.log('\n--- READ Operations (findUnique) ---\n')
+
+  const foundTodo = await db.todos.findUnique({
+    where: where((p) => [eq(p.id, newTodo.id)]),
+  })
+  console.log('Found todo by id:', foundTodo)
+
+  // =============================================================================
+  // READ - Find first
+  // =============================================================================
+  console.log('\n--- READ Operations (findFirst) ---\n')
+
+  const firstInProgress = await db.todos.findFirst({
+    where: where((p) => [eq(p.status, 'in_progress')]),
+  })
+  console.log('First in-progress todo:', firstInProgress)
+
+  // =============================================================================
+  // UPDATE - Update a todo
+  // =============================================================================
+  console.log('\n--- UPDATE Operations ---\n')
+
+  const updateResult1 = await db.todos.update({
+    where: where((p) => [eq(p.id, newTodo.id)]),
     data: {
       completed: true,
-      status: 'completed' as const,
+      status: 'completed',
     },
+  })
+  if (isErr(updateResult1)) {
+    console.error('Failed to update todo:', updateResult1.error)
+    return
   }
+  console.log('Updated todo:', updateResult1.value)
 
-  console.log('Update input:')
-  console.log(JSON.stringify(updateInput, null, 2))
-
-  console.log('\nNote: Actual database update requires a Drizzle schema setup.')
-}
-
-/**
- * Demonstrate pagination
- */
-function demonstratePagination() {
-  console.log('\n--- Pagination Demo ---\n')
-
-  const paginationQuery = {
-    pagination: {
-      mode: 'offset' as const,
-      page: 1,
-      pageSize: 10,
+  // Update with title change
+  const updateResult2 = await db.todos.update({
+    where: where((p) => [eq(p.id, newTodo2.id)]),
+    data: {
+      title: 'Learn TypeScript with Drizzle',
+      status: 'completed',
+      completed: true,
     },
+  })
+  if (isErr(updateResult2)) {
+    console.error('Failed to update todo 2:', updateResult2.error)
+    return
   }
+  console.log('Updated todo 2:', updateResult2.value)
 
-  const cursorPaginationQuery = {
-    pagination: {
-      mode: 'cursor' as const,
-      cursor: { id: 'todo-123' },
-      pageSize: 10,
-    },
+  // =============================================================================
+  // READ - After updates
+  // =============================================================================
+  console.log('\n--- READ After Updates ---\n')
+
+  const completedTodos = await db.todos.findMany({
+    where: where((p) => [eq(p.status, 'completed')]),
+  })
+  console.log('Completed todos:', completedTodos)
+
+  const allTodosAfterUpdate = await db.todos.findMany()
+  console.log('\nAll todos after update:', allTodosAfterUpdate)
+
+  // =============================================================================
+  // COUNT & EXISTS
+  // =============================================================================
+  console.log('\n--- COUNT & EXISTS ---\n')
+
+  const totalCount = await db.todos.count()
+  console.log('Total todos count:', totalCount)
+
+  const completedCount = await db.todos.count({
+    where: where((p) => [eq(p.status, 'completed')]),
+  })
+  console.log('Completed todos count:', completedCount)
+
+  const hasIncompleteTodos = await db.todos.exists({
+    where: where((p) => [eq(p.completed, false)]),
+  })
+  console.log('Has incomplete todos:', hasIncompleteTodos)
+
+  // =============================================================================
+  // DELETE - Delete a todo
+  // =============================================================================
+  console.log('\n--- DELETE Operation ---\n')
+
+  const deleteResult = await db.todos.delete({
+    where: where((p) => [eq(p.id, newTodo.id)]),
+  })
+  if (isErr(deleteResult)) {
+    console.error('Failed to delete todo:', deleteResult.error)
+    return
   }
+  console.log('Deleted todo:', deleteResult.value)
 
-  console.log('Offset pagination:')
-  console.log(JSON.stringify(paginationQuery, null, 2))
+  const remainingTodos = await db.todos.findMany()
+  console.log('\nRemaining todos after delete:', remainingTodos)
 
-  console.log('\nCursor pagination:')
-  console.log(JSON.stringify(cursorPaginationQuery, null, 2))
-}
+  // =============================================================================
+  // CREATE MANY - Batch insert
+  // =============================================================================
+  console.log('\n--- CREATE MANY Operation ---\n')
 
-/**
- * Main entry point
- */
-async function main() {
-  console.log('\nRunning demos...\n')
+  const batchResult = await db.todos.createMany({
+    data: [
+      { title: 'Task 1', completed: false, status: 'pending' },
+      { title: 'Task 2', completed: false, status: 'pending' },
+      { title: 'Task 3', completed: false, status: 'pending' },
+    ],
+  })
+  console.log('Batch create result:', batchResult)
 
-  demonstrateCollectionStructure()
-  demonstrateFieldTypes()
-  demonstrateWherePredicates()
-  demonstrateHooks()
-  demonstrateCrudOperations()
-  await demonstrateCreateOperation()
-  await demonstrateUpdateOperation()
-  demonstratePagination()
+  const allTodosAfterBatch = await db.todos.findMany()
+  console.log('\nAll todos after batch create:', allTodosAfterBatch)
 
   console.log('\n' + '='.repeat(60))
-  console.log('Demo complete!')
+  console.log('CRUD Demo complete!')
   console.log('='.repeat(60))
-  console.log('\nTo run this app with a real database:')
-  console.log('  1. Set up your Drizzle schema')
-  console.log('  2. Configure the database connection')
-  console.log('  3. Use todosDb.create(), todosDb.findMany(), etc.')
-  console.log('\nRun with: pnpm dev')
 }
 
 // Run the demo

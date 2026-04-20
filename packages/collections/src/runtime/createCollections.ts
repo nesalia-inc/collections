@@ -184,7 +184,7 @@ export const sqlite = (connection: any): DbConnection => ({
 
 /**
  * Create a MySQL database connection
- * @param connection - Either a MySqlDrizzle instance or a connection string
+ * @param connection - Either a MySqlDrizzle Pool instance or a connection string
  * @returns DbConnection with type 'mysql'
  *
  * @example
@@ -192,8 +192,8 @@ export const sqlite = (connection: any): DbConnection => ({
  * // Using a connection string
  * const db = mysql('mysql://user:pass@localhost:3306/mydb')
  *
- * // Using an existing MySqlDrizzle instance
- * const db = mysql(existingMySqlDrizzle)
+ * // Using an existing mysql2 Pool instance
+ * const db = mysql(existingPool)
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -274,9 +274,16 @@ export const createCollections = async <TCollections extends Collection[]>(
     const { drizzle: drizzleSqlite } = await import('drizzle-orm/better-sqlite3')
     const Database = (await import('better-sqlite3')).default
 
-    // File path - create better-sqlite3 database
-    const sqliteDb = new Database(dbConnection.connection)
-    drizzleDb = drizzleSqlite(sqliteDb, { schema: drizzleSchema })
+    // Check if already a Database instance (e.g., :memory: or existing db)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawDb: any = dbConnection.connection
+    if (rawDb instanceof Database) {
+      drizzleDb = drizzleSqlite(rawDb, { schema: drizzleSchema })
+    } else {
+      // File path - create better-sqlite3 database
+      const sqliteDb = new Database(rawDb)
+      drizzleDb = drizzleSqlite(sqliteDb, { schema: drizzleSchema })
+    }
   } else if (dbConnection.type === 'mysql') {
     // Build all tables from raw schema
     for (const [name, rawTable] of rawSchema) {
@@ -284,21 +291,29 @@ export const createCollections = async <TCollections extends Collection[]>(
       drizzleSchema[name] = result.table
     }
 
-    // Create drizzle instance with mysql connection
     // Dynamic import for ESM compatibility
     const { drizzle } = await import('drizzle-orm/mysql2')
-    const mysql = (await import('mysql2/promise')).default
+    const mysqlModule = await import('mysql2/promise')
 
-    // Parse connection string
-    const url = new URL(dbConnection.connection)
-    const pool = mysql.createPool({
-      host: url.hostname || 'localhost',
-      port: parseInt(url.port || '3306', 10),
-      user: url.username || 'root',
-      password: url.password || '',
-      database: url.pathname.slice(1) || 'test',
-    })
-    drizzleDb = drizzle(pool, { schema: drizzleSchema, mode: 'default' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawConnection: any = dbConnection.connection
+
+    // Check if it's a string (connection string) or already a Pool instance
+    if (typeof rawConnection === 'string') {
+      // Parse connection string
+      const url = new URL(rawConnection)
+      const pool = mysqlModule.default.createPool({
+        host: url.hostname || 'localhost',
+        port: parseInt(url.port || '3306', 10),
+        user: url.username || 'root',
+        password: url.password || '',
+        database: url.pathname.slice(1) || 'test',
+      })
+      drizzleDb = drizzle(pool, { schema: drizzleSchema, mode: 'default' })
+    } else {
+      // Already a Pool instance - use directly
+      drizzleDb = drizzle(rawConnection, { schema: drizzleSchema, mode: 'default' })
+    }
   } else {
     return err(UnsupportedDatabaseTypeError({ type: dbConnection.type }))
   }

@@ -13,7 +13,7 @@
  * ```typescript
  * import { createCollections, postgres, collection, field, f } from '@deessejs/collections'
  *
- * const { db, definitions } = createCollections({
+ * const { db, definitions } = await createCollections({
  *   collections: [
  *     collection({
  *       slug: 'posts',
@@ -34,7 +34,6 @@ import { err, ok, type Result, error } from '@deessejs/core'
 import { z } from 'zod'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
-import { sql } from 'drizzle-orm'
 import { buildRawSchema } from '../adapter/core/buildRawSchema'
 import { buildDrizzleTable as buildPostgresDrizzleTable } from '../adapter/postgresql/buildDrizzleTable'
 import { buildDrizzleTable as buildSqliteDrizzleTable } from '../adapter/sqlite/buildDrizzleTable'
@@ -81,6 +80,16 @@ type DbConnection = DbConnectionInput
 // ============================================================================
 
 /**
+ * Options for PostgreSQL connection
+ */
+export interface PostgresOptions {
+  /** Maximum pool size. Default: 10 */
+  max?: number
+  /** Idle timeout in ms. Default: 30000 */
+  idleTimeoutMillis?: number
+}
+
+/**
  * Options for creating collections with database access
  * @typeParam TCollections - Tuple type of collection instances
  */
@@ -123,7 +132,8 @@ export interface CollectionsResult<TCollections extends Collection[]> {
 
 /**
  * Create a PostgreSQL database connection
- * @param connection - Either a PgDatabase instance or a connection string
+ * @param connection - Connection string (e.g., 'postgresql://user:pass@localhost:5432/mydb')
+ * @param options - Optional pool configuration
  * @returns DbConnection with type 'postgres'
  *
  * @example
@@ -131,15 +141,26 @@ export interface CollectionsResult<TCollections extends Collection[]> {
  * // Using a connection string
  * const db = postgres('postgresql://user:pass@localhost:5432/mydb')
  *
- * // Using an existing PgDatabase instance
- * const db = postgres(existingPgDatabase)
+ * // Using a connection string with options
+ * const db = postgres('postgresql://user:pass@localhost:5432/mydb', {
+ *   max: 20,
+ *   idleTimeoutMillis: 30000,
+ * })
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const postgres = (connection: any): DbConnection => ({
-  type: 'postgres',
-  connection,
-})
+export const postgres = (connection: string, options?: PostgresOptions): DbConnection => {
+  const pool = new Pool({
+    connectionString: connection,
+    max: options?.max ?? 10,
+    idleTimeoutMillis: options?.idleTimeoutMillis ?? 30000,
+  })
+  return {
+    type: 'postgres',
+    connection: pool,
+    connectionString: connection,
+    options,
+  }
+}
 
 /**
  * Create a SQLite database connection
@@ -182,83 +203,6 @@ export const mysql = (connection: any): DbConnection => ({
 })
 
 // ============================================================================
-// Internal context for $push
-// ============================================================================
-
-/**
- * Internal context needed for $push() operation
- */
-interface PushContext {
-  readonly dbType: 'postgres' | 'sqlite' | 'mysql'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly drizzleDb: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly rawDb: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly drizzleSchema: Record<string, any>
-}
-
-// Store push context for use by $push()
-let pushContext: PushContext | null = null
-
-/**
- * $push - Push schema changes to the database (create tables, etc.)
- *
- * This method uses drizzle-kit/api to push the schema to the database.
- * It creates any missing tables and columns but does NOT delete data
- * or make destructive changes.
- *
- * @returns Promise that resolves when push is complete
- *
- * @example
- * ```typescript
- * const { db, definitions } = createCollections(config)
- *
- * // Push schema to create tables before running queries
- * await db.$push()
- *
- * // Now queries will work
- * const posts = await db.posts.findMany()
- * ```
- */
-const $push = async (): Promise<void> => {
-  if (!pushContext) {
-    throw new Error('$push() called before createCollections() was initialized')
-  }
-
-  const { dbType, drizzleDb, rawDb, drizzleSchema } = pushContext
-
-  // Dynamic import of drizzle-kit/api for ESM compatibility
-  const { pushSchema, pushSQLiteSchema } = await import('drizzle-kit/api')
-
-  let pushResult
-  if (dbType === 'sqlite') {
-    pushResult = await pushSQLiteSchema(drizzleSchema, drizzleDb)
-    // Apply changes using raw sqlite database exec method
-    for (const stmt of pushResult.statementsToExecute) {
-      rawDb.exec(stmt)
-    }
-  } else if (dbType === 'postgres') {
-    try {
-      pushResult = await pushSchema(drizzleSchema, drizzleDb)
-      // Apply changes using raw pool query - drizzleDb.execute treats statements as parameters
-      for (const stmt of pushResult.statementsToExecute) {
-        await rawDb.query(stmt)
-      }
-    } catch (error) {
-      // Log but don't fail - tables might already exist or provider has restrictions
-      console.warn('Schema push skipped for PostgreSQL:', error)
-    }
-  } else if (dbType === 'mysql') {
-    pushResult = await pushSchema(drizzleSchema, drizzleDb)
-    // Apply changes using drizzle db.run for MySQL
-    for (const stmt of pushResult.statementsToExecute) {
-      await drizzleDb.run(sql`${stmt}`)
-    }
-  }
-}
-
-// ============================================================================
 // createCollections Factory
 // ============================================================================
 
@@ -275,7 +219,7 @@ const $push = async (): Promise<void> => {
  *
  * @example
  * ```typescript
- * const { db, definitions } = createCollections({
+ * const { db, definitions } = await createCollections({
  *   collections: [
  *     collection({
  *       slug: 'posts',
@@ -286,9 +230,6 @@ const $push = async (): Promise<void> => {
  *   ],
  *   db: postgres('postgresql://localhost:5432/mydb'),
  * })
- *
- * // Push schema to create tables before running queries
- * await db.$push()
  *
  * // Find many posts
  * const posts = await db.posts.findMany()
@@ -311,8 +252,6 @@ export const createCollections = async <TCollections extends Collection[]>(
   let drizzleDb: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const drizzleSchema: Record<string, any> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let rawDb: any
 
   if (dbConnection.type === 'postgres') {
     // Build all tables from raw schema
@@ -322,16 +261,7 @@ export const createCollections = async <TCollections extends Collection[]>(
     }
 
     // Create drizzle instance with postgres connection
-    if (typeof dbConnection.connection === 'string') {
-      // Connection string - create pool and drizzle instance
-      const pool = new Pool({ connectionString: dbConnection.connection })
-      drizzleDb = drizzle(pool, { schema: drizzleSchema })
-      rawDb = pool
-    } else {
-      // Already a PgDatabase instance
-      drizzleDb = drizzle(dbConnection.connection, { schema: drizzleSchema })
-      rawDb = dbConnection.connection
-    }
+    drizzleDb = drizzle(dbConnection.connection, { schema: drizzleSchema })
   } else if (dbConnection.type === 'sqlite') {
     // Build all tables from raw schema
     for (const [name, rawTable] of rawSchema) {
@@ -344,16 +274,9 @@ export const createCollections = async <TCollections extends Collection[]>(
     const { drizzle: drizzleSqlite } = await import('drizzle-orm/better-sqlite3')
     const Database = (await import('better-sqlite3')).default
 
-    if (typeof dbConnection.connection === 'string') {
-      // File path - create better-sqlite3 database
-      const sqliteDb = new Database(dbConnection.connection)
-      drizzleDb = drizzleSqlite(sqliteDb, { schema: drizzleSchema })
-      rawDb = sqliteDb
-    } else {
-      // Already a SqliteDatabase instance
-      drizzleDb = drizzleSqlite(dbConnection.connection, { schema: drizzleSchema })
-      rawDb = dbConnection.connection
-    }
+    // File path - create better-sqlite3 database
+    const sqliteDb = new Database(dbConnection.connection)
+    drizzleDb = drizzleSqlite(sqliteDb, { schema: drizzleSchema })
   } else if (dbConnection.type === 'mysql') {
     // Build all tables from raw schema
     for (const [name, rawTable] of rawSchema) {
@@ -366,44 +289,23 @@ export const createCollections = async <TCollections extends Collection[]>(
     const { drizzle } = await import('drizzle-orm/mysql2')
     const mysql = (await import('mysql2/promise')).default
 
-    if (typeof dbConnection.connection === 'string') {
-      // Connection string - create mysql2 pool and drizzle instance
-      // Parse connection string
-      const url = new URL(dbConnection.connection)
-      const pool = mysql.createPool({
-        host: url.hostname || 'localhost',
-        port: parseInt(url.port || '3306', 10),
-        user: url.username || 'root',
-        password: url.password || '',
-        database: url.pathname.slice(1) || 'test',
-      })
-      drizzleDb = drizzle(pool, { schema: drizzleSchema, mode: 'default' })
-      rawDb = pool
-    } else {
-      // Already a MySqlDrizzle instance
-      drizzleDb = dbConnection.connection
-      rawDb = dbConnection.connection
-    }
+    // Parse connection string
+    const url = new URL(dbConnection.connection)
+    const pool = mysql.createPool({
+      host: url.hostname || 'localhost',
+      port: parseInt(url.port || '3306', 10),
+      user: url.username || 'root',
+      password: url.password || '',
+      database: url.pathname.slice(1) || 'test',
+    })
+    drizzleDb = drizzle(pool, { schema: drizzleSchema, mode: 'default' })
   } else {
     return err(UnsupportedDatabaseTypeError({ type: dbConnection.type }))
-  }
-
-  // Store push context for $push()
-  pushContext = {
-    dbType: dbConnection.type,
-    drizzleDb,
-    rawDb,
-    drizzleSchema,
   }
 
   // Create DbAccess with the drizzle instance, actual Drizzle schema, and raw schema
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dbAccess = createDbAccess(drizzleDb, drizzleSchema, rawSchema as any)
-
-  // Add $push method to dbAccess
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dbWithPush = dbAccess as any
-  dbWithPush.$push = $push
 
   // Build definitions object mapping slugs to collection types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -413,7 +315,7 @@ export const createCollections = async <TCollections extends Collection[]>(
   }
 
   return ok({
-    db: dbWithPush as unknown as DbAccess<TCollections> & { $push: typeof $push },
+    db: dbAccess as unknown as DbAccess<TCollections>,
     definitions: definitions as {
       [K in ExtractSlug<TCollections[number]>]: ExtractCollection<TCollections[number]>
     },

@@ -1,0 +1,30 @@
+{
+  "name": "@deessejs/examples-db",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Common database connection utilities for @deessejs/collections examples",
+  "main": "./dist/db.js",
+  "types": "./dist/db.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/db.d.ts",
+      "default": "./dist/db.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.38.0",
+    "mysql2": "^3.11.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.5.0"
+  }
+}

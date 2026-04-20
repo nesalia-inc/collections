@@ -13,7 +13,7 @@
  * Run with: npx tsx examples/snippets/11-auth-setup.ts
  */
 
-import { collection, field, f, defineConfig } from '@deessejs/collections'
+import { collection, field, f, defineCollections, sqlite } from '@deessejs/collections'
 import type { CollectionHooks, CreateHookContext } from '@deessejs/collections'
 import { continueWith } from '@deessejs/collections'
 
@@ -430,7 +430,8 @@ const auditLogs = collection({
 /**
  * Complete authentication and authorization schema
  */
-const authSchema = defineConfig({
+const authSchema = defineCollections({
+  db: sqlite({ path: ':memory:' }),
   collections: [
     users,
     profiles,

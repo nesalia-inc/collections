@@ -14,12 +14,13 @@
  * Run with: npx tsx examples/db-access-demo.ts
  */
 
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import Database from 'better-sqlite3'
 import { isOk, isErr } from '@deessejs/core'
 import { collection, field, f, where, eq, desc, orderBy, and, or, not, inList, sqlite, createCollections } from '@deessejs/collections'
 import { offset, page, cursor } from '@deessejs/collections'
 import { createSqliteSchema } from '@deessejs/collections/adapter/sqlite'
+
+// Common database connection helper
+import { createSqliteConnection } from './lib/db'
 
 // =============================================================================
 // Step 1: Define Collections
@@ -67,9 +68,8 @@ interface UserEntity {
 // Step 2: Create Collections with SQLite In-Memory Database
 // =============================================================================
 
-// Create in-memory SQLite database
-const sqliteDb = new Database(':memory:')
-const dbInstance = drizzle(sqliteDb, { schema: createSqliteSchema([posts, users]) })
+// Create in-memory SQLite database using common connection helper
+const { db: sqliteDb } = createSqliteConnection({ path: ':memory:' })
 
 // Create collections with SQLite database
 const collectionsResult = createCollections({

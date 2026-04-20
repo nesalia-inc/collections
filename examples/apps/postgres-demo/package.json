@@ -1,16 +1,16 @@
 {
-  "name": "@deessejs/examples-todos",
-  "version": "0.0.0",
+  "name": "@deessejs/examples-postgres",
   "private": true,
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts"
+    "dev": "tsx -r dotenv/config src/index.ts"
   },
   "dependencies": {
     "@deessejs/collections": "workspace:*",
-    "@deessejs/core": "^0.5.3",
-    "better-sqlite3": "^12.9.0",
-    "drizzle-orm": "^0.38.0"
+    "pg": "^8.13.0",
+    "drizzle-orm": "^0.36.0",
+    "dotenv": "^16.4.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

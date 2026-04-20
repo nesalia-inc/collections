@@ -1,16 +1,14 @@
 {
-  "name": "@deessejs/examples-todos",
-  "version": "0.0.0",
+  "name": "@deessejs/examples-mysql-demo",
   "private": true,
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
     "@deessejs/collections": "workspace:*",
-    "@deessejs/core": "^0.5.3",
-    "better-sqlite3": "^12.9.0",
-    "drizzle-orm": "^0.38.0"
+    "mysql2": "^3.11.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

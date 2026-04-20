@@ -318,9 +318,9 @@ export const createCollections = async <TCollections extends Collection[]>(
     return err(UnsupportedDatabaseTypeError({ type: dbConnection.type }))
   }
 
-  // Create DbAccess with the drizzle instance, actual Drizzle schema, and raw schema
+  // Create DbAccess with the drizzle instance, actual Drizzle schema, and collections
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dbAccess = createDbAccess(drizzleDb, drizzleSchema, rawSchema as any)
+  const dbAccess = createDbAccess(drizzleDb, drizzleSchema, collections)
 
   // Build definitions object mapping slugs to collection types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

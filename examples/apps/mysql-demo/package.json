@@ -1,0 +1,17 @@
+{
+  "name": "@deessejs/examples-mysql-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@deessejs/collections": "workspace:*",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

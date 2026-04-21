@@ -1,13 +1,16 @@
 {
   "name": "@deessejs/examples-todos",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@deessejs/collections": "workspace:*"
+    "@deessejs/collections": "workspace:*",
+    "@deessejs/core": "^0.5.3",
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

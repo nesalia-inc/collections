@@ -1,0 +1,199 @@
+/**
+ * collectionToRawTable - Converts a Collection to a RawTable
+ *
+ * This function is part of the two-layer adapter architecture:
+ *   Collection → collectionToRawTable → RawTable (Mid-Level IR) → buildDrizzleTable → Drizzle Schema
+ */
+
+import type { Field } from '../../fields'
+import type { Collection } from '../../collections'
+import type { RawTable, RawColumn, RawIndex, JunctionTable } from './types'
+import { fieldToRawColumn, toSnakeCase, type FieldToRawColumnOptions } from './index'
+import { type Result, ok, err, type Error } from '@deessejs/core'
+
+/**
+ * Options for collectionToRawTable
+ */
+export interface CollectionToRawTableOptions {
+  /**
+   * Prefix for enum column names
+   * e.g., 'post_' → 'post_status' instead of 'status'
+   */
+  readonly enumNamePrefix?: string
+}
+
+/**
+ * Result of converting a Collection to RawTable, including any junction tables
+ */
+export interface CollectionToRawTableResult {
+  /** The main table for this collection */
+  readonly table: RawTable
+  /** Junction tables for hasMany relations */
+  readonly junctionTables: readonly JunctionTable[]
+}
+
+/**
+ * Converts a Collection's slug to a table name
+ *
+ * @example
+ * 'blog-posts' → 'blog_posts'
+ * 'users' → 'users'
+ */
+export const collectionSlugToTableName = (slug: string): string => toSnakeCase(slug)
+
+/**
+ * Converts a Collection to a RawTable
+ *
+ * Rules:
+ * - Table name is derived from collection slug (converted to snake_case)
+ * - User fields are mapped using fieldToRawColumn
+ * - Auto-generated fields (id, createdAt, updatedAt) are added based on config
+ * - Indexes are created from field.unique and field.indexed properties
+ * - hasMany relation fields generate junction tables
+ * - Foreign keys are NOT resolved at this level (handled by buildRawSchema)
+ *
+ * @param collection - The Collection to convert
+ * @param options - Optional configuration
+ * @returns The corresponding RawTable and any junction tables
+ */
+export const collectionToRawTable = (
+  collection: Collection<string, Record<string, Field<unknown>>>,
+  options?: FieldToRawColumnOptions
+): Result<CollectionToRawTableResult, Error> => {
+  const tableName = collectionSlugToTableName(collection.slug)
+
+  // Map own fields (user-defined fields only, not auto-generated)
+  const columns: Record<string, RawColumn> = {}
+  const indexes: Record<string, RawIndex> = {}
+  const junctionTables: JunctionTable[] = []
+
+  // Process user-defined fields
+  for (const [fieldName, field] of Object.entries(collection.ownFields)) {
+    // Check if this is a hasMany relation field
+    const relationOptions = (field.fieldType as { relationOptions?: { collection?: string; hasMany?: boolean } }).relationOptions
+    if (relationOptions?.hasMany && relationOptions.collection) {
+      // Create a junction table for this hasMany relation
+      const targetTable = collectionSlugToTableName(relationOptions.collection)
+      const junctionTableName = `${tableName}_${targetTable}`
+
+      const junctionTable: JunctionTable = {
+        name: junctionTableName,
+        parentTable: tableName,
+        targetTable: targetTable,
+        columns: Object.freeze({
+          id: Object.freeze({
+            type: 'uuid',
+            name: 'id',
+            notNull: true,
+            primaryKey: true,
+            defaultRandom: true,
+          }),
+          _parent_id: Object.freeze({
+            type: 'uuid',
+            name: '_parent_id',
+            notNull: true,
+            reference: Object.freeze({
+              name: '_parent_id',
+              table: tableName,
+              onDelete: 'cascade',
+            }),
+          }),
+          _order: Object.freeze({
+            type: 'integer',
+            name: '_order',
+            notNull: true,
+          }),
+          value: Object.freeze({
+            type: 'uuid',
+            name: 'value',
+            notNull: true,
+            reference: Object.freeze({
+              name: 'value',
+              table: targetTable,
+              onDelete: 'cascade',
+            }),
+          }),
+        }),
+      }
+      junctionTables.push(junctionTable)
+
+      // Skip creating a regular column for hasMany relations
+      continue
+    }
+
+    const rawColumnResult = fieldToRawColumn(fieldName, field, options)
+    if (!rawColumnResult.ok) {
+      return err(rawColumnResult.error)
+    }
+    const rawColumn = rawColumnResult.value
+    columns[rawColumn.name] = rawColumn
+
+    // Create index from field.unique
+    if (field.unique) {
+      const indexName = `${rawColumn.name}_unique`
+      indexes[indexName] = {
+        name: indexName,
+        on: rawColumn.name,
+        unique: true,
+      }
+    }
+
+    // Create index from field.indexed
+    if (field.indexed) {
+      const indexName = `${rawColumn.name}_idx`
+      indexes[indexName] = {
+        name: indexName,
+        on: rawColumn.name,
+      }
+    }
+  }
+
+  // Add auto-generated fields based on configuration
+  const { autoGeneratedFields } = collection
+
+  if (autoGeneratedFields.id) {
+    columns.id = {
+      type: 'serial',
+      name: 'id',
+      notNull: true,
+      primaryKey: true,
+      autoIncrement: true,
+    }
+  }
+
+  if (autoGeneratedFields.createdAt) {
+    columns.created_at = {
+      type: 'timestamp',
+      name: 'created_at',
+      notNull: true,
+      defaultNow: true,
+    }
+  }
+
+  if (autoGeneratedFields.updatedAt) {
+    columns.updated_at = {
+      type: 'timestamp',
+      name: 'updated_at',
+      notNull: true,
+      defaultNow: true,
+    }
+  }
+
+  // Build the rawTable with indexes if any exist
+  const rawTable: RawTable =
+    Object.keys(indexes).length > 0
+      ? {
+          name: tableName,
+          columns,
+          indexes,
+        }
+      : {
+          name: tableName,
+          columns,
+        }
+
+  return ok(Object.freeze({
+    table: Object.freeze(rawTable),
+    junctionTables: Object.freeze(junctionTables),
+  }))
+}

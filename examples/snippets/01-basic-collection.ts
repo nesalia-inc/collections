@@ -7,7 +7,7 @@
  * Run with: npx tsx examples/snippets/01-basic-collection.ts
  */
 
-import { collection, field, f, defineConfig } from '@deessejs/collections'
+import { collection, field, f, defineCollections, sqlite } from '@deessejs/collections'
 
 // =============================================================================
 // Defining a Basic Collection
@@ -90,10 +90,11 @@ const users = collection({
 // =============================================================================
 
 /**
- * Use defineConfig to combine multiple collections into a schema.
+ * Use defineCollections to combine multiple collections into a schema.
  * This is typically used with a database driver to perform operations.
  */
-const config = defineConfig({
+const config = defineCollections({
+  db: sqlite({ path: ':memory:' }),
   collections: [posts, users],
 })
 

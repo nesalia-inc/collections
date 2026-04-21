@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { fieldType } from './fieldType'
-import type { FieldType } from './types'
+import type { FieldType, RelationOptions } from './types'
 import { safeTransformArray } from './transform'
 import {
   varchar,
@@ -214,12 +214,32 @@ export const select = <Values extends [string, ...string[]]>(values: Values) =>
  *   }
  * })
  * ```
+ *
+ * @example
+ * ```typescript
+ * // hasMany creates a junction table
+ * const posts = collection({
+ *   slug: 'posts',
+ *   fields: {
+ *     tags: field({ fieldType: f.relation({ collection: 'tags', hasMany: true }) })
+ *   }
+ * })
+ * ```
  */
-export const relation = fieldType({
-  type: 'relation',
-  schema: z.string().uuid(),
-  buildColumnType: () => simpleColumn('uuid'),
-})
+export const relation = (
+  options?: RelationOptions
+): FieldType<string> => {
+  const ft = fieldType({
+    type: 'relation',
+    schema: z.string().uuid(),
+    buildColumnType: () => simpleColumn('uuid'),
+  })({})
+
+  return Object.freeze({
+    ...ft,
+    relationOptions: options ? Object.freeze(options) : undefined,
+  })
+}
 
 /**
  * array - Array field type builder
@@ -249,4 +269,16 @@ export const file = fieldType({
   type: 'file',
   schema: z.string().optional(),
   buildColumnType: () => varchar(500),
+})
+
+/**
+ * increment - Auto-incrementing integer field type builder
+ *
+ * Creates an integer field that auto-increments with each insert.
+ * The database handles the auto-increment behavior.
+ */
+export const increment = fieldType({
+  type: 'increment',
+  schema: z.number().int(),
+  buildColumnType: () => simpleColumn('serial'),
 })

@@ -1,62 +1,76 @@
 # Todos Basic Example
 
-A minimal todo application demonstrating `@deessejs/collections` patterns.
-
-## Features
-
-This example showcases:
-
-- **Collection Definition**: Creating a collection with `f.text()`, `f.boolean()`, and `f.select()`
-- **Field Configuration**: Required fields, default values, and validation
-- **Lifecycle Hooks**: `beforeCreate`, `afterCreate`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`
-- **Type-safe Queries**: Using `where()`, `eq()`, and `or()` for building predicates
-- **CRUD Operations**: Structure of `create`, `read`, `update`, `delete` operations
-- **Pagination**: Both offset and cursor-based pagination
+A self-contained todo application demonstrating `@deessejs/collections` with SQLite.
 
 ## Prerequisites
 
 - Node.js 20+
 - pnpm 9+
 
-## Getting Started
+## Quick Start
 
-1. **Install dependencies** from the repository root:
+From the `examples/apps/todos-basic` directory:
 
 ```bash
+# Install dependencies
 pnpm install
-```
 
-2. **Run the example**:
-
-```bash
+# Run the example
 pnpm dev
 ```
 
-Or directly:
+Or from the repository root:
 
 ```bash
+pnpm install
 pnpm example:todos
 ```
+
+## What This Example Demonstrates
+
+- **Collection Definition**: Creating a collection with `f.text()`, `f.boolean()`, and `f.select()`
+- **Field Configuration**: Required fields, default values, and validation
+- **Lifecycle Hooks**: `beforeCreate`, `afterCreate`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`
+- **Type-safe Queries**: Using `where()`, `eq()` for building predicates
+- **CRUD Operations**: Create, read, update, delete, and batch create operations
+- **Database Setup**: SQLite in-memory database with `createCollections` and `db.$push()`
 
 ## Project Structure
 
 ```
 todos-basic/
-├── package.json       # Package configuration with workspace dependency
+├── package.json       # Package configuration with dependencies
 ├── tsconfig.json      # TypeScript configuration
 ├── README.md          # This file
 └── src/
-    ├── index.ts       # Main entry point with demo
-    ├── collections.ts # Todo collection definition
-    └── config.ts      # App configuration with defineConfig
+    └── index.ts       # Main entry point with collection definition and demo
 ```
 
-## Key Concepts Demonstrated
+## Key Patterns
+
+### SQLite Setup Pattern
+
+```typescript
+import { createCollections, sqlite } from '@deessejs/collections'
+import Database from 'better-sqlite3'
+
+// Create better-sqlite3 database instance
+const sqliteDb = new Database(':memory:')
+
+// Create collections with database access
+const result = createCollections({
+  collections: [todos],
+  db: sqlite(sqliteDb),
+})
+
+// Push schema to create tables
+await db.$push()
+```
 
 ### Collection Definition
 
 ```typescript
-export const todos = collection({
+const todos = collection({
   slug: 'todos',
   fields: {
     title: field({ fieldType: f.text(), required: true }),
@@ -73,42 +87,26 @@ export const todos = collection({
 })
 ```
 
-### Type-safe Queries
-
-```typescript
-import { where, eq, or } from '@deessejs/collections'
-
-// Find incomplete pending todos
-const predicate = where((p) => [
-  eq(p.completed, false),
-  or(eq(p.status, 'pending'), eq(p.status, 'in_progress'))
-])
-```
-
 ### CRUD Operations
 
 ```typescript
-const todosDb = config.db.todos
-
 // Create
-const todo = await todosDb.create({ data: { title: 'New todo' } })
+const todo = await db.todos.create({
+  data: { title: 'New todo', completed: false, status: 'pending' }
+})
 
 // Read
-const allTodos = await todosDb.findMany()
-const pendingTodos = await todosDb.findMany({
+const allTodos = await db.todos.findMany()
+const pendingTodos = await db.todos.findMany({
   where: where((p) => [eq(p.status, 'pending')])
 })
 
 // Update
-await todosDb.update({
-  where: where((p) => [eq(p.id, 'todo-123')]),
+await db.todos.update({
+  where: where((p) => [eq(p.id, todo.id)]),
   data: { completed: true }
 })
 
 // Delete
-await todosDb.delete({ where: where((p) => [eq(p.id, 'todo-123')]) })
+await db.todos.delete({ where: where((p) => [eq(p.id, todo.id)]) })
 ```
-
-## Note
-
-This example runs in demonstration mode and does not connect to a real database. The collection definition, hooks, and query building are fully functional, but actual persistence requires setting up a Drizzle schema with a database connection.

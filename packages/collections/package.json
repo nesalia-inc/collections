@@ -24,6 +24,26 @@
       "types": "./dist/fields/index.d.ts",
       "import": "./dist/fields/index.mjs",
       "require": "./dist/fields/index.js"
+    },
+    "./adapter/core": {
+      "types": "./dist/adapter/core/index.d.ts",
+      "import": "./dist/adapter/core/index.mjs",
+      "require": "./dist/adapter/core/index.js"
+    },
+    "./adapter/postgresql": {
+      "types": "./dist/adapter/postgresql/index.d.ts",
+      "import": "./dist/adapter/postgresql/index.mjs",
+      "require": "./dist/adapter/postgresql/index.js"
+    },
+    "./adapter/sqlite": {
+      "types": "./dist/adapter/sqlite/index.d.ts",
+      "import": "./dist/adapter/sqlite/index.mjs",
+      "require": "./dist/adapter/sqlite/index.js"
+    },
+    "./adapter/crud": {
+      "types": "./dist/adapter/crud/index.d.ts",
+      "import": "./dist/adapter/crud/index.mjs",
+      "require": "./dist/adapter/crud/index.js"
     }
   },
   "scripts": {

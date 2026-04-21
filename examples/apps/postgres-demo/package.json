@@ -1,0 +1,19 @@
+{
+  "name": "@deessejs/examples-postgres",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx -r dotenv/config src/index.ts"
+  },
+  "dependencies": {
+    "@deessejs/collections": "workspace:*",
+    "pg": "^8.13.0",
+    "drizzle-orm": "^0.36.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -144,3 +144,25 @@ export interface CollectionHooks<
   /** Called after reading records */
   readonly afterRead?: HookHandler<ReadHookContext<TCollectionSlug>>
 }
+
+// ============================================================
+// COMPILE-TIME TYPE TESTS
+// ============================================================
+import { check } from '@deessejs/type-testing'
+import type { Equal } from '@deessejs/type-testing'
+
+// Test InferFieldType extracts inner type
+check<Equal<
+  InferFieldType<Field<string>>,
+  string
+>>()
+
+check<Equal<
+  InferFieldType<Field<number>>,
+  number
+>>()
+
+check<Equal<
+  InferFieldType<Field<boolean>>,
+  boolean
+>>()

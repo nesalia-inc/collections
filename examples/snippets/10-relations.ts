@@ -345,12 +345,13 @@ const indexedRelation = field({
 // Building a Complete Schema with Relations
 // =============================================================================
 
-import { defineConfig } from '@deessejs/collections'
+import { defineCollections, sqlite } from '@deessejs/collections'
 
 /**
  * Complete blog schema with relations
  */
-const blogSchema = defineConfig({
+const blogSchema = defineCollections({
+  db: sqlite({ path: ':memory:' }),
   collections: [
     authors,
     categories,

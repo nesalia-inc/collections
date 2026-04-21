@@ -306,27 +306,22 @@ describe('field name validation', () => {
 })
 
 describe('auto-generated field defaults', () => {
-  it('id field has uuid fieldType', () => {
+  it('id field has increment fieldType (maps to serial column)', () => {
     const posts = collection({
       slug: 'posts',
       fields: { title: field({ fieldType: f.text() }) },
     })
 
-    expect(posts.fields.id.fieldType.type).toBe('uuid')
+    expect(posts.fields.id.fieldType.type).toBe('increment')
   })
 
-  it('id field has defaultFactory that generates UUID', () => {
+  it('id field has no defaultValue (auto-increment handled by database)', () => {
     const posts = collection({
       slug: 'posts',
       fields: { title: field({ fieldType: f.text() }) },
     })
 
-    const id1 = posts.fields.id.defaultValue!()
-    const id2 = posts.fields.id.defaultValue!()
-
-    expect(typeof id1).toBe('string')
-    expect(id1.length).toBe(36) // UUID format
-    expect(id1).not.toBe(id2)
+    expect(posts.fields.id.defaultValue).toBeUndefined()
   })
 
   it('createdAt field has timestamp fieldType', () => {

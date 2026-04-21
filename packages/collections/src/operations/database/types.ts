@@ -319,3 +319,29 @@ export type DbAccess<T extends Collection[]> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K in ExtractSlug<T[number]>]: CollectionDbMethods<Extract<T[number], Collection<K, any>>>
 }
+
+// ============================================================
+// COMPILE-TIME TYPE TESTS
+// These assertions verify the type definitions are correct.
+// If any of these fail to compile, the types are wrong.
+// ============================================================
+import { check } from '@deessejs/type-testing'
+import type { Equal } from '@deessejs/type-testing'
+
+// Test InferCreateType with required field
+check<Equal<
+  InferCreateType<{ name: Field<string> & { required: true } }>,
+  { name: string }
+>>()
+
+// Test InferCreateType with optional field
+check<Equal<
+  InferCreateType<{ bio: Field<string> }>,
+  { bio?: string }
+>>()
+
+// Test InferUpdateType - all fields optional
+check<Equal<
+  InferUpdateType<{ name: Field<string>; age: Field<number> }>,
+  { name?: string; age?: number } | undefined
+>>()

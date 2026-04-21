@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/integration/**'],
+    exclude: ['tests/integration/**', 'tests/types/**'],
     coverage: {
       reporter: ['text', 'json', 'html', 'json-summary'],
       provider: 'v8',

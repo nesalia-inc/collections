@@ -154,3 +154,21 @@ export interface Collection<
   /** Symbol to prevent accidental property access */
   readonly [Symbol.toStringTag]: 'Collection'
 }
+
+// ============================================================
+// COMPILE-TIME TYPE TESTS
+// ============================================================
+import { check } from '@deessejs/type-testing'
+import type { Equal } from '@deessejs/type-testing'
+
+// Test GetCollectionType with required field
+check<Equal<
+  GetCollectionType<Collection<'users', { name: Field<string> & { required: true } }>>,
+  { name: string }
+>>()
+
+// Test GetCollectionType with optional field
+check<Equal<
+  GetCollectionType<Collection<'users', { bio: Field<string> }>>,
+  { bio?: string }
+>>()

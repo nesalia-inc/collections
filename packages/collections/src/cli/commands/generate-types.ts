@@ -69,7 +69,7 @@ const fieldToTS = (field: Field<unknown>): string => {
   if (unwrapped instanceof z.ZodDate) return 'Date'
   if (unwrapped instanceof z.ZodEnum) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const values = (unwrapped as z.ZodEnum<readonly [string, ...string[]]>).options
+    const values = (unwrapped as any).options as readonly string[]
     return values.map(v => `'${v}'`).join(' | ')
   }
   if (unwrapped instanceof z.ZodArray) return 'unknown[]'

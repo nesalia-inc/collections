@@ -15,3 +15,6 @@ export * from './operations/database'
 
 // Operations - Query operations
 export * from './operations'
+
+// Runtime - Database-backed collection factory
+export * from './runtime'

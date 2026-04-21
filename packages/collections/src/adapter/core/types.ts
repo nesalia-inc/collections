@@ -113,6 +113,28 @@ export interface RawTable {
 }
 
 /**
+ * JunctionTable - Abstract junction table definition for hasMany relations
+ *
+ * Junction tables are auto-generated tables that link two tables in a many-to-many
+ * or has-many relationship. They contain:
+ * - id: Primary key (UUID)
+ * - _parent_id: FK to the parent table (ON DELETE CASCADE)
+ * - _order: INTEGER for ordering items in the relation
+ * - value: FK to the target table (ON DELETE CASCADE)
+ */
+export interface JunctionTable {
+  readonly name: string
+  readonly parentTable: string
+  readonly targetTable: string
+  readonly columns: Readonly<{
+    readonly id: RawColumn & { readonly type: 'uuid'; readonly defaultRandom: true; readonly primaryKey: true }
+    readonly _parent_id: RawColumn & { readonly type: 'uuid' }
+    readonly _order: RawColumn & { readonly type: 'integer' }
+    readonly value: RawColumn & { readonly type: 'uuid' }
+  }>
+}
+
+/**
  * Helper type to extract the column type name from RawColumn
  */
 export type RawColumnType = RawColumn['type']

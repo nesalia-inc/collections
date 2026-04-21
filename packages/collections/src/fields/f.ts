@@ -19,6 +19,7 @@ import {
   array,
   richtext,
   file,
+  increment,
 } from './builders'
 
 /**
@@ -54,4 +55,5 @@ export const f = {
   array,
   richtext,
   file,
+  increment,
 } as const

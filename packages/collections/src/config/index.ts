@@ -1,2 +1,8 @@
-export type { Config, ConfigInput } from './types'
-export { defineConfig } from './builder'
+export type {
+  Config,
+  ConfigInput,
+  DbConnectionInput,
+  MigrationsConfig,
+  ResolvedMigrationsConfig,
+} from './types'
+export { defineCollections } from './builder'

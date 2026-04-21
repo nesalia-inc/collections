@@ -4,6 +4,16 @@ import type { ColumnType } from '../column-types'
 import { z } from 'zod'
 
 /**
+ * RelationOptions - Configuration for relation field types
+ */
+export interface RelationOptions {
+  /** Target collection slug */
+  readonly collection?: string
+  /** Whether this is a has-many relationship (creates junction table) */
+  readonly hasMany?: boolean
+}
+
+/**
  * FieldType<T> - A configured field type ready for use
  * @typeParam T - The TypeScript type of the field value
  */
@@ -19,6 +29,9 @@ export interface FieldType<T> {
 
   /** Transformation function (always provided by fieldType factory) */
   readonly transform: (value: unknown) => T
+
+  /** Relation options (only for relation field types) */
+  readonly relationOptions?: RelationOptions
 }
 
 /**

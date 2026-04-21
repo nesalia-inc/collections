@@ -9,6 +9,7 @@ export type {
   RawIndex,
   RawForeignKey,
   RawTable,
+  JunctionTable,
   RawColumnType,
   PostgreSQLOnlyColumnType,
   StandardColumnType,
@@ -19,6 +20,7 @@ export {
   collectionToRawTable,
   collectionSlugToTableName,
   type CollectionToRawTableOptions,
+  type CollectionToRawTableResult,
 } from './collectionToRawTable'
 export { buildRawSchema, type BuildRawSchemaOptions } from './buildRawSchema'
 export { toSnakeCase } from './utils'

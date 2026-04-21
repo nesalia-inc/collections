@@ -11,7 +11,7 @@
 
 import type { Field } from '../../fields'
 import type { Collection } from '../../collections'
-import type { RawTable, RawForeignKey } from './types'
+import type { RawTable, RawForeignKey, JunctionTable, RawColumn } from './types'
 import { collectionToRawTable, collectionSlugToTableName } from './collectionToRawTable'
 import type { FieldToRawColumnOptions } from './fieldToRawColumn'
 
@@ -66,16 +66,47 @@ export const buildRawSchema = (
 
   // Convert all collections to RawTables
   const rawTables = new Map<string, RawTable>()
+  const allJunctionTables: JunctionTable[] = []
 
   for (const collection of collections) {
-    const rawTableResult = collectionToRawTable(
+    const result = collectionToRawTable(
       collection as Collection<string, Record<string, Field<unknown>>>,
       { enumNamePrefix } as FieldToRawColumnOptions | undefined
     )
-    if (!rawTableResult.ok) {
-      throw rawTableResult.error
+    if (!result.ok) {
+      throw result.error
     }
-    rawTables.set(rawTableResult.value.name, rawTableResult.value)
+    rawTables.set(result.value.table.name, result.value.table)
+    allJunctionTables.push(...result.value.junctionTables)
+  }
+
+  // Add junction tables to the schema
+  for (const junction of allJunctionTables) {
+    // Convert JunctionTable to RawTable format
+    const junctionAsRawTable: RawTable = {
+      name: junction.name,
+      columns: {
+        id: junction.columns.id as RawColumn,
+        _parent_id: junction.columns._parent_id as RawColumn,
+        _order: junction.columns._order as RawColumn,
+        value: junction.columns.value as RawColumn,
+      },
+      foreignKeys: {
+        _parent_id_fk: {
+          name: '_parent_id_fk',
+          columns: ['_parent_id'],
+          foreignColumns: [{ name: 'id', table: junction.parentTable }],
+          onDelete: 'cascade',
+        },
+        value_fk: {
+          name: 'value_fk',
+          columns: ['value'],
+          foreignColumns: [{ name: 'id', table: junction.targetTable }],
+          onDelete: 'cascade',
+        },
+      },
+    }
+    rawTables.set(junction.name, Object.freeze(junctionAsRawTable))
   }
 
   // Now resolve foreign keys by looking at uuid columns in each table

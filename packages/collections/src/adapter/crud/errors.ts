@@ -16,3 +16,10 @@ export const InsertFailedError = error({
     reason: z.string().optional(),
   }),
 })
+
+export const InvalidPredicateError = error({
+  name: 'InvalidPredicate',
+  schema: z.object({
+    reason: z.string(),
+  }),
+})

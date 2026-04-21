@@ -9,7 +9,7 @@ export default defineConfig([
     splitting: false,
     sourcemap: true,
     clean: true,
-    external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
+    external: ['pg', 'better-sqlite3', 'mysql2', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
   },
   // CLI - CJS only for better compatibility
   {
@@ -18,7 +18,7 @@ export default defineConfig([
     dts: false,
     sourcemap: true,
     outDir: './dist',
-    external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
+    external: ['pg', 'better-sqlite3', 'mysql2', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
   },
   // Adapter modules
   {
@@ -33,6 +33,6 @@ export default defineConfig([
     splitting: false,
     sourcemap: true,
     outDir: './dist/adapter',
-    external: ['pg', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
+    external: ['pg', 'better-sqlite3', 'mysql2', 'drizzle-orm', 'drizzle-kit', 'next', 'react']
   }
 ])

@@ -3,6 +3,7 @@
 import type { ColumnType } from '../column-types'
 import type { FieldType } from './types'
 import { z } from 'zod'
+import { isOk, type Result, type Error } from '@deessejs/core'
 
 /**
  * FieldTypeOption - Definition of a single option
@@ -40,7 +41,7 @@ export type ApplyOptionsFn<T, Options extends FieldTypeOptionsConfig> = (
  */
 export type BuildColumnTypeFn<Options extends FieldTypeOptionsConfig> = (
   options: ResolvedOptions<Options>
-) => ColumnType
+) => Result<ColumnType, Error>
 
 /**
  * FieldTypeConfig - Configuration for creating a field type
@@ -132,17 +133,36 @@ export function fieldType<
       : config.schema
 
     // Build column type
-    const columnType = config.buildColumnType(resolvedOptions as ResolvedOptions<Options>)
+    const columnTypeResult = config.buildColumnType(resolvedOptions as ResolvedOptions<Options>)
+    if ('isOk' in columnTypeResult) {
+      // It's a Result type - check if it's Ok before unwrapping
+      if (!isOk(columnTypeResult)) {
+        throw new Error(`Failed to build column type: ${String(columnTypeResult.error)}`)
+      }
+      // Use value property directly for Result types
+      const columnType = (columnTypeResult as { value: ColumnType }).value
 
-    // Default identity transform if none provided
-    const transform = config.transform ?? ((val: unknown) => val as T)
+      // Default identity transform if none provided
+      const transform = config.transform ?? ((val: unknown) => val as T)
 
-    return Object.freeze({
-      type: config.type,
-      schema: finalSchema,
-      columnType,
-      transform,
-    })
+      return Object.freeze({
+        type: config.type,
+        schema: finalSchema,
+        columnType,
+        transform,
+      })
+    } else {
+      // It's a plain object (legacy/backward-compatible behavior)
+      // Default identity transform if none provided
+      const transform = config.transform ?? ((val: unknown) => val as T)
+
+      return Object.freeze({
+        type: config.type,
+        schema: finalSchema,
+        columnType: columnTypeResult as ColumnType,
+        transform,
+      })
+    }
   }
 
   // Attach config as non-enumerable property

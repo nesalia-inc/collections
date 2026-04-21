@@ -63,17 +63,50 @@ const fieldToTS = (field: Field<unknown>): string => {
   const schema = field.fieldType.schema
   const unwrapped = unwrapZodSchema(schema)
 
-  if (unwrapped instanceof z.ZodString) return 'string'
-  if (unwrapped instanceof z.ZodBoolean) return 'boolean'
-  if (unwrapped instanceof z.ZodNumber) return 'number'
-  if (unwrapped instanceof z.ZodDate) return 'Date'
-  if (unwrapped instanceof z.ZodEnum) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const values = (unwrapped as any).options as readonly string[]
-    return values.map(v => `'${v}'`).join(' | ')
+  // Zod v4 stores type info in _def.type, but after JSON serialization via tsx --eval,
+  // it becomes def.type (plain object)
+  // We check both paths for compatibility
+  const def = (unwrapped as { _def?: { type?: string; entries?: unknown }; def?: { type?: string; entries?: unknown } })._def
+    || (unwrapped as { def?: { type?: string; entries?: unknown } }).def
+
+  if (!def) return 'unknown'
+  const type = def.type
+
+  // String types (text, email, uuid, etc.)
+  if (type === 'string') return 'string'
+
+  // Boolean
+  if (type === 'boolean') return 'boolean'
+
+  // Number types
+  if (type === 'number') return 'number'
+
+  // BigInt
+  if (type === 'bigint') return 'bigint'
+
+  // Date
+  if (type === 'date') return 'Date'
+
+  // Enum - values are in _def.entries or _def.values
+  if (type === 'enum') {
+    const entries = def.entries as Record<string, string> | undefined
+    if (entries) {
+      const values = Object.values(entries)
+      return values.map(v => `'${v}'`).join(' | ')
+    }
+    // Fallback: try def.values for serialized enum
+    const values = (def as { values?: string[] }).values
+    if (values) {
+      return values.map(v => `'${v}'`).join(' | ')
+    }
+    return 'string'
   }
-  if (unwrapped instanceof z.ZodArray) return 'unknown[]'
-  if (unwrapped instanceof z.ZodObject) return 'Record<string, unknown>'
+
+  // Array
+  if (type === 'array') return 'unknown[]'
+
+  // Object
+  if (type === 'object') return 'Record<string, unknown>'
 
   return 'unknown'
 }
